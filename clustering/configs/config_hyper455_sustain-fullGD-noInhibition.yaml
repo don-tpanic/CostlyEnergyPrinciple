@@ -1,0 +1,16 @@
+D: 13.0
+actv_func: softmax
+asso_lr_multiplier: 1.0
+attn_lr_multiplier: 1.0
+beta: 1.25
+center_lr_multiplier: 0.5
+config_version: hyper455_sustain-fullGD-noInhibition
+from_logits: true
+lr: 0.009
+num_blocks: 32
+num_clusters: 8
+num_runs: 10
+r: 13.0
+random_seed: 999
+thr: 999.0
+unsup_rule: threshold

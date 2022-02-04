@@ -1,0 +1,28 @@
+D: 10
+actv_func: softmax
+asso_lr_multiplier: 1
+attn_lr_multiplier: 1
+beta: 1.252233
+center_lr_multiplier: 1
+config_version: hyper0_CPU_fullGD-noInhibition
+from_logits: true
+lr: 0.05
+num_blocks: 32
+num_clusters: 8
+num_runs: 10
+r: 9.01245
+random_seed: 999
+thr: 999.0
+unsup_rule: threshold
+
+
+# D=10 + lr=0.05 too fast
+# D=5 + lr=0.05 too fast
+# D=5 + lr=0.005 too slow.
+# D=10 + lr=0.005 too slow.
+# D=10 + lr=0.01 all close to each other, speed ok.
+# D=10 + lr=0.01 + r=5 barely changes anything!
+
+# D=16 + lr=0.01 too fast
+# D=5 + lr=0.01, lrat=0.1 slow, too close.
+# D=10 + lr=0.01, lrat=0.1, no obv change, faster.

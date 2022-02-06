@@ -29,11 +29,11 @@ def set_trainable(objective, attn_positions, num_clusters, model):
         low_trainable = False
         high_trainable = True
     
-    # FIXME: this will fail.
-    # for attn_position in attn_positions:
-    #     model.get_layer(f'model').get_layer(f'{attn_position}').trainable = low_trainable
-    model.get_layer('dcnn_model').trainable = low_trainable
-            
+    for attn_position in attn_positions:
+        model.get_layer(
+            f'dcnn_model').get_layer(
+                f'attn_factory_{attn_position}').trainable = low_trainable
+                
     for i in range(num_clusters):
         model.get_layer(f'd{i}').trainable = high_trainable
     model.get_layer('dimensionwise_attn_layer').trainable = high_trainable
@@ -74,7 +74,7 @@ def fit(joint_model,
         num_clusters=num_clusters,
         model=joint_model
     )
-            
+                
     if epoch == 0 and i == 0:
         print(f'[Check] Load the first item.')
         print(f'--------------------------------------------------------')
@@ -216,7 +216,7 @@ def learn_low_attn(
         num_clusters=num_clusters,
         model=joint_model
     )
-    
+        
     # a batch of raw images(+ fake ones)
     batch_x = load_X_only(
         dataset=dataset, 

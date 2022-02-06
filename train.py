@@ -284,6 +284,9 @@ def learn_low_attn(
         
         print(f'------------------------')
         print(f'# Before Update Metrics:')
+        print(f'[Check] batch_x_binary_pred = {batch_x_binary_pred}')
+        print(f'[Check] batch_y_pred = {batch_y_pred}')
+        print(f'[Check] batch_y_true = {batch_y_true}')
         print(f'[Check] recon_loss = {recon_loss}')
         print(f'[Check] recon_loss_binary = {recon_loss_ideal}, avg = {np.mean(recon_loss_ideal)}')
         print(f'[Check] reg_loss = {reg_loss[0]}')

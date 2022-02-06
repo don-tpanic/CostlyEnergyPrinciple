@@ -1043,13 +1043,13 @@ def compare_across_types_V3(
                     )
                 # NOTE: Hacky way of getting legend correct.
                 ax.errorbar(
-                        x=x_ticks[i],
-                        y=np.mean(metrics),
-                        yerr=np.std(metrics),
-                        fmt='o',
-                        color=colors[z],
-                        label=f'single strategy, type {problem_type}'
-                    )
+                    x=x_ticks[i],
+                    y=np.mean(metrics),
+                    yerr=np.std(metrics),
+                    fmt='o',
+                    color=colors[z],
+                    label=f'single strategy, type {problem_type}'
+                )
                 average_metrics.append(np.mean(temp_collector))
                 std_metrics.append(np.std(temp_collector))
 
@@ -1067,7 +1067,7 @@ def compare_across_types_V3(
             ax.set_xticks(x_axis[:num_types]+0.5)
             ax.set_xticklabels(
                 [f'Type {problem_type}' for problem_type in range(1, num_types+1)])
-            ax.set_ylim([0.6, 0.9])
+            # ax.set_ylim([0.6, 0.9])
             ax.set_ylabel('percentage of zero attention weights')
             plt.tight_layout()
             plt.legend()
@@ -1130,7 +1130,7 @@ def compare_across_types_V3(
                 ax[row_idx, col_idx].set_xticks([])
                 ax[num_rows-1, col_idx].set_xticks(x_axis[:num_dims]+0.5)
                 ax[num_rows-1, col_idx].set_xticklabels([f'dim{i+1}' for i in range(num_dims)])
-                ax[row_idx, col_idx].set_ylim([-0.5, 3.5])
+                # ax[row_idx, col_idx].set_ylim([-0.5, 3.5])
                 ax[row_idx, 0].set_ylabel('binary recon loss')
                 ax[row_idx, col_idx].set_title(f'Type {problem_type}')
             
@@ -2042,41 +2042,23 @@ def post_attn_actv_thru_time(attn_config_version):
 if __name__ == '__main__':
     pass
     attn_config_version = 'v1'
-    # for problem_type in [1, 6]:
+    # for problem_type in [1]:
     #     for run in [0]:
     #         viz_losses(
-    #             attn_config_version='attn_v3b',
+    #             attn_config_version='v1',
     #             problem_type=problem_type,
     #             recon_level='cluster',
     #             run=run
     #         )
 
-    # find_canonical_runs('attn_v3b_s4')
-    # canonical_runs_correspondence_to_attn_n_binary('attn_v3b')
-    compare_across_types_V3(
-        attn_config_version,
-        canonical_runs_only=False
-    )
-    # compare_across_types_thru_time_V3(
-    #     attn_config_version
+    # compare_across_types_V3(
+    #     attn_config_version,
+    #     canonical_runs_only=False
     # )
-    # examine_clustering_learning_curves(attn_config_version)
-    # turned_off_attn_across_positions(
-    #     attn_config_version, format_='V1')
 
-    
-    # post_attn_actv_thru_time(attn_config_version)
-    
-    # subject_dimension_rt_acc()
-    
+    # examine_clustering_learning_curves(attn_config_version)
+
     # compare_alt_cluster_actv_targets(
     #     original='attn_v3b_cb_multi_test', 
     #     alt='attn_v3b_alt_multi_redundancy'
-    # )
-    
-    # viz_cluster_params(
-    #     attn_config_version=attn_config_version,
-    #     problem_type=3,
-    #     recon_level='cluster',
-    #     run=0
     # )

@@ -236,7 +236,7 @@ class JointModel(Model):
         """
         # get assoc weights of a cluster
         cluster_assoc_weights = assoc_weights[cluster_index, :]
-        print(f'[Check] cluster_assoc_weights', cluster_assoc_weights)
+        # print(f'[Check] cluster_assoc_weights', cluster_assoc_weights)
 
         # based on y_true
         if y_true[0][0] == 0:
@@ -249,8 +249,8 @@ class JointModel(Model):
         support = (w_correct - w_incorrect) / (
             np.abs(w_correct) + np.abs(w_incorrect)
         )
-        print(f'[Check] w_correct={w_correct}, w_incorrect={w_incorrect}')
-        print(f'[Check] cluster{cluster_index} support = {support}')
+        # print(f'[Check] w_correct={w_correct}, w_incorrect={w_incorrect}')
+        # print(f'[Check] cluster{cluster_index} support = {support}')
         return support
     
     def cluster_softmax(self, clusters_actv_inhibition, nonzero_clusters):
@@ -288,7 +288,7 @@ class JointModel(Model):
         )
 
         clusters_actv_softmax = tf.multiply(clusters_actv_inhibition, softmax_weights)
-        print('[Check] clusters_actv_softmax', clusters_actv_softmax)
+        # print('[Check] clusters_actv_softmax', clusters_actv_softmax)
         return clusters_actv_softmax
         
     def call(self, inputs, y_true=None):
@@ -317,13 +317,13 @@ class JointModel(Model):
             H_list.append(H_j_act)
 
         H_concat = self.Concat(H_list)
-        print(f'H_concat', H_concat)
+        # print(f'H_concat', H_concat)
 
         H_out = self.MaskNonRecruit(H_concat)
-        print(f'H_out', H_out)
+        # print(f'H_out', H_out)
 
         clusters_actv_inhibition = self.Inhibition(H_out)
-        print(f'clusters_actv_inhibition', clusters_actv_inhibition)
+        # print(f'clusters_actv_inhibition', clusters_actv_inhibition)
 
         # do softmax only on the recruited clusters.
         nonzero_clusters = tf.cast(

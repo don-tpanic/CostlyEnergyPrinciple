@@ -1,7 +1,6 @@
 import os
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
 
 import numpy as np 
 import pandas as pd
@@ -2040,16 +2039,17 @@ def post_attn_actv_thru_time(attn_config_version):
                         
                     
 if __name__ == '__main__':
-    pass
+    os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
+
     attn_config_version = 'v1'
-    # for problem_type in [1]:
-    #     for run in [0]:
-    #         viz_losses(
-    #             attn_config_version='v1',
-    #             problem_type=problem_type,
-    #             recon_level='cluster',
-    #             run=run
-    #         )
+    for problem_type in [1]:
+        for run in [0]:
+            viz_losses(
+                attn_config_version='v1',
+                problem_type=problem_type,
+                recon_level='cluster',
+                run=run
+            )
 
     # compare_across_types_V3(
     #     attn_config_version,

@@ -9,9 +9,48 @@ from tensorflow.keras import layers
 
 from utils import load_config
 from losses import binary_crossentropy
-from data import load_X_only, dict_int2binary
+from data import load_X_only, dict_int2binary, dict_layer2attn_size
 from clustering.train import recruit_cluster, update_params
 
+
+def switch_attn_status(
+        status, 
+        attn_weights,
+        attn_positions, 
+        model,
+        dcnn_config_version=None):
+    """
+    Set low-level attn weights to be:
+    
+    If status == 'ideal': all ones
+    If status == 'latest': the latest
+    
+    return:
+    -------
+        The entire model with either ideal or latest attn weights loaded.
+    """    
+    for attn_position in attn_positions:
+        if status == 'ideal':
+            
+            layer2attn_size = dict_layer2attn_size(
+                model_name=load_config(
+                    component='finetune',
+                    config_version=dcnn_config_version
+                )['model_name']
+            )
+    
+            attn_size = layer2attn_size[attn_position]
+            layer_attn_weights = np.ones(attn_size)
+        
+        elif status == 'latest':
+            layer_attn_weights = attn_weights[attn_position]
+            
+        model.get_layer(
+            'dcnn_model').get_layer(
+                f'attn_factory_{attn_position}').set_weights([layer_attn_weights])
+
+    return model        
+    
 
 def set_trainable(objective, attn_positions, num_clusters, model):
     """
@@ -41,6 +80,7 @@ def set_trainable(objective, attn_positions, num_clusters, model):
 
 
 def fit(joint_model, 
+        attn_weights,
         attn_positions,
         num_clusters,
         dataset, 
@@ -65,7 +105,14 @@ def fit(joint_model,
     signature2coding = dict_int2binary()
     print(f'[Check] Incoming stimulus: ', signature2coding[signature])
     
-    # Go thru the `latest` joint_model to get binary output,
+    # Use ideal attn weights to get ideal binary
+    switch_attn_status(
+        status='ideal',
+        attn_weights=attn_weights, 
+        attn_positions=attn_positions, 
+        model=joint_model,
+        dcnn_config_version=dcnn_config_version,
+    )
     x_binary, _, _, _ = joint_model(x)
         
     set_trainable(
@@ -153,7 +200,7 @@ def fit(joint_model,
         centers = joint_model.get_layer(f'd{d}').get_weights()[0]
         center_collector.extend(centers)
         print(f'[Check] center {d} after trial update {centers}')
-
+        
     ################################
     # inner-loop low_attn learning.
     # 1. call after every trial (exc epoch 0)
@@ -166,6 +213,7 @@ def fit(joint_model,
         reg_loss_collector, percent_zero_attn_collector, global_steps, \
         optimizer_attn = learn_low_attn(
             joint_model=joint_model,
+            attn_weights=attn_weights,
             attn_positions=attn_positions,
             num_clusters=num_clusters,
             dataset=dataset,
@@ -184,12 +232,13 @@ def fit(joint_model,
             optimizer_clus, optimizer_attn
     
     # Only when epoch=0
-    return joint_model, [], item_proberror, \
+    return joint_model, attn_weights, item_proberror, \
         [], [], [], [], [], [], global_steps, optimizer_clus, optimizer_attn
 
 
 def learn_low_attn(
         joint_model,
+        attn_weights,
         attn_positions,
         num_clusters,
         dataset,
@@ -233,6 +282,18 @@ def learn_low_attn(
     recon_loss_ideal_collector = []     # recon loss at binary level  (tracking)
     reg_loss_collector = []
     percent_zero_attn_collector = []
+    
+    
+    
+    # get model to latest attn for low_attn learning    
+    switch_attn_status(
+        status='latest',
+        attn_weights=attn_weights, 
+        attn_positions=attn_positions, 
+        model=joint_model
+    )
+    
+    
     
     for i in range(inner_loop_epochs):
         print(f' \n------- inner loop epoch = {i} -------')
@@ -295,7 +356,6 @@ def learn_low_attn(
         global_steps += 1
 
     # log the latest attn weights at the end of this inner-loop.
-    attn_weights = {}
     for attn_position in attn_positions:
         layer_attn_weights = \
             joint_model.get_layer(

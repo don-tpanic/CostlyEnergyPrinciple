@@ -85,10 +85,21 @@ def train_model(
         if recon_level == 'cluster':
             loss_fn_attn = tf.keras.losses.MeanSquaredError()
         
+        # load entire joint_model
         joint_model = JointModel(
             attn_config_version=attn_config_version,
             dcnn_config_version=dcnn_config_version, 
         )
+        
+        # get initial attn_weights
+        attn_weights = {}
+        for attn_position in attn_positions:
+            layer_attn_weights = \
+                joint_model.get_layer(
+                    'dcnn_model').get_layer(
+                        f'attn_factory_{attn_position}').get_weights()[0]
+            attn_weights[attn_position] = layer_attn_weights
+        
         preprocess_func = joint_model.preprocess_func
         assoc_weights = np.random.uniform(
             low=0, high=0, size=(num_clusters, 2)
@@ -140,6 +151,7 @@ def train_model(
                 alpha_collector, center_collector, global_steps, \
                 optimizer_clus, optimizer_attn = fit(
                     joint_model=joint_model,
+                    attn_weights=attn_weights,
                     attn_positions=attn_positions,
                     num_clusters=num_clusters,
                     dataset=dataset,

@@ -787,7 +787,7 @@ def examine_clustering_learning_curves(
     plt.legend()
     plt.title(f'{trapz_areas}')
     plt.tight_layout()
-    plt.savefig('check_lc.png')
+    plt.savefig(f'results/{attn_config_version}/lc.png')
 
 
 def attn_weights_stability():
@@ -2051,12 +2051,12 @@ if __name__ == '__main__':
                 run=run
             )
 
-    # compare_across_types_V3(
-    #     attn_config_version,
-    #     canonical_runs_only=False
-    # )
+    compare_across_types_V3(
+        attn_config_version,
+        canonical_runs_only=False
+    )
 
-    # examine_clustering_learning_curves(attn_config_version)
+    examine_clustering_learning_curves(attn_config_version)
 
     # compare_alt_cluster_actv_targets(
     #     original='attn_v3b_cb_multi_test', 

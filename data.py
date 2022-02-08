@@ -175,6 +175,7 @@ def data_loader_V2(
         image_shape = target_size + (3,)
         
     dataset = []
+    dict_int2binary_counterbalanced = {}
     for i in range(num_images):
         # for each image, 
         # load -> preprocess -> add fake inputs 
@@ -244,7 +245,10 @@ def data_loader_V2(
             inputs.extend([fake_input])
 
         dataset.append([inputs, y, signature])
-    return np.array(dataset, dtype=object), counter_balancing
+        dict_int2binary_counterbalanced[signature] = img_idx2binary[img_idx]
+        
+    return np.array(dataset, dtype=object), counter_balancing, \
+        dict_int2binary_counterbalanced
 
 
 def load_X_only(dataset, 

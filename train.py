@@ -58,15 +58,22 @@ def fit(joint_model,
         attn_config_version, 
         dcnn_config_version,
         inner_loop_epochs,
-        global_steps):
+        global_steps,
+        dict_int2binary_counterbalanced):
     """
     A single train step given a stimulus.
     """
-    signature2coding = dict_int2binary()
-    print(f'[Check] Incoming stimulus: ', signature2coding[signature])
+    # signature2coding = dict_int2binary()
+    # print(f'[Check] Incoming stimulus: ', signature2coding[signature])
+    print('dict_int2binary_counterbalanced', dict_int2binary_counterbalanced)
     
     # Go thru the `latest` joint_model to get binary output,
-    x_binary, _, _, _ = joint_model(x)
+    x_binary, _, _, _ = joint_model(
+        x, 
+        dict_int2binary_counterbalanced=dict_int2binary_counterbalanced, 
+        signature=signature
+    )
+    print(f'[Check] x_binary created by joitn_model = {x_binary}')
         
     set_trainable(
         objective='high', 
@@ -88,7 +95,12 @@ def fit(joint_model,
 
         # Evaluation to get classification loss.
         with tf.GradientTape() as tape:
-            _, _, y_pred, _ = joint_model(x, training=True)
+            _, _, y_pred, _ = joint_model(
+                x, 
+                dict_int2binary_counterbalanced=dict_int2binary_counterbalanced, 
+                signature=signature, 
+                training=True
+            )
             loss_value = loss_fn_clus(y_true, y_pred)
             print(f'[Check] y_pred = {y_pred}')
         
@@ -102,7 +114,7 @@ def fit(joint_model,
         
         # First eval loss using existing.
         with tf.GradientTape() as tape:
-            _, _, y_pred, totalSupport = joint_model(x, y_true=y_true, training=True)
+            _, _, y_pred, totalSupport = joint_model(x, dict_int2binary_counterbalanced=dict_int2binary_counterbalanced, signature=signature, y_true=y_true, training=True)
             loss_value = loss_fn_clus(y_true, y_pred)
         
         item_proberror = 1. - tf.reduce_max(y_pred * y_true)
@@ -128,7 +140,12 @@ def fit(joint_model,
             
             # Evaluate loss given new recruit.
             with tf.GradientTape() as tape:
-                _, _, y_pred, _ = joint_model(x, training=True)
+                _, _, y_pred, _ = joint_model(
+                    x, 
+                    dict_int2binary_counterbalanced=dict_int2binary_counterbalanced, 
+                    signature=signature, 
+                    training=True
+                )
                 loss_value = loss_fn_clus(y_true, y_pred)
             
         # Unsuccessful recruit if higher than thr

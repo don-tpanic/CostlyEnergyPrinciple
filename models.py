@@ -15,6 +15,7 @@ from finetune.models import model_base
 from clustering.layers import *
 from clustering.models import ClusterModel
 from layers import AttnFactory
+from data import dict_int2binary
 
 
 def presave_dcnn(dcnn_config_version, path_model):
@@ -291,14 +292,47 @@ class JointModel(Model):
         # print('[Check] clusters_actv_softmax', clusters_actv_softmax)
         return clusters_actv_softmax
         
-    def call(self, inputs, y_true=None):
+    def call(self, inputs, 
+             dict_int2binary_counterbalanced=None, 
+             signature=None, 
+             y_true=None):
         """
-        Only when y_true is provided, 
-        totalSupport will be computed.
+        1. when y_true is provided, totalSupport will be computed.
+        2. signature is only provided when inputs is trial-level.
         """
         # DCNN to produce binary outputs.
         inputs_binary = self.DCNN(inputs)
+        
+        # 1. Add a sensory stream such that
+        # the actual `inputs_binary` is a weighted
+        # sum over the latest and the ideal.
+        # 2. There needs to be two cases,
+        # - first is when inputs is a trial (one data-point),
+        # - second is when inputs is a batch
+        if inputs_binary.shape[0] is None:
+            pass  # FIXME: strange that dim0=None for some.
+        else:
+            # trial-level input
+            if inputs_binary.shape[0] == 1:
+                sensory_binary = dict_int2binary_counterbalanced[signature]
                 
+            # batch-level input
+            else:
+                sensory_binary = [
+                    [0,0,0], [0,0,1], [0,1,0], [0,1,1],
+                    [1,0,0], [1,0,1], [1,1,0], [1,1,1]
+                ]
+            
+            sensory_binary = tf.reshape(
+                tf.convert_to_tensor(sensory_binary, dtype=tf.float32),
+                inputs_binary.shape
+            )
+
+            print(f'[Check] sensory_binary = {sensory_binary}')
+            print(f'[Check] inputs_binary = {inputs_binary}')
+            inputs_binary = sensory_binary * 0.8 + inputs_binary * 0.2
+            print(f'[Check] weighted inputs_binary = {inputs_binary}')
+
         # Continue with cluster model to 
         # produce cluster outputs.
         dist0 = self.Distance0(inputs_binary)

@@ -105,7 +105,8 @@ def train_model(
         global_steps = 0  # single step counter
 
         # load dataset in same order.
-        dataset, counter_balancing = data_loader_V2(
+        dataset, counter_balancing, \
+            dict_int2binary_counterbalanced = data_loader_V2(
             attn_config_version=attn_config_version,
             dcnn_config_version=dcnn_config_version, 
             preprocess_func=preprocess_func,
@@ -133,7 +134,7 @@ def train_model(
                 x = dp[0]
                 y_true = dp[1]
                 signature = dp[2]
-                
+                                
                 joint_model, attn_weights, item_proberror, \
                 recon_loss_collector, recon_loss_ideal_collector, \
                 reg_loss_collector, percent_zero_attn_collector, \
@@ -158,6 +159,7 @@ def train_model(
                     dcnn_config_version=dcnn_config_version,
                     inner_loop_epochs=inner_loop_epochs,
                     global_steps=global_steps,
+                    dict_int2binary_counterbalanced=dict_int2binary_counterbalanced
                 )
 
                 # record losses related to attn.
@@ -298,7 +300,7 @@ if __name__ == '__main__':
         else:
             multicuda_execute(
                 target_func=train_model, 
-                attn_configs=['v1'],
+                attn_configs=['v1_dual-streams'],
             )
 
     duration = time.time() - start_time

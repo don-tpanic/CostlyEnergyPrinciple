@@ -1,4 +1,4 @@
-config_version: config_v1
+config_version: config_v1_naive
 
 # --- training ---
 num_runs: 50

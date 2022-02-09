@@ -64,7 +64,7 @@ def fit(joint_model,
     """
     signature2coding = dict_int2binary()
     print(f'[Check] Incoming stimulus: ', signature2coding[signature])
-    
+        
     # Go thru the `latest` joint_model to get binary output,
     x_binary, _, _, _ = joint_model(x)
         

@@ -137,10 +137,11 @@ def how_many_preattn_actv_already_zero(
 
 def how_low_can_att_weights(
         attn_weight_constant,
-        attn_config_version='attn_v1',
-        dcnn_config_version='t1.block4_pool.None.run1',
+        attn_config_version,
+        dcnn_config_version,
         problem_type=1,
-        noise_const=0):
+        noise_level=0,
+        seed=999):
     """
     Check how low can attn weights 
     go (uniformly) without affecting
@@ -154,38 +155,53 @@ def how_low_can_att_weights(
         get some zero weights sooner than having uniform reduction
         for a very long time.
     """
-    # dcnn model
-    model, preprocess_func = load_dcnn_model(
+    joint_model = JointModel(
         attn_config_version=attn_config_version,
-        dcnn_config_version=dcnn_config_version,
-        intermediate_input=False
+        dcnn_config_version=dcnn_config_version, 
     )
-    # sub in a low set of attn weights
-    attn_weights = model.get_layer('attention_factory').get_weights()[0]
-    low_attn_weights = np.ones((attn_weights.shape)) * attn_weight_constant
-    if noise_const:
-        noise = np.random.uniform(low=-noise_const, high=noise_const, size=attn_weights.shape)
-        print(noise)
-        low_attn_weights += noise
-    print(low_attn_weights)
-    print(f'max = {np.max(low_attn_weights)}, min = {np.min(low_attn_weights)}')
-    model.get_layer('attention_factory').set_weights([low_attn_weights])
+    preprocess_func = joint_model.preprocess_func
+    
+    attn_config = load_config(
+        component=None, 
+        config_version=attn_config_version
+    )
+    attn_positions = attn_config['attn_positions'].split(',')
+    for attn_position in attn_positions:
+        layer_attn_weights = \
+            joint_model.get_layer(
+                'dcnn_model').get_layer(
+                    f'attn_factory_{attn_position}').get_weights()[0]
+        
+        # lower the attn weights uniformly.                       
+        layer_attn_weights = np.ones((layer_attn_weights.shape)) * attn_weight_constant
+        if noise_level:
+            np.random.seed(seed)
+            noise = np.random.uniform(low=-noise_level, high=noise_level, size=layer_attn_weights.shape)
+            print(f'noise = {noise}')
+            layer_attn_weights += noise
+            
+        print(f'layer_attn_weights = {layer_attn_weights}')
+        print(f'max = {np.max(layer_attn_weights)}, min = {np.min(layer_attn_weights)}')
+        joint_model.get_layer(
+            'dcnn_model').get_layer(
+                f'attn_factory_{attn_position}').set_weights([layer_attn_weights])
 
     # load data
-    dataset = data_loader(
+    dataset, _ = data_loader_V2(
+        attn_config_version=attn_config_version,
         dcnn_config_version=dcnn_config_version, 
         preprocess_func=preprocess_func,
         problem_type=problem_type
     )
-
+    
     # each stimulus, train indendently
     y_pred = []
     for i in range(len(dataset)):
         dp = dataset[i]
         x = dp[0]
-        y_pred.append(model.predict(x))
+        y_pred.append(joint_model(x)[0])  # only need the 0th value.
     y_pred = np.array(y_pred)
-    print(y_pred)
+    print(f'y_pred = \n {y_pred}')
 
 
 def if_remove_already_zero_filters(
@@ -2040,16 +2056,25 @@ def post_attn_actv_thru_time(attn_config_version):
                     
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
+    
+    how_low_can_att_weights(
+        attn_weight_constant=1,
+        attn_config_version='v1_naive-withNoise',
+        dcnn_config_version='t1.vgg16.block4_pool.None.run1',
+        problem_type=1,
+        noise_const=0.4,
+        seed=999
+    )
 
-    attn_config_version = 'v1'
-    for problem_type in [1]:
-        for run in [0]:
-            viz_losses(
-                attn_config_version='v1',
-                problem_type=problem_type,
-                recon_level='cluster',
-                run=run
-            )
+    # attn_config_version = 'v1'
+    # for problem_type in [1]:
+    #     for run in [0]:
+    #         viz_losses(
+    #             attn_config_version='v1',
+    #             problem_type=problem_type,
+    #             recon_level='cluster',
+    #             run=run
+    #         )
 
     # compare_across_types_V3(
     #     attn_config_version,

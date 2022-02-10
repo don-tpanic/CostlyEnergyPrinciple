@@ -2042,18 +2042,18 @@ if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
 
     attn_config_version = 'v1_independent'
-    # for problem_type in [1]:
-    #     for run in [0]:
-    #         viz_losses(
-    #             attn_config_version=attn_config_version,
-    #             problem_type=problem_type,
-    #             recon_level='cluster',
-    #             run=run
-    #         )
+    for problem_type in [1]:
+        for run in [0]:
+            viz_losses(
+                attn_config_version=attn_config_version,
+                problem_type=problem_type,
+                recon_level='cluster',
+                run=run
+            )
 
     compare_across_types_V3(
         attn_config_version,
-        canonical_runs_only=True
+        canonical_runs_only=False
     )
 
     examine_clustering_learning_curves(attn_config_version)

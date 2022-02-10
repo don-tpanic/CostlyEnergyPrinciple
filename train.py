@@ -105,14 +105,7 @@ def fit(joint_model,
     signature2coding = dict_int2binary()
     print(f'[Check] Incoming stimulus: ', signature2coding[signature])
     
-    # Use ideal attn weights to get ideal binary
-    switch_attn_status(
-        status='ideal',
-        attn_weights=attn_weights, 
-        attn_positions=attn_positions, 
-        model=joint_model,
-        dcnn_config_version=dcnn_config_version,
-    )
+    # train clustering using latest binary.
     x_binary, _, _, _ = joint_model(x)
         
     set_trainable(
@@ -273,17 +266,27 @@ def learn_low_attn(
         dcnn_config_version=dcnn_config_version
     )
     
+    # get cluster targets using ideal low-attn -> ideal bianry
+    switch_attn_status(
+        status='ideal',
+        attn_weights=attn_weights, 
+        attn_positions=attn_positions, 
+        model=joint_model
+    )
+    
     # true cluster actv
     _, batch_y_true, _, _ = joint_model(batch_x)
     print(f'[Check] batch_y_true.shape={batch_y_true.shape}')
     print(f'[Check] batch_y_true={batch_y_true}')
     
+    # Save trial-level cluster targets
+    fname = f'results/{attn_config_version}/cluster_targets_{problem_type}_{global_steps}_{run}.npy'
+    np.save(fname, batch_y_true)
+    
     recon_loss_collector = []           # recon loss at cluster level (learning)
     recon_loss_ideal_collector = []     # recon loss at binary level  (tracking)
     reg_loss_collector = []
     percent_zero_attn_collector = []
-    
-    
     
     # get model to latest attn for low_attn learning    
     switch_attn_status(
@@ -292,9 +295,7 @@ def learn_low_attn(
         attn_positions=attn_positions, 
         model=joint_model
     )
-    
-    
-    
+
     for i in range(inner_loop_epochs):
         print(f' \n------- inner loop epoch = {i} -------')
         print(f'global step = {global_steps}')

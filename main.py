@@ -170,6 +170,7 @@ def train_model(
                     dcnn_config_version=dcnn_config_version,
                     inner_loop_epochs=inner_loop_epochs,
                     global_steps=global_steps,
+                    problem_type=problem_type,
                 )
 
                 # record losses related to attn.
@@ -310,7 +311,7 @@ if __name__ == '__main__':
         else:
             multicuda_execute(
                 target_func=train_model, 
-                attn_configs=['v1_independent'],
+                attn_configs=['v1_independent-partial'],
             )
 
     duration = time.time() - start_time

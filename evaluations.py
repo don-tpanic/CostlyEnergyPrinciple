@@ -1539,8 +1539,8 @@ def compare_alt_cluster_actv_targets(
         for run in range(num_runs):
             for step_idx in range(len(steps)):
                 step = steps[step_idx]
-                stats_ori = np.load(f'results/{original}/cluster_actv_targets_{problem_type}_{step}_{run}.npy')
-                stats_alt = np.load(f'results/{alt}/cluster_actv_targets_{problem_type}_{step}_{run}.npy')
+                stats_ori = np.load(f'results/{original}/cluster_targets_{problem_type}_{step}_{run}.npy')
+                stats_alt = np.load(f'results/{alt}/cluster_targets_{problem_type}_{step}_{run}.npy')
                 loss = loss_fn(stats_ori, stats_alt)
                 loss_overtime_overruns[run, step_idx] = loss
 
@@ -1553,7 +1553,7 @@ def compare_alt_cluster_actv_targets(
 
     fig.supxlabel('num of epochs')
     fig.supylabel('cluster target difference (MSE)')
-    plt.suptitle(f'ideal vs latest')
+    plt.suptitle(f'independent vs independent-partial')
     plt.tight_layout()
     plt.savefig(f'results/{alt}/{original}-{alt}.png')
     plt.close()
@@ -2058,7 +2058,7 @@ if __name__ == '__main__':
 
     examine_clustering_learning_curves(attn_config_version)
 
-    # compare_alt_cluster_actv_targets(
-    #     original='attn_v3b_cb_multi_test', 
-    #     alt='attn_v3b_alt_multi_redundancy'
-    # )
+    compare_alt_cluster_actv_targets(
+        original='v1_independent', 
+        alt='v1_independent-partial'
+    )

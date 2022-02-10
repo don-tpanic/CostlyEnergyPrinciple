@@ -2041,7 +2041,7 @@ def post_attn_actv_thru_time(attn_config_version):
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
 
-    attn_config_version = 'v1_independent'
+    attn_config_version = 'v1_independent-partial'
     # for problem_type in [1]:
     #     for run in [0]:
     #         viz_losses(
@@ -2051,10 +2051,10 @@ if __name__ == '__main__':
     #             run=run
     #         )
 
-    compare_across_types_V3(
-        attn_config_version,
-        canonical_runs_only=True
-    )
+    # compare_across_types_V3(
+    #     attn_config_version,
+    #     canonical_runs_only=True
+    # )
 
     examine_clustering_learning_curves(attn_config_version)
 

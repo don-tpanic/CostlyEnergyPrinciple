@@ -1553,7 +1553,7 @@ def compare_alt_cluster_actv_targets(
 
     fig.supxlabel('num of epochs')
     fig.supylabel('cluster target difference (MSE)')
-    plt.suptitle(f'independent vs independent-partial')
+    plt.suptitle(f'{original} vs {alt}')
     plt.tight_layout()
     plt.savefig(f'results/{alt}/{original}-{alt}.png')
     plt.close()

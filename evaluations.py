@@ -787,7 +787,7 @@ def examine_clustering_learning_curves(
     plt.legend()
     plt.title(f'{trapz_areas}')
     plt.tight_layout()
-    plt.savefig('check_lc.png')
+    plt.savefig(f'results/{attn_config_version}/lc.png')
 
 
 def attn_weights_stability():
@@ -1515,7 +1515,7 @@ def compare_alt_cluster_actv_targets(
     """
     attn_config = load_config(
         component=None,
-        config_version=original)
+        config_version=alt)
     num_runs = attn_config['num_runs']
     num_problem_types = 6
     inner_loop_epochs = attn_config['inner_loop_epochs']
@@ -1539,8 +1539,8 @@ def compare_alt_cluster_actv_targets(
         for run in range(num_runs):
             for step_idx in range(len(steps)):
                 step = steps[step_idx]
-                stats_ori = np.load(f'results/{original}/cluster_actv_targets_{problem_type}_{step}_{run}.npy')
-                stats_alt = np.load(f'results/{alt}/cluster_actv_targets_{problem_type}_{step}_{run}.npy')
+                stats_ori = np.load(f'results/{original}/cluster_targets_{problem_type}_{step}_{run}.npy')
+                stats_alt = np.load(f'results/{alt}/cluster_targets_{problem_type}_{step}_{run}.npy')
                 loss = loss_fn(stats_ori, stats_alt)
                 loss_overtime_overruns[run, step_idx] = loss
 
@@ -1553,7 +1553,7 @@ def compare_alt_cluster_actv_targets(
 
     fig.supxlabel('num of epochs')
     fig.supylabel('cluster target difference (MSE)')
-    plt.suptitle(f'ideal vs latest')
+    plt.suptitle(f'{original} vs {alt}')
     plt.tight_layout()
     plt.savefig(f'results/{alt}/{original}-{alt}.png')
     plt.close()
@@ -2041,24 +2041,24 @@ def post_attn_actv_thru_time(attn_config_version):
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
 
-    attn_config_version = 'v1'
+    attn_config_version = 'v1_naive'
     for problem_type in [1]:
         for run in [0]:
             viz_losses(
-                attn_config_version='v1',
+                attn_config_version=attn_config_version,
                 problem_type=problem_type,
                 recon_level='cluster',
                 run=run
             )
 
-    # compare_across_types_V3(
-    #     attn_config_version,
-    #     canonical_runs_only=False
-    # )
+    compare_across_types_V3(
+        attn_config_version,
+        canonical_runs_only=False
+    )
 
-    # examine_clustering_learning_curves(attn_config_version)
+    examine_clustering_learning_curves(attn_config_version)
 
-    # compare_alt_cluster_actv_targets(
-    #     original='attn_v3b_cb_multi_test', 
-    #     alt='attn_v3b_alt_multi_redundancy'
-    # )
+    compare_alt_cluster_actv_targets(
+        original='v1_independent', 
+        alt=attn_config_version
+    )

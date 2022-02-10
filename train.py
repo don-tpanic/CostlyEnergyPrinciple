@@ -58,7 +58,8 @@ def fit(joint_model,
         attn_config_version, 
         dcnn_config_version,
         inner_loop_epochs,
-        global_steps):
+        global_steps,
+        problem_type):
     """
     A single train step given a stimulus.
     """
@@ -176,7 +177,8 @@ def fit(joint_model,
             inner_loop_epochs=inner_loop_epochs,
             global_steps=global_steps,
             run=run,
-            item_proberror=item_proberror)
+            item_proberror=item_proberror,
+            problem_type=problem_type)
         return joint_model, attn_weights, item_proberror, \
             recon_loss_collector, recon_loss_ideal_collector, \
             reg_loss_collector, percent_zero_attn_collector, \
@@ -200,7 +202,8 @@ def learn_low_attn(
         inner_loop_epochs,
         global_steps,
         run,
-        item_proberror):
+        item_proberror,
+        problem_type):
     """
     Learning routine for low-level attn.
     This learning happens after the 
@@ -228,6 +231,10 @@ def learn_low_attn(
     _, batch_y_true, _, _ = joint_model(batch_x)
     print(f'[Check] batch_y_true.shape={batch_y_true.shape}')
     print(f'[Check] batch_y_true={batch_y_true}')
+    
+    # Save trial-level cluster targets
+    fname = f'results/{attn_config_version}/cluster_targets_{problem_type}_{global_steps}_{run}.npy'
+    np.save(fname, batch_y_true)
     
     recon_loss_collector = []           # recon loss at cluster level (learning)
     recon_loss_ideal_collector = []     # recon loss at binary level  (tracking)

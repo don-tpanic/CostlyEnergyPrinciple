@@ -2056,32 +2056,32 @@ def post_attn_actv_thru_time(attn_config_version):
                     
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
+    attn_config_version = 'v1_naive-withNoise'
     
-    how_low_can_att_weights(
-        attn_weight_constant=1,
-        attn_config_version='v1_naive-withNoise',
-        dcnn_config_version='t1.vgg16.block4_pool.None.run1',
-        problem_type=1,
-        noise_const=0.4,
-        seed=999
-    )
-
-    # attn_config_version = 'v1'
-    # for problem_type in [1]:
-    #     for run in [0]:
-    #         viz_losses(
-    #             attn_config_version='v1',
-    #             problem_type=problem_type,
-    #             recon_level='cluster',
-    #             run=run
-    #         )
-
-    # compare_across_types_V3(
-    #     attn_config_version,
-    #     canonical_runs_only=False
+    # how_low_can_att_weights(
+    #     attn_weight_constant=1,
+    #     attn_config_version=attn_config_version,
+    #     dcnn_config_version='t1.vgg16.block4_pool.None.run1',
+    #     problem_type=1,
+    #     noise_const=0.4,
+    #     seed=999
     # )
 
-    # examine_clustering_learning_curves(attn_config_version)
+    for problem_type in [1]:
+        for run in [0]:
+            viz_losses(
+                attn_config_version=attn_config_version,
+                problem_type=problem_type,
+                recon_level='cluster',
+                run=run
+            )
+
+    compare_across_types_V3(
+        attn_config_version,
+        canonical_runs_only=True
+    )
+
+    examine_clustering_learning_curves(attn_config_version)
 
     # compare_alt_cluster_actv_targets(
     #     original='attn_v3b_cb_multi_test', 

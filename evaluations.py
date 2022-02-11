@@ -803,7 +803,7 @@ def examine_clustering_learning_curves(
     plt.legend()
     plt.title(f'{trapz_areas}')
     plt.tight_layout()
-    plt.savefig('check_lc.png')
+    plt.savefig(f'results/{attn_config_version}/lc.png')
 
 
 def attn_weights_stability():

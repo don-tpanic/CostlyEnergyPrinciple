@@ -45,18 +45,8 @@ def train_model(
         attn_config['attn_lr_multiplier'], 
         attn_config['asso_lr_multiplier']
     ]
-    
     # ClusterModel things
     num_clusters = attn_config['num_clusters']
-    r = attn_config['r']
-    q = attn_config['q']
-    specificity = attn_config['specificity']
-    trainable_specificity = attn_config['trainable_specificity']
-    high_attn_constraint = attn_config['high_attn_constraint']
-    Phi = attn_config['Phi']
-    actv_func = attn_config['actv_func']
-    beta = attn_config['beta']
-    temp = attn_config['temp']
     
     # stimulus_set is in dcnn_config
     dcnn_config_version = attn_config['dcnn_config_version']

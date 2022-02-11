@@ -190,7 +190,8 @@ class JointModel(Model):
         Phi = attn_config['Phi']
         actv_func = attn_config['actv_func']
         beta = attn_config['beta']
-        temp = attn_config['temp']
+        temp1 = attn_config['temp1']
+        temp2 = attn_config['temp2']
         
         output_dim = self.DCNN.output.shape[-1]
         self.Distance0 = Distance(output_dim=output_dim, name=f'd0')
@@ -236,7 +237,9 @@ class JointModel(Model):
             name='classification'
         )
 
-        self.temp = temp
+        self.beta = beta
+        self.temp1 = temp1
+        self.temp2 = temp2
     
     def cluster_support(self, cluster_index, assoc_weights, y_true):
         """
@@ -263,19 +266,27 @@ class JointModel(Model):
         # print(f'[Check] cluster{cluster_index} support = {support}')
         return support
     
-    def cluster_softmax(self, clusters_actv_inhibition, nonzero_clusters):
-        # nominator of softmax
-        nom = tf.exp(
-            tf.gather(
-                clusters_actv_inhibition[0], indices=nonzero_clusters) / self.temp
-        )
-        # denominator of softmax 
+    def cluster_softmax(self, clusters_actv, nonzero_clusters, which_temp):
+        """
+        Compute new clusters_actv by 
+            weighting clusters_actv using softmax(clusters_actv) probabilities.
+        """
+        clusters_actv_nonzero = tf.gather(
+            clusters_actv[0], indices=nonzero_clusters)
+        
+        if which_temp == 1:
+            temp = self.temp1
+            if temp == 'equivalent':
+                temp = clusters_actv_nonzero / (
+                    self.beta * tf.math.log(clusters_actv_nonzero)
+                )
+        elif which_temp == 2:
+            temp = self.temp2
+            
+        # softmax probabilities and flatten as required
+        nom = tf.exp(clusters_actv_nonzero / temp)
         denom = tf.reduce_sum(nom)
-
-        # softmax probabilities
-        softmax_proba = nom / tf.reduce_sum(nom)
-
-        # flatten as required
+        softmax_proba = nom / denom
         softmax_proba = tf.reshape(softmax_proba, [-1])
         
         # To expand the proba into the same size 
@@ -286,19 +297,21 @@ class JointModel(Model):
         # value update.
         softmax_weights = tf.constant(
             [0], 
-            shape=clusters_actv_inhibition[0].shape,
+            shape=clusters_actv[0].shape,
             dtype=tf.float32
         )
         
-        # substitute values
+        # print(f'tensor=softmax_weights', softmax_weights)
+        # print(f'indices=nonzero_clusters', nonzero_clusters)
+        # print(f'updates=softmax_proba', softmax_proba)
         softmax_weights = tf.tensor_scatter_nd_update(
             tensor=softmax_weights,
             indices=nonzero_clusters,
             updates=softmax_proba,
         )
 
-        clusters_actv_softmax = tf.multiply(clusters_actv_inhibition, softmax_weights)
-        # print('[Check] clusters_actv_softmax', clusters_actv_softmax)
+        clusters_actv_softmax = tf.multiply(clusters_actv, softmax_weights)
+        print('[Check] clusters_actv_softmax', clusters_actv_softmax)
         return clusters_actv_softmax
         
     def call(self, inputs, y_true=None):
@@ -329,22 +342,26 @@ class JointModel(Model):
         H_concat = self.Concat(H_list)
         # print(f'H_concat', H_concat)
 
-        H_out = self.MaskNonRecruit(H_concat)
+        clusters_actv = self.MaskNonRecruit(H_concat)
         # print(f'H_out', H_out)
-
-        clusters_actv_inhibition = self.Inhibition(H_out)
-        # print(f'clusters_actv_inhibition', clusters_actv_inhibition)
 
         # do softmax only on the recruited clusters.
         nonzero_clusters = tf.cast(
-            tf.where(clusters_actv_inhibition[0] > 0),
+            tf.where(clusters_actv[0] > 0),
             dtype=tf.int32
         )
 
         # weight cluster activations by softmax.
         clusters_actv_softmax = self.cluster_softmax(
-            clusters_actv_inhibition, 
-            nonzero_clusters
+            clusters_actv, 
+            nonzero_clusters,
+            which_temp=1
+        )
+        
+        clusters_actv_softmax = self.cluster_softmax(
+            clusters_actv_softmax, 
+            nonzero_clusters,
+            which_temp=2
         )
         
         # final model probability reponse.

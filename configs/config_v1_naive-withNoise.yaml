@@ -33,7 +33,8 @@ num_clusters: 8
 q: 1
 r: 2
 specificity: 0.25
-temp: 0.012
+temp1: equivalent
+temp2: 0.012
 thr: -0.4
 trainable_specificity: false
 unsup_rule: threshold

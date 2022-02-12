@@ -972,6 +972,8 @@ def compare_across_types_V3(
             for run in type2runs[z]:
                 problem_type = z + 1
                 
+                print(f'problem_type = {problem_type}')
+                
                 # First grab the final metric
                 if comparison == 'zero_attn':
                     metric_fpath = f'{results_path}/all_percent_zero_attn_type{problem_type}_run{run}_cluster.npy'
@@ -986,6 +988,7 @@ def compare_across_types_V3(
                         # always be dim1 for plotting only.
                         counter_balancing_fpath = f'{results_path}/counter_balancing_type{problem_type}_run{run}_cluster.npy'
                         counter_balancing = np.load(counter_balancing_fpath, allow_pickle=True)
+                        print(f'counter_balancing = {counter_balancing}')
                         rot_dims = counter_balancing.item()['rot_dims']
                         k = counter_balancing.item()['k'][0]
                         # print(f'run={run}, rot_dims = {rot_dims}, k={k}')
@@ -998,6 +1001,7 @@ def compare_across_types_V3(
                 alphas_fpath = f'{results_path}/all_alphas_type{problem_type}_run{run}_cluster.npy'
                 # get the final 3 alphas
                 alphas = np.load(alphas_fpath)[-3:]
+                print(f'alphas = {alphas}')
                 alphas = alphas - np.array(threshold)
 
                 # 1e-6 is the lower bound of alpha constraint.
@@ -1279,7 +1283,7 @@ def compare_cluster_targets_acrossruns_acrosstypes(
                 # (batch, num_cluster)
                 cluster_targets = np.load(
                     f'results/{attn_config_version}/' \
-                    f'cluster_actv_targets_{problem_type}_{step}_{run}.npy'
+                    f'cluster_targets_{problem_type}_{step}_{run}.npy'
                 )
                 step_cluster_targets[run, :, :] = cluster_targets
             
@@ -1302,9 +1306,9 @@ def compare_cluster_targets_acrossruns_acrosstypes(
             diff_std = np.std(
                 step_target_MSE[np.triu_indices(step_target_MSE.shape[0])]
             )
-            print(f'step={step}, mean={diff_mean}[{diff_std}]')
-            print(f'max={np.max(step_target_MSE[np.triu_indices(step_target_MSE.shape[0])])}')
-            print(f'min={np.min(step_target_MSE[np.triu_indices(step_target_MSE.shape[0])])}')
+            # print(f'step={step}, mean={diff_mean}[{diff_std}]')
+            # print(f'max={np.max(step_target_MSE[np.triu_indices(step_target_MSE.shape[0])])}')
+            # print(f'min={np.min(step_target_MSE[np.triu_indices(step_target_MSE.shape[0])])}')
             diff_across_steps[step_idx] = diff_mean
     
         ax[row_idx, col_idx].plot(diff_across_steps)
@@ -1599,8 +1603,8 @@ def how_cluster_targets_change_overtime(
             for step_idx in range(len(steps)):
                 step = steps[step_idx]
                 step_ = step + inner_loop_epochs
-                trg1 = np.load(f'results/{attn_config_version}/cluster_actv_targets_{problem_type}_{step}_{run}.npy')
-                trg2 = np.load(f'results/{attn_config_version}/cluster_actv_targets_{problem_type}_{step_}_{run}.npy')
+                trg1 = np.load(f'results/{attn_config_version}/cluster_targets_{problem_type}_{step}_{run}.npy')
+                trg2 = np.load(f'results/{attn_config_version}/cluster_targets_{problem_type}_{step_}_{run}.npy')
 
                 loss = loss_fn(trg1, trg2)
                 loss_overtime_overruns[run, step_idx] = loss
@@ -2042,23 +2046,28 @@ if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
 
     attn_config_version = 'v1_independent'
-    for problem_type in [1]:
-        for run in [0]:
-            viz_losses(
-                attn_config_version=attn_config_version,
-                problem_type=problem_type,
-                recon_level='cluster',
-                run=run
-            )
+    # for problem_type in [1]:
+    #     for run in [0]:
+    #         viz_losses(
+    #             attn_config_version=attn_config_version,
+    #             problem_type=problem_type,
+    #             recon_level='cluster',
+    #             run=run
+    #         )
 
     compare_across_types_V3(
         attn_config_version,
-        canonical_runs_only=False
+        canonical_runs_only=True,
+        threshold=[0.1, 0.1, 0.1]
     )
 
-    examine_clustering_learning_curves(attn_config_version)
+    # examine_clustering_learning_curves(attn_config_version)
 
-    compare_alt_cluster_actv_targets(
-        original='v1_independent', 
-        alt='v1_independent-partial'
-    )
+    # compare_alt_cluster_actv_targets(
+    #     original='v1_independent', 
+    #     alt='v1_independent-partial'
+    # )
+    
+    # how_cluster_targets_change_overtime(attn_config_version)
+    # compare_cluster_targets_acrossruns_acrosstypes(attn_config_version)
+    

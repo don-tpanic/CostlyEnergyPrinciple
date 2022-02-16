@@ -1133,7 +1133,7 @@ def compare_across_types_V3(
                 ax[row_idx, col_idx].set_xticks([])
                 ax[num_rows-1, col_idx].set_xticks(x_axis[:num_dims]+0.5)
                 ax[num_rows-1, col_idx].set_xticklabels([f'dim{i+1}' for i in range(num_dims)])
-                # ax[row_idx, col_idx].set_ylim([-0.5, 3.5])
+                ax[row_idx, col_idx].set_ylim([-0.5, 2.5])
                 ax[row_idx, 0].set_ylabel('binary recon loss')
                 ax[row_idx, col_idx].set_title(f'Type {problem_type}')
             

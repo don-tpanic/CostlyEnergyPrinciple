@@ -2057,24 +2057,35 @@ def post_attn_actv_thru_time(attn_config_version):
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
     
-    attn_config_version = 'v1_naive-withNoise'
-    for problem_type in [1]:
-        for run in [0]:
-            viz_losses(
-                attn_config_version=attn_config_version,
-                problem_type=problem_type,
-                recon_level='cluster',
-                run=run
-            )
-
-    compare_across_types_V3(
-        attn_config_version,
-        canonical_runs_only=False
+    attn_config_version = 'v1_independent'
+    dcnn_config_version = 't1.vgg16.block4_pool.None.run1'
+    
+    how_low_can_att_weights(
+        attn_weight_constant=1.,
+        attn_config_version=attn_config_version,
+        dcnn_config_version=dcnn_config_version,
+        problem_type=1,
+        noise_level=0.4,
+        seed=15
     )
+        
+    # for problem_type in [1]:
+    #     for run in [0]:
+    #         viz_losses(
+    #             attn_config_version=attn_config_version,
+    #             problem_type=problem_type,
+    #             recon_level='cluster',
+    #             run=run
+    #         )
 
-    examine_clustering_learning_curves(attn_config_version)
+    # compare_across_types_V3(
+    #     attn_config_version,
+    #     canonical_runs_only=False
+    # )
 
-    compare_alt_cluster_actv_targets(
-        original='v1_independent', 
-        alt=attn_config_version
-    )
+    # examine_clustering_learning_curves(attn_config_version)
+
+    # compare_alt_cluster_actv_targets(
+    #     original='v1_independent', 
+    #     alt=attn_config_version
+    # )

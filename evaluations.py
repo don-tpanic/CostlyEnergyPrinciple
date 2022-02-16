@@ -2045,7 +2045,7 @@ def post_attn_actv_thru_time(attn_config_version):
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
 
-    attn_config_version = 'v1_independent'
+    attn_config_version = 'v2_independent'
     # for problem_type in [1]:
     #     for run in [0]:
     #         viz_losses(

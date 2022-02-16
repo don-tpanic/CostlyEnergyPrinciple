@@ -250,6 +250,12 @@ def learn_low_attn(
             # in order to track loss.
             batch_x_binary_pred, batch_y_pred, _, _ = joint_model(batch_x, training=True)
             recon_loss = loss_fn_attn(batch_y_true, batch_y_pred)
+
+            # TEMP:
+            if recon_loss != 0:
+                recon_loss = 10*recon_loss / recon_loss + recon_loss
+                # recon_loss *= 1e+13
+            
             reg_loss = joint_model.losses
             loss_value = recon_loss + reg_loss
 
@@ -297,6 +303,7 @@ def learn_low_attn(
         print(f'[Check] recon_loss = {recon_loss}')
         print(f'[Check] recon_loss_binary = {recon_loss_ideal}, avg = {np.mean(recon_loss_ideal)}')
         print(f'[Check] reg_loss = {reg_loss[0]}')
+        print(f'[Check] loss_value = {loss_value}')
         print(f'[Check] percent_zero = {percent_zero}')
         print(f'[Check] item_proberror = {item_proberror}')
         global_steps += 1

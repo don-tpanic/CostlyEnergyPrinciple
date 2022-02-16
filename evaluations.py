@@ -2061,7 +2061,7 @@ if __name__ == '__main__':
         threshold=[0.1, 0.1, 0.1]
     )
 
-    # examine_clustering_learning_curves(attn_config_version)
+    examine_clustering_learning_curves(attn_config_version)
 
     # compare_alt_cluster_actv_targets(
     #     original='v1_independent', 

@@ -2058,10 +2058,10 @@ if __name__ == '__main__':
     compare_across_types_V3(
         attn_config_version,
         canonical_runs_only=True,
-        threshold=[0.1, 0.1, 0.1]
+        threshold=[0.1, 0.1, 0.1]   # NOTE: non-diagostic dims not abs zero.
     )
 
-    # examine_clustering_learning_curves(attn_config_version)
+    examine_clustering_learning_curves(attn_config_version)
 
     # compare_alt_cluster_actv_targets(
     #     original='v1_independent', 

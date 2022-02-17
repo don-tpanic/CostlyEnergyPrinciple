@@ -379,10 +379,11 @@ class JointModel(Model):
             totalSupport = totalSupport / tf.reduce_sum(clusters_actv_softmax)
             print(f'[Check] totalSupport = {totalSupport}')
         
-        
-        # TODO: temp change
-        return inputs_binary, clusters_actv_softmax, y_pred, totalSupport
-        # return inputs_binary, clusters_actv, y_pred, totalSupport
+        # TEMP: v2 uses softmaxed cluster targets
+        if 'v2' in attn_config_version:
+            return inputs_binary, clusters_actv_softmax, y_pred, totalSupport
+        else:
+            return inputs_binary, clusters_actv, y_pred, totalSupport
         
 
 if __name__ == '__main__':

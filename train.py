@@ -125,12 +125,12 @@ def fit(joint_model,
             )
     else:
         # Use ideal attn weights to get ideal binary
-            switch_attn_status(
-                status='ideal',
-                attn_weights=attn_weights, 
-                attn_positions=attn_positions, 
-                model=joint_model,
-                dcnn_config_version=dcnn_config_version,
+        switch_attn_status(
+            status='ideal',
+            attn_weights=attn_weights, 
+            attn_positions=attn_positions, 
+            model=joint_model,
+            dcnn_config_version=dcnn_config_version,
         )
     x_binary, _, _, _ = joint_model(x)
     print(f'[Check] incoming binary = {x_binary}')

@@ -102,19 +102,38 @@ def fit(joint_model,
         problem_type):
     """
     A single train step given a stimulus.
-    """
-    signature2coding = dict_int2binary()
-    print(f'[Check] Incoming stimulus: ', signature2coding[signature])
+    """    
     
-    # Use ideal attn weights to get ideal binary
-    switch_attn_status(
-        status='ideal',
-        attn_weights=attn_weights, 
-        attn_positions=attn_positions, 
-        model=joint_model,
-        dcnn_config_version=dcnn_config_version,
-    )
+    if 'v3' in attn_config_version:
+        # TEMP - Testing final clustering using latest binary
+        if epoch >= 31:
+            switch_attn_status(
+                status='latest',
+                attn_weights=attn_weights, 
+                attn_positions=attn_positions, 
+                model=joint_model,
+                dcnn_config_version=dcnn_config_version,
+            )
+        else:
+            # Use ideal attn weights to get ideal binary
+            switch_attn_status(
+                status='ideal',
+                attn_weights=attn_weights, 
+                attn_positions=attn_positions, 
+                model=joint_model,
+                dcnn_config_version=dcnn_config_version,
+            )
+    else:
+        # Use ideal attn weights to get ideal binary
+            switch_attn_status(
+                status='ideal',
+                attn_weights=attn_weights, 
+                attn_positions=attn_positions, 
+                model=joint_model,
+                dcnn_config_version=dcnn_config_version,
+        )
     x_binary, _, _, _ = joint_model(x)
+    print(f'[Check] incoming binary = {x_binary}')
         
     set_trainable(
         objective='high', 

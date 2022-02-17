@@ -640,6 +640,7 @@ def viz_losses(
         - theother recon loss
         - reg loss
     """
+    num_dims = 3
     attn_config = load_config(
         component=None,
         config_version=attn_config_version
@@ -648,6 +649,8 @@ def viz_losses(
     recon_loss = np.load(
         f'results/{attn_config_version}/all_recon_loss_type{problem_type}_run{run}_{recon_level}.npy'
     )
+    
+    # every 3 dims.
     recon_loss_ideal = np.load(
         f'results/{attn_config_version}/all_recon_loss_ideal_type{problem_type}_run{run}_{recon_level}.npy'
     )
@@ -658,7 +661,7 @@ def viz_losses(
         f'results/{attn_config_version}/all_percent_zero_attn_type{problem_type}_run{run}_{recon_level}.npy'
     )
 
-    final_recon_loss_ideal = recon_loss_ideal[-1]
+    final_recon_loss_ideal = np.round(recon_loss_ideal[-num_dims : ], 3)
     final_percent_zero = percent_zero[-1]
 
 
@@ -668,8 +671,9 @@ def viz_losses(
     ax[0].plot(recon_loss)
     ax[0].set_title(f'recon loss wrt current: {recon_level} (DCNN)')
 
-    ax[1].plot(recon_loss_ideal)
-    ax[1].set_title(f'recon loss wrt ideal: binary (DCNN) [{final_recon_loss_ideal:.3f}]')
+    for dim in range(num_dims):
+        ax[1].plot(recon_loss_ideal[dim : : num_dims], label=f'dim{dim}')
+    ax[1].set_title(f'recon loss wrt ideal: binary (DCNN) {final_recon_loss_ideal}')
 
     # reg_loss = np.log(reg_loss)
     ax[2].plot(reg_loss)
@@ -680,6 +684,7 @@ def viz_losses(
     ax[3].set_title(f'percentage of zeroed attn weights (DCNN) [{final_percent_zero:.3f}]')
 
     plt.tight_layout()
+    plt.legend()
     plt.savefig(f'results/{attn_config_version}/losses_type{problem_type}_run{run}_{recon_level}.png')
     plt.close()
 
@@ -2045,23 +2050,24 @@ def post_attn_actv_thru_time(attn_config_version):
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
 
-    attn_config_version = 'v2_independent'
-    # for problem_type in [1]:
-    #     for run in [0]:
-    #         viz_losses(
-    #             attn_config_version=attn_config_version,
-    #             problem_type=problem_type,
-    #             recon_level='cluster',
-    #             run=run
-    #         )
-
-    compare_across_types_V3(
-        attn_config_version,
-        canonical_runs_only=True,
-        threshold=[0.1, 0.1, 0.1]   # NOTE: non-diagostic dims not abs zero.
-    )
-
+    attn_config_version = 'v1_independent'
+    
     examine_clustering_learning_curves(attn_config_version)
+    
+    for problem_type in [1]:
+        for run in [0]:
+            viz_losses(
+                attn_config_version=attn_config_version,
+                problem_type=problem_type,
+                recon_level='cluster',
+                run=run
+            )
+
+    # compare_across_types_V3(
+    #     attn_config_version,
+    #     canonical_runs_only=True,
+    #     threshold=[0.1, 0.1, 0.1]   # NOTE: non-diagostic dims not abs zero.
+    # )
 
     # compare_alt_cluster_actv_targets(
     #     original='v1_independent', 

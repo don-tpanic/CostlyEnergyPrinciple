@@ -93,6 +93,7 @@ def train_model(
         all_alphas = []
         all_centers = []
         global_steps = 0  # single step counter
+        batch_y_true_tminus1 = None  # placeholder to be replaced after first trial.
 
         # load dataset in same order.
         dataset, counter_balancing = data_loader_V2(
@@ -128,7 +129,7 @@ def train_model(
                 recon_loss_collector, recon_loss_ideal_collector, \
                 reg_loss_collector, percent_zero_attn_collector, \
                 alpha_collector, center_collector, global_steps, \
-                optimizer_clus, optimizer_attn = fit(
+                optimizer_clus, optimizer_attn, batch_y_true_tminus1 = fit(
                     joint_model=joint_model,
                     attn_positions=attn_positions,
                     num_clusters=num_clusters,
@@ -149,6 +150,7 @@ def train_model(
                     inner_loop_epochs=inner_loop_epochs,
                     global_steps=global_steps,
                     problem_type=problem_type,
+                    batch_y_true_tminus1=batch_y_true_tminus1
                 )
 
                 # record losses related to attn.
@@ -289,7 +291,7 @@ if __name__ == '__main__':
         else:
             multicuda_execute(
                 target_func=train_model, 
-                attn_configs=['v1_naive'],
+                attn_configs=['v1_naive-tminus1'],
             )
 
     duration = time.time() - start_time

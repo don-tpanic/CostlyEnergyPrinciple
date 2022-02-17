@@ -59,15 +59,14 @@ def fit(joint_model,
         dcnn_config_version,
         inner_loop_epochs,
         global_steps,
-        problem_type):
+        problem_type,
+        batch_y_true_tminus1):
     """
     A single train step given a stimulus.
-    """
-    signature2coding = dict_int2binary()
-    print(f'[Check] Incoming stimulus: ', signature2coding[signature])
-    
+    """    
     # Go thru the `latest` joint_model to get binary output,
     x_binary, _, _, _ = joint_model(x)
+    print(f'[Check] x_binary = {x_binary}')
         
     set_trainable(
         objective='high', 
@@ -159,8 +158,16 @@ def fit(joint_model,
     # inner-loop low_attn learning.
     # 1. call after every trial (exc epoch 0)
     # 2. batch update
+    # 3. use t-1 cluster targets `batch_y_true_tminus1`
     ################################    
     print('[Check] *** Beginning inner-loop ***')
+    # a batch of raw images(+ fake ones)
+    batch_x = load_X_only(
+        dataset=dataset, 
+        attn_config_version=attn_config_version,
+        dcnn_config_version=dcnn_config_version
+    )
+    
     if epoch > 0:
         joint_model, attn_weights, \
         recon_loss_collector, recon_loss_ideal_collector, \
@@ -178,16 +185,31 @@ def fit(joint_model,
             global_steps=global_steps,
             run=run,
             item_proberror=item_proberror,
-            problem_type=problem_type)
+            problem_type=problem_type,
+            batch_x=batch_x,
+            batch_y_true=batch_y_true_tminus1,
+        )
+        
+        # true cluster actv for next trial
+        _, batch_y_true, _, _ = joint_model(batch_x)
+        batch_y_true_tminus1 = batch_y_true
+        
         return joint_model, attn_weights, item_proberror, \
             recon_loss_collector, recon_loss_ideal_collector, \
             reg_loss_collector, percent_zero_attn_collector, \
             alpha_collector, center_collector, global_steps, \
-            optimizer_clus, optimizer_attn
+            optimizer_clus, optimizer_attn, batch_y_true_tminus1
     
+    # true cluster actv for next trial
+    # computed only at the end of epoch=0, trial=7
+    if epoch == 0 and i == 7:
+        _, batch_y_true, _, _ = joint_model(batch_x)
+        batch_y_true_tminus1 = batch_y_true
+        
     # Only when epoch=0
     return joint_model, [], item_proberror, \
-        [], [], [], [], [], [], global_steps, optimizer_clus, optimizer_attn
+        [], [], [], [], [], [], global_steps, optimizer_clus, optimizer_attn, \
+        batch_y_true_tminus1
 
 
 def learn_low_attn(
@@ -203,7 +225,9 @@ def learn_low_attn(
         global_steps,
         run,
         item_proberror,
-        problem_type):
+        problem_type, 
+        batch_x,
+        batch_y_true):
     """
     Learning routine for low-level attn.
     This learning happens after the 
@@ -219,19 +243,7 @@ def learn_low_attn(
         num_clusters=num_clusters,
         model=joint_model
     )
-        
-    # a batch of raw images(+ fake ones)
-    batch_x = load_X_only(
-        dataset=dataset, 
-        attn_config_version=attn_config_version,
-        dcnn_config_version=dcnn_config_version
-    )
-    
-    # true cluster actv
-    _, batch_y_true, _, _ = joint_model(batch_x)
-    print(f'[Check] batch_y_true.shape={batch_y_true.shape}')
-    print(f'[Check] batch_y_true={batch_y_true}')
-    
+            
     # Save trial-level cluster targets
     fname = f'results/{attn_config_version}/cluster_targets_{problem_type}_{global_steps}_{run}.npy'
     np.save(fname, batch_y_true)

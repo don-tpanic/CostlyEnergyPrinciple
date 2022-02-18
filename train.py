@@ -60,7 +60,8 @@ def fit(joint_model,
         inner_loop_epochs,
         global_steps,
         problem_type,
-        batch_y_true_tminus1):
+        batch_y_true_tminus1,
+        recon_clusters_weighting):
     """
     A single train step given a stimulus.
     """    
@@ -190,6 +191,7 @@ def fit(joint_model,
             problem_type=problem_type,
             batch_x=batch_x,
             batch_y_true=batch_y_true_tminus1,
+            recon_clusters_weighting=recon_clusters_weighting,
         )
         
         batch_y_true_tminus1 = batch_y_true
@@ -223,7 +225,8 @@ def learn_low_attn(
         item_proberror,
         problem_type, 
         batch_x,
-        batch_y_true):
+        batch_y_true,
+        recon_clusters_weighting):
     """
     Learning routine for low-level attn.
     This learning happens after the 
@@ -257,7 +260,7 @@ def learn_low_attn(
             # use the separate trainable dcnn 
             # in order to track loss.
             batch_x_binary_pred, batch_y_pred, _, _ = joint_model(batch_x, training=True)
-            recon_loss = loss_fn_attn(batch_y_true, batch_y_pred)
+            recon_loss = loss_fn_attn(batch_y_true, batch_y_pred) * recon_clusters_weighting
             reg_loss = joint_model.losses
             loss_value = recon_loss + reg_loss
 
@@ -302,7 +305,7 @@ def learn_low_attn(
         print(f'[Check] batch_x_binary_pred = {batch_x_binary_pred}')
         print(f'[Check] batch_y_pred = {batch_y_pred}')
         print(f'[Check] batch_y_true = {batch_y_true}')
-        print(f'[Check] recon_loss = {recon_loss}')
+        print(f'[Check] recon_loss = {recon_loss}, recon_clusters_weighting={recon_clusters_weighting}')
         print(f'[Check] recon_loss_binary = {recon_loss_ideal}, avg = {np.mean(recon_loss_ideal)}')
         print(f'[Check] reg_loss = {reg_loss[0]}')
         print(f'[Check] percent_zero = {percent_zero}')

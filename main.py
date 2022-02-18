@@ -45,6 +45,7 @@ def train_model(
         attn_config['attn_lr_multiplier'], 
         attn_config['asso_lr_multiplier']
     ]
+    recon_clusters_weighting = attn_config['recon_clusters_weighting']
     # ClusterModel things
     num_clusters = attn_config['num_clusters']
         
@@ -150,7 +151,8 @@ def train_model(
                     inner_loop_epochs=inner_loop_epochs,
                     global_steps=global_steps,
                     problem_type=problem_type,
-                    batch_y_true_tminus1=batch_y_true_tminus1
+                    batch_y_true_tminus1=batch_y_true_tminus1,
+                    recon_clusters_weighting=recon_clusters_weighting,
                 )
 
                 # record losses related to attn.
@@ -291,7 +293,13 @@ if __name__ == '__main__':
         else:
             multicuda_execute(
                 target_func=train_model, 
-                attn_configs=['v1_naive-tminus1-withNoise'],
+                attn_configs=['v7_naive-tminus1-withNoise',
+                              'v2_naive-tminus1-withNoise', 
+                              'v3_naive-tminus1-withNoise',
+                              'v4_naive-tminus1-withNoise',
+                              'v5_naive-tminus1-withNoise',
+                              'v6_naive-tminus1-withNoise',
+                              'v1_naive-tminus1-withNoise'],
             )
 
     duration = time.time() - start_time

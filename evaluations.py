@@ -1129,7 +1129,7 @@ def compare_across_types_V3(
                 ax[row_idx, col_idx].set_xticks([])
                 ax[num_rows-1, col_idx].set_xticks(x_axis[:num_dims]+0.5)
                 ax[num_rows-1, col_idx].set_xticklabels([f'dim{i+1}' for i in range(num_dims)])
-                # ax[row_idx, col_idx].set_ylim([-0.5, 3.5])
+                ax[row_idx, col_idx].set_ylim([-0.5, 2.5])
                 ax[row_idx, 0].set_ylabel('binary recon loss')
                 ax[row_idx, col_idx].set_title(f'Type {problem_type}')
             
@@ -2041,7 +2041,7 @@ def post_attn_actv_thru_time(attn_config_version):
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
     
-    attn_config_version = 'v1_naive-tminus1'
+    attn_config_version = 'v1_naive-tminus1-withNoise'
     
     examine_clustering_learning_curves(attn_config_version)
     
@@ -2056,7 +2056,8 @@ if __name__ == '__main__':
 
     compare_across_types_V3(
         attn_config_version,
-        canonical_runs_only=False
+        canonical_runs_only=True,
+        threshold=[0.1, 0.1, 0.1]
     )
 
     # compare_alt_cluster_actv_targets(

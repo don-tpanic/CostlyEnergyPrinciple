@@ -168,6 +168,8 @@ def fit(joint_model,
         dcnn_config_version=dcnn_config_version
     )
     
+    _, batch_y_true, _, _ = joint_model(batch_x)
+    
     if epoch > 0:
         joint_model, attn_weights, \
         recon_loss_collector, recon_loss_ideal_collector, \
@@ -190,22 +192,16 @@ def fit(joint_model,
             batch_y_true=batch_y_true_tminus1,
         )
         
-        # true cluster actv for next trial
-        _, batch_y_true, _, _ = joint_model(batch_x)
         batch_y_true_tminus1 = batch_y_true
-        
+
         return joint_model, attn_weights, item_proberror, \
             recon_loss_collector, recon_loss_ideal_collector, \
             reg_loss_collector, percent_zero_attn_collector, \
             alpha_collector, center_collector, global_steps, \
             optimizer_clus, optimizer_attn, batch_y_true_tminus1
     
-    # true cluster actv for next trial
-    # computed only at the end of epoch=0, trial=7
-    if epoch == 0 and i == 7:
-        _, batch_y_true, _, _ = joint_model(batch_x)
-        batch_y_true_tminus1 = batch_y_true
-        
+    batch_y_true_tminus1 = batch_y_true
+    
     # Only when epoch=0
     return joint_model, [], item_proberror, \
         [], [], [], [], [], [], global_steps, optimizer_clus, optimizer_attn, \

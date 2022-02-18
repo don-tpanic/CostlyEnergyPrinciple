@@ -1,4 +1,4 @@
-config_version: config_v1_naive-tminus1-withNoise
+config_version: config_v3_naive-tminus1-withNoise
 
 # --- training ---
 num_runs: 10
@@ -12,7 +12,7 @@ noise_level: 0.5
 low_attn_constraint: nonneg
 attn_regularizer: l1 
 reg_strength: 0.001
-recon_clusters_weighting: 1
+recon_clusters_weighting: 100
 attn_positions: block4_pool
 lr_attn: 0.00092
 recon_level: cluster

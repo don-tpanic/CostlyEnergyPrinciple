@@ -291,7 +291,7 @@ if __name__ == '__main__':
         else:
             multicuda_execute(
                 target_func=train_model, 
-                attn_configs=['v1_naive-tminus1'],
+                attn_configs=['v1_naive-tminus1-withNoise'],
             )
 
     duration = time.time() - start_time

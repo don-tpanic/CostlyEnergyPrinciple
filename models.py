@@ -15,6 +15,7 @@ from finetune.models import model_base
 from clustering.layers import *
 from clustering.models import ClusterModel
 from layers import AttnFactory
+from keras_custom import initializers
 
 
 def presave_dcnn(dcnn_config_version, path_model):
@@ -86,11 +87,20 @@ def DCNN(attn_config_version,
     # ------ attn stuff ------ #
     # attn layer positions
     attn_positions = attn_config['attn_positions'].split(',')
+    
     # attn layer settings
     if attn_config['attn_initializer'] == 'ones':
         attn_initializer = tf.keras.initializers.Ones()
+    elif attn_config['attn_initializer'] == 'ones-withNoise':
+        attn_initializer = initializers.NoisyOnes(
+            noise_level=attn_config['noise_level'], 
+            noise_distribution=attn_config['noise_distribution'], 
+            random_seed=attn_config['random_seed']
+        )
+        
     if attn_config['low_attn_constraint'] == 'nonneg':
         low_attn_constraint = tf.keras.constraints.NonNeg()
+        
     if attn_config['attn_regularizer'] == 'l1':
         attn_regularizer = tf.keras.regularizers.l1(
             attn_config['reg_strength'])

@@ -1,4 +1,4 @@
-config_version: config_v1_naive-withNoise
+config_version: config_v5_naive-withNoise
 
 # --- training ---
 num_runs: 10
@@ -18,7 +18,7 @@ recon_level: cluster
 inner_loop_epochs: 5
 noise_const:
 dcnn_end_actv:
-recon_clusters_weighting: 1
+recon_clusters_weighting: 10000
 
 # --- clustering model ---
 Phi: 10.0

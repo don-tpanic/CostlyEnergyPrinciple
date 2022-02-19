@@ -389,8 +389,9 @@ class JointModel(Model):
             totalSupport = totalSupport / tf.reduce_sum(clusters_actv_softmax)
             print(f'[Check] totalSupport = {totalSupport}')
             
-        return inputs_binary, clusters_actv_softmax, y_pred, totalSupport
-
+        # return inputs_binary, clusters_actv_softmax, y_pred, totalSupport
+        return inputs_binary, clusters_actv, y_pred, totalSupport
+    
 
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'

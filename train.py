@@ -59,13 +59,11 @@ def fit(joint_model,
         dcnn_config_version,
         inner_loop_epochs,
         global_steps,
-        problem_type):
+        problem_type,
+        recon_clusters_weighting):
     """
     A single train step given a stimulus.
-    """
-    signature2coding = dict_int2binary()
-    print(f'[Check] Incoming stimulus: ', signature2coding[signature])
-        
+    """        
     # Go thru the `latest` joint_model to get binary output,
     x_binary, _, _, _ = joint_model(x)
         
@@ -178,7 +176,8 @@ def fit(joint_model,
             global_steps=global_steps,
             run=run,
             item_proberror=item_proberror,
-            problem_type=problem_type)
+            problem_type=problem_type,
+            recon_clusters_weighting=recon_clusters_weighting)
         return joint_model, attn_weights, item_proberror, \
             recon_loss_collector, recon_loss_ideal_collector, \
             reg_loss_collector, percent_zero_attn_collector, \
@@ -203,7 +202,8 @@ def learn_low_attn(
         global_steps,
         run,
         item_proberror,
-        problem_type):
+        problem_type,
+        recon_clusters_weighting):
     """
     Learning routine for low-level attn.
     This learning happens after the 
@@ -249,12 +249,7 @@ def learn_low_attn(
             # use the separate trainable dcnn 
             # in order to track loss.
             batch_x_binary_pred, batch_y_pred, _, _ = joint_model(batch_x, training=True)
-            recon_loss = loss_fn_attn(batch_y_true, batch_y_pred)
-
-            # TEMP:
-            if recon_loss != 0:
-                recon_loss = 10*recon_loss / recon_loss + recon_loss
-                # recon_loss *= 1e+13
+            recon_loss = loss_fn_attn(batch_y_true, batch_y_pred) * recon_clusters_weighting
             
             reg_loss = joint_model.losses
             loss_value = recon_loss + reg_loss
@@ -300,6 +295,7 @@ def learn_low_attn(
         print(f'[Check] batch_x_binary_pred = {batch_x_binary_pred}')
         print(f'[Check] batch_y_pred = {batch_y_pred}')
         print(f'[Check] batch_y_true = {batch_y_true}')
+        print(f'[Check] recon_loss = {recon_loss}, recon_clusters_weighting={recon_clusters_weighting}')
         print(f'[Check] recon_loss = {recon_loss}')
         print(f'[Check] recon_loss_binary = {recon_loss_ideal}, avg = {np.mean(recon_loss_ideal)}')
         print(f'[Check] reg_loss = {reg_loss[0]}')

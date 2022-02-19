@@ -45,6 +45,7 @@ def train_model(
         attn_config['attn_lr_multiplier'], 
         attn_config['asso_lr_multiplier']
     ]
+    recon_clusters_weighting = attn_config['recon_clusters_weighting']
     # ClusterModel things
     num_clusters = attn_config['num_clusters']
     
@@ -149,6 +150,7 @@ def train_model(
                     inner_loop_epochs=inner_loop_epochs,
                     global_steps=global_steps,
                     problem_type=problem_type,
+                    recon_clusters_weighting=recon_clusters_weighting,
                 )
 
                 # record losses related to attn.

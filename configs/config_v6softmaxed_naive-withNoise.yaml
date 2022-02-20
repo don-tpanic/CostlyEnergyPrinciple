@@ -1,4 +1,4 @@
-config_version: config_v6_naive-withNoise
+config_version: config_v6softmaxed_naive-withNoise
 
 # --- training ---
 num_runs: 50

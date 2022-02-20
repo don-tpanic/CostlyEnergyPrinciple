@@ -291,13 +291,14 @@ if __name__ == '__main__':
         else:
             multicuda_execute(
                 target_func=train_model, 
-                attn_configs=['v7_naive-withNoise',
-                              'v6_naive-withNoise',
-                              'v5_naive-withNoise',
-                              'v4_naive-withNoise',
-                              'v3_naive-withNoise',
-                              'v2_naive-withNoise',
-                              'v1_naive-withNoise'],
+                attn_configs=[
+                    'v7_naive-withNoise',
+                    'v6_naive-withNoise',
+                    'v5_naive-withNoise',
+                    'v4_naive-withNoise',
+                    'v3_naive-withNoise',
+                    'v1_naive-withNoise',
+                ]
             )
 
     duration = time.time() - start_time

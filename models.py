@@ -391,8 +391,10 @@ class JointModel(Model):
             print(f'[Check] totalSupport = {totalSupport}')
 
         if 'softmaxed' in self.attn_config_version:
+            print(f'[Check] softmaxed cluster outputs')
             return inputs_binary, clusters_actv_softmax, y_pred, totalSupport
         else:
+            print(f'[Check] un-inhibited cluster outputs')
             return inputs_binary, clusters_actv, y_pred, totalSupport
     
 

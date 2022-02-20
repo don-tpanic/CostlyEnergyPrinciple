@@ -1145,7 +1145,7 @@ def compare_across_types_V3(
                 ax[row_idx, col_idx].set_xticks([])
                 ax[num_rows-1, col_idx].set_xticks(x_axis[:num_dims]+0.5)
                 ax[num_rows-1, col_idx].set_xticklabels([f'dim{i+1}' for i in range(num_dims)])
-                # ax[row_idx, col_idx].set_ylim([-0.5, 3.5])
+                ax[row_idx, col_idx].set_ylim([-0.5, 2.5])
                 ax[row_idx, 0].set_ylabel('binary recon loss')
                 ax[row_idx, col_idx].set_title(f'Type {problem_type}')
             
@@ -2057,18 +2057,20 @@ def post_attn_actv_thru_time(attn_config_version):
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
     
-    attn_config_version = 'v1_independent'
+    attn_config_version = 'v7_naive-withNoise'
     dcnn_config_version = 't1.vgg16.block4_pool.None.run1'
     
-    how_low_can_att_weights(
-        attn_weight_constant=1.,
-        attn_config_version=attn_config_version,
-        dcnn_config_version=dcnn_config_version,
-        problem_type=1,
-        noise_level=0.4,
-        seed=15
-    )
-        
+    # how_low_can_att_weights(
+    #     attn_weight_constant=1.,
+    #     attn_config_version=attn_config_version,
+    #     dcnn_config_version=dcnn_config_version,
+    #     problem_type=1,
+    #     noise_level=0.4,
+    #     seed=15
+    # )
+
+    examine_clustering_learning_curves(attn_config_version)
+    
     # for problem_type in [1]:
     #     for run in [0]:
     #         viz_losses(
@@ -2078,12 +2080,11 @@ if __name__ == '__main__':
     #             run=run
     #         )
 
-    # compare_across_types_V3(
-    #     attn_config_version,
-    #     canonical_runs_only=False
-    # )
-
-    # examine_clustering_learning_curves(attn_config_version)
+    compare_across_types_V3(
+        attn_config_version,
+        canonical_runs_only=True,
+        threshold=[0.1, 0.1, 0.1]
+    )
 
     # compare_alt_cluster_actv_targets(
     #     original='v1_independent', 

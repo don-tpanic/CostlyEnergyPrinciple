@@ -1,4 +1,6 @@
-config_version: config_v1_independent
+# Diff to v1: cluster targets are the ones from softmax.
+
+config_version: config_v1softmaxed_independent
 
 # --- training ---
 num_runs: 50

@@ -2067,7 +2067,7 @@ def post_attn_actv_thru_time(attn_config_version):
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
 
-    attn_config_version = 'v4_naive-withNoise'
+    attn_config_version = 'v1_independent'
     
     examine_clustering_learning_curves(attn_config_version)
     
@@ -2080,11 +2080,11 @@ if __name__ == '__main__':
     #             run=run
     #         )
 
-    # compare_across_types_V3(
-    #     attn_config_version,
-    #     canonical_runs_only=True,
-    #     threshold=[0., 0., 0.]   # NOTE: non-diagostic dims not abs zero.
-    # )
+    compare_across_types_V3(
+        attn_config_version,
+        canonical_runs_only=True,
+        threshold=[0., 0., 0.]   # NOTE: non-diagostic dims not abs zero.
+    )
 
     # compare_alt_cluster_actv_targets(
     #     original='v1_independent', 

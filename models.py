@@ -240,7 +240,6 @@ class JointModel(Model):
         self.beta = beta
         self.temp1 = temp1
         self.temp2 = temp2
-        self.attn_config_version = attn_config_version
     
     def cluster_support(self, cluster_index, assoc_weights, y_true):
         """
@@ -390,12 +389,8 @@ class JointModel(Model):
             totalSupport = totalSupport / tf.reduce_sum(clusters_actv_softmax)
             print(f'[Check] totalSupport = {totalSupport}')
 
-        if 'softmaxed' in self.attn_config_version:
-            print(f'[Check] softmaxed cluster outputs')
-            return inputs_binary, clusters_actv_softmax, y_pred, totalSupport
-        else:
-            print(f'[Check] un-inhibited cluster outputs')
-            return inputs_binary, clusters_actv, y_pred, totalSupport
+        print(f'[Check] un-inhibited cluster outputs')
+        return inputs_binary, clusters_actv, y_pred, totalSupport
     
 
 if __name__ == '__main__':

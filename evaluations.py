@@ -683,6 +683,23 @@ def viz_losses(
     ax[3].plot(percent_zero)
     ax[3].set_title(f'percentage of zeroed attn weights (DCNN) [{final_percent_zero:.3f}]')
 
+    # print final high-attn weights
+    alphas_fpath = f'results/{attn_config_version}/all_alphas_type{problem_type}_run{run}_cluster.npy'
+    # get the final 3 alphas
+    alphas = np.round(np.load(alphas_fpath)[-3:], 3)
+    
+    # counter_balancing_fpath = f'results/{attn_config_version}/counter_balancing_type{problem_type}_run{run}_cluster.npy'
+    # counter_balancing = np.load(counter_balancing_fpath, allow_pickle=True)
+    # # print(f'counter_balancing = {counter_balancing}')
+    # rot_dims = counter_balancing.item()['rot_dims']
+    # k = counter_balancing.item()['k'][0]
+    # # print(f'run={run}, rot_dims = {rot_dims}, k={k}')
+    # if k != 2:
+    #     # no need to rotate if k == 2 as it is same as k == 0
+    #     # otherwise just switch based on index.
+    #     alphas[rot_dims[1]], alphas[rot_dims[0]] = alphas[rot_dims[0]], alphas[rot_dims[1]]
+    
+    plt.suptitle(f'high-attn = {alphas}')
     plt.tight_layout()
     plt.legend()
     plt.savefig(f'results/{attn_config_version}/losses_type{problem_type}_run{run}_{recon_level}.png')
@@ -993,7 +1010,7 @@ def compare_across_types_V3(
                         # always be dim1 for plotting only.
                         counter_balancing_fpath = f'{results_path}/counter_balancing_type{problem_type}_run{run}_cluster.npy'
                         counter_balancing = np.load(counter_balancing_fpath, allow_pickle=True)
-                        print(f'counter_balancing = {counter_balancing}')
+                        # print(f'counter_balancing = {counter_balancing}')
                         rot_dims = counter_balancing.item()['rot_dims']
                         k = counter_balancing.item()['k'][0]
                         # print(f'run={run}, rot_dims = {rot_dims}, k={k}')
@@ -1138,7 +1155,7 @@ def compare_across_types_V3(
                 ax[row_idx, col_idx].set_xticks([])
                 ax[num_rows-1, col_idx].set_xticks(x_axis[:num_dims]+0.5)
                 ax[num_rows-1, col_idx].set_xticklabels([f'dim{i+1}' for i in range(num_dims)])
-                ax[row_idx, col_idx].set_ylim([-0.5, 2.5])
+                ax[row_idx, col_idx].set_ylim([-0.5, 9.5])
                 ax[row_idx, 0].set_ylabel('binary recon loss')
                 ax[row_idx, col_idx].set_title(f'Type {problem_type}')
             
@@ -2050,24 +2067,24 @@ def post_attn_actv_thru_time(attn_config_version):
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
 
-    attn_config_version = 'v1_independent'
+    attn_config_version = 'v4_naive-withNoise'
     
     examine_clustering_learning_curves(attn_config_version)
     
-    for problem_type in [1]:
-        for run in [0]:
-            viz_losses(
-                attn_config_version=attn_config_version,
-                problem_type=problem_type,
-                recon_level='cluster',
-                run=run
-            )
+    # for problem_type in [1]:
+    #     for run in [0]:
+    #         viz_losses(
+    #             attn_config_version=attn_config_version,
+    #             problem_type=problem_type,
+    #             recon_level='cluster',
+    #             run=run
+    #         )
 
-    compare_across_types_V3(
-        attn_config_version,
-        canonical_runs_only=True,
-        threshold=[0.1, 0.1, 0.1]   # NOTE: non-diagostic dims not abs zero.
-    )
+    # compare_across_types_V3(
+    #     attn_config_version,
+    #     canonical_runs_only=True,
+    #     threshold=[0., 0., 0.]   # NOTE: non-diagostic dims not abs zero.
+    # )
 
     # compare_alt_cluster_actv_targets(
     #     original='v1_independent', 

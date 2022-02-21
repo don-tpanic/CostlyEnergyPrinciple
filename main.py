@@ -301,8 +301,7 @@ if __name__ == '__main__':
         else:
             multicuda_execute(
                 target_func=train_model, 
-                attn_configs=['v1_independent',
-                              'v1softmaxed_independent'],
+                attn_configs=['v1_independent'],
             )
 
     duration = time.time() - start_time

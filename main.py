@@ -292,10 +292,7 @@ if __name__ == '__main__':
             multicuda_execute(
                 target_func=train_model, 
                 attn_configs=[
-                    'v7softmaxed_naive-withNoise',
-                    'v6softmaxed_naive-withNoise',
-                    'v5softmaxed_naive-withNoise',
-                    'v4softmaxed_naive-withNoise',
+                    'v4_naive-withNoise',
                 ]
             )
 

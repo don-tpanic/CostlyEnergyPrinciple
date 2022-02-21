@@ -232,9 +232,9 @@ def learn_low_attn(
     print(f'[Check] batch_y_true.shape={batch_y_true.shape}')
     print(f'[Check] batch_y_true={batch_y_true}')
     
-    # Save trial-level cluster targets
-    fname = f'results/{attn_config_version}/cluster_targets_{problem_type}_{global_steps}_{run}.npy'
-    np.save(fname, batch_y_true)
+    # # Save trial-level cluster targets
+    # fname = f'results/{attn_config_version}/cluster_targets_{problem_type}_{global_steps}_{run}.npy'
+    # np.save(fname, batch_y_true)
     
     recon_loss_collector = []           # recon loss at cluster level (learning)
     recon_loss_ideal_collector = []     # recon loss at binary level  (tracking)

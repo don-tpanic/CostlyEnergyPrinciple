@@ -19,45 +19,34 @@ from losses import binary_crossentropy
 
 def train_model(
         problem_type, 
-        attn_config_version,
-        intermediate_input=False
+        config_version,
     ):
 
     # ------------------ load configs ------------------
     # load top-level config
-    attn_config = load_config(
-        component=None, 
-        config_version=attn_config_version
-    )
+    config = load_config(config_version=config_version)
 
     # Low attn training things
-    num_runs = attn_config['num_runs']
-    num_blocks = attn_config['num_blocks']
-    random_seed = attn_config['random_seed']
-    lr_attn = attn_config['lr_attn']
-    recon_level = attn_config['recon_level']
-    inner_loop_epochs = attn_config['inner_loop_epochs']
-    attn_positions = attn_config['attn_positions'].split(',')
-    lr = attn_config['lr']
-    from_logits = attn_config['from_logits']
+    num_runs = config['num_runs']
+    num_blocks = config['num_blocks']
+    random_seed = config['random_seed']
+    lr_low_attn = config['lr_low_attn']
+    recon_level = config['recon_level']
+    inner_loop_epochs = config['inner_loop_epochs']
+    low_attn_positions = config['low_attn_positions'].split(',')
+    lr_clus = config['lr_clus']
+    from_logits = config['from_logits']
     lr_multipliers = [
-        attn_config['center_lr_multiplier'], 
-        attn_config['attn_lr_multiplier'], 
-        attn_config['asso_lr_multiplier']
+        config['center_lr_multiplier'], 
+        config['attn_lr_multiplier'], 
+        config['asso_lr_multiplier']
     ]
-    recon_clusters_weighting = attn_config['recon_clusters_weighting']
+    recon_clusters_weighting = config['recon_clusters_weighting']
     # ClusterModel things
-    num_clusters = attn_config['num_clusters']
-    
-    # stimulus_set is in dcnn_config
-    dcnn_config_version = attn_config['dcnn_config_version']
-    dcnn_config = load_config(
-        component='finetune',
-        config_version=dcnn_config_version
-    )
-    stimulus_set = dcnn_config['stimulus_set']
-    print(f'[Check] Type={problem_type}, {attn_config_version}')
-    results_path = f'results/{attn_config_version}'
+    num_clusters = config['num_clusters']
+    stimulus_set = config['stimulus_set']
+    print(f'[Check] Type={problem_type}, {config_version}')
+    results_path = f'results/{config_version}'
     if not os.path.exists(results_path):
         os.makedirs(results_path)
     np.random.seed(random_seed)
@@ -68,18 +57,15 @@ def train_model(
     for run in range(num_runs):
         print(f'[Check] Beginning run {run}')
 
-        optimizer_clus = tf.keras.optimizers.SGD(learning_rate=lr)
-        optimizer_attn = tf.keras.optimizers.Adam(learning_rate=lr_attn)
+        optimizer_clus = tf.keras.optimizers.SGD(learning_rate=lr_clus)
+        optimizer_attn = tf.keras.optimizers.Adam(learning_rate=lr_low_attn)
         loss_fn_clus = tf.keras.losses.BinaryCrossentropy(from_logits=from_logits)
         
         # different level of recon uses different loss func
         if recon_level == 'cluster':
             loss_fn_attn = tf.keras.losses.MeanSquaredError()
         
-        joint_model = JointModel(
-            attn_config_version=attn_config_version,
-            dcnn_config_version=dcnn_config_version, 
-        )
+        joint_model = JointModel(config_version=config_version)
         preprocess_func = joint_model.preprocess_func
         assoc_weights = np.random.uniform(
             low=0, high=0, size=(num_clusters, 2)
@@ -97,8 +83,7 @@ def train_model(
 
         # load dataset in same order.
         dataset, counter_balancing = data_loader_V2(
-            attn_config_version=attn_config_version,
-            dcnn_config_version=dcnn_config_version, 
+            config_version=config_version,
             preprocess_func=preprocess_func,
             problem_type=problem_type,
             random_seed=run
@@ -131,7 +116,7 @@ def train_model(
                 alpha_collector, center_collector, global_steps, \
                 optimizer_clus, optimizer_attn = fit(
                     joint_model=joint_model,
-                    attn_positions=attn_positions,
+                    low_attn_positions=low_attn_positions,
                     num_clusters=num_clusters,
                     dataset=dataset,
                     x=x, 
@@ -145,8 +130,7 @@ def train_model(
                     epoch=epoch, 
                     i=i,
                     run=run,
-                    attn_config_version=attn_config_version,
-                    dcnn_config_version=dcnn_config_version,
+                    config_version=config_version,
                     inner_loop_epochs=inner_loop_epochs,
                     global_steps=global_steps,
                     problem_type=problem_type,
@@ -240,7 +224,7 @@ def train_model(
 
 
 def multicuda_execute(
-        target_func, attn_configs):
+        target_func, configs):
     """
     Train a bunch of models at once
     by launching them to all available GPUs.
@@ -250,10 +234,10 @@ def multicuda_execute(
 
     args_list = []
     single_entry = {}
-    for attn_config_version in attn_configs:
+    for config_version in configs:
         for problem_type in range(1, num_types+1):
             single_entry['problem_type'] = problem_type
-            single_entry['attn_config_version'] = attn_config_version
+            single_entry['config_version'] = config_version
             args_list.append(single_entry)
             single_entry = {}
 
@@ -285,14 +269,14 @@ if __name__ == '__main__':
             os.environ["CUDA_VISIBLE_DEVICES"] = f"{gpu_index}"
             train_model(
                 problem_type=problem_type, 
-                attn_config_version=config_version,
+                config_version=config_version,
             )
         # Do multi-GPU for all when there is no problem_type specified.
         else:
             multicuda_execute(
                 target_func=train_model, 
-                attn_configs=[
-                    'v4_naive-withNoise',
+                configs=[
+                    'top',
                 ]
             )
 

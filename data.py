@@ -119,8 +119,7 @@ def type2labels(problem_type):
 
 
 def data_loader_V2(
-        attn_config_version,
-        dcnn_config_version,
+        config_version,
         preprocess_func,
         problem_type,
         color_mode='rgb',
@@ -154,16 +153,10 @@ def data_loader_V2(
         Or if multi attn:
         X[i] = [(1, 224, 224, 3), (1, 64), (1, 256), (1, 512)]
     """
-    attn_config = load_config(
-        component=None,
-        config_version=attn_config_version)
-    dcnn_config = load_config(
-        component='finetune', 
-        config_version=dcnn_config_version)
-    attn_positions = attn_config['attn_positions'].split(',')
-    layer2attn_size = dict_layer2attn_size(
-        model_name=dcnn_config['model_name'])
-    stimulus_set = dcnn_config['stimulus_set']
+    config = load_config(config_version=config_version)
+    low_attn_positions = config['low_attn_positions'].split(',')
+    layer2attn_size = dict_layer2attn_size(model_name=config['dcnn_base'])
+    stimulus_set = config['stimulus_set']
     data_dir = f'dataset/task{stimulus_set}'
 
     # load n preprocess images
@@ -238,7 +231,7 @@ def data_loader_V2(
 
         # add fake inputs.
         inputs = [x]
-        for attn_position in attn_positions:
+        for attn_position in low_attn_positions:
             attn_size = layer2attn_size[attn_position]
             fake_input = np.ones((1, attn_size))
             inputs.extend([fake_input])
@@ -247,25 +240,16 @@ def data_loader_V2(
     return np.array(dataset, dtype=object), counter_balancing
 
 
-def load_X_only(dataset, 
-                attn_config_version,
-                dcnn_config_version):
+def load_X_only(dataset, config_version):
     """
     Given a dataset, extract and return 
     only the X part. This is for evaluating 
     model activations when Y labels are not needed.
     """
-    attn_config = load_config(
-        component=None,
-        config_version=attn_config_version
-    )
-    dcnn_config = load_config(
-        component='finetune',
-        config_version=dcnn_config_version
-    )
-    dcnn_model_name = dcnn_config['model_name']
+    config = load_config(config_version=config_version)
+    dcnn_base = config['dcnn_base']
     layer2attn_size = dict_layer2attn_size(
-        model_name=dcnn_model_name
+        model_name=dcnn_base
     )
     
     # image -> [(N, 224, 224, 3)]
@@ -280,8 +264,8 @@ def load_X_only(dataset,
     batch_x = [image_batch]
 
     # fake inputs -> [(1, 64), (1, 256), (1, 512)]
-    attn_positions = attn_config['attn_positions'].split(',')
-    for attn_position in attn_positions:
+    low_attn_positions = config['low_attn_positions'].split(',')
+    for attn_position in low_attn_positions:
         attn_size = layer2attn_size[attn_position]
         fake_input = np.ones((1, attn_size))
 
@@ -293,15 +277,8 @@ def load_X_only(dataset,
 
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
-    # data_loader_V2(
-    #     dcnn_config_version='t1.block4_pool.None.run1', 
-    #     problem_type=1,
-    #     preprocess_func=None
-    # )
-
     data_loader_V2(
-        attn_config_version='attn_v3b_cb_multi_test',
-        dcnn_config_version='t1.block4_pool.None.run1', 
+        config_version='attn_v3b_cb_multi_test',
         problem_type=1,
         preprocess_func=None
     )

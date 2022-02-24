@@ -13,7 +13,7 @@ from data import load_X_only, dict_int2binary
 from clustering.train import recruit_cluster, update_params
 
 
-def set_trainable(objective, attn_positions, num_clusters, model):
+def set_trainable(objective, low_attn_positions, num_clusters, model):
     """
     Set some layers to be trainable/not trainable based 
     on objective.
@@ -29,7 +29,7 @@ def set_trainable(objective, attn_positions, num_clusters, model):
         low_trainable = False
         high_trainable = True
     
-    for attn_position in attn_positions:
+    for attn_position in low_attn_positions:
         model.get_layer(
             f'dcnn_model').get_layer(
                 f'attn_factory_{attn_position}').trainable = low_trainable
@@ -41,7 +41,7 @@ def set_trainable(objective, attn_positions, num_clusters, model):
 
 
 def fit(joint_model, 
-        attn_positions,
+        low_attn_positions,
         num_clusters,
         dataset, 
         x, 
@@ -55,8 +55,7 @@ def fit(joint_model,
         epoch, 
         i, 
         run,
-        attn_config_version, 
-        dcnn_config_version,
+        config_version, 
         inner_loop_epochs,
         global_steps,
         problem_type,
@@ -69,7 +68,7 @@ def fit(joint_model,
         
     set_trainable(
         objective='high', 
-        attn_positions=attn_positions,
+        low_attn_positions=low_attn_positions,
         num_clusters=num_clusters,
         model=joint_model
     )
@@ -108,12 +107,9 @@ def fit(joint_model,
         print(f'[Check] item_proberror = {item_proberror}')
 
         # Apply the unsupervised thresholding rule.
-        attn_config = load_config(
-            component=None, 
-            config_version=attn_config_version
-        )
-        unsup_rule = attn_config['unsup_rule']
-        thr = attn_config['thr']
+        config = load_config(config_version=config_version)
+        unsup_rule = config['unsup_rule']
+        thr = config['thr']
         print(f'[Check] totalSupport={totalSupport} vs thr={thr}')
         
         # Successful recruit if lower than thr
@@ -165,11 +161,10 @@ def fit(joint_model,
         reg_loss_collector, percent_zero_attn_collector, global_steps, \
         optimizer_attn = learn_low_attn(
             joint_model=joint_model,
-            attn_positions=attn_positions,
+            low_attn_positions=low_attn_positions,
             num_clusters=num_clusters,
             dataset=dataset,
-            attn_config_version=attn_config_version,
-            dcnn_config_version=dcnn_config_version,
+            config_version=config_version,
             loss_fn_attn=loss_fn_attn,
             optimizer_attn=optimizer_attn,
             inner_loop_epochs=inner_loop_epochs,
@@ -191,11 +186,10 @@ def fit(joint_model,
 
 def learn_low_attn(
         joint_model,
-        attn_positions,
+        low_attn_positions,
         num_clusters,
         dataset,
-        attn_config_version, 
-        dcnn_config_version,
+        config_version, 
         loss_fn_attn,
         optimizer_attn, 
         inner_loop_epochs,
@@ -215,7 +209,7 @@ def learn_low_attn(
     """
     set_trainable(
         objective='low',
-        attn_positions=attn_positions,
+        low_attn_positions=low_attn_positions,
         num_clusters=num_clusters,
         model=joint_model
     )
@@ -223,8 +217,7 @@ def learn_low_attn(
     # a batch of raw images(+ fake ones)
     batch_x = load_X_only(
         dataset=dataset, 
-        attn_config_version=attn_config_version,
-        dcnn_config_version=dcnn_config_version
+        config_version=config_version,
     )
     
     # true cluster actv
@@ -233,7 +226,7 @@ def learn_low_attn(
     print(f'[Check] batch_y_true={batch_y_true}')
     
     # # Save trial-level cluster targets
-    # fname = f'results/{attn_config_version}/cluster_targets_{problem_type}_{global_steps}_{run}.npy'
+    # fname = f'results/{config_version}/cluster_targets_{problem_type}_{global_steps}_{run}.npy'
     # np.save(fname, batch_y_true)
     
     recon_loss_collector = []           # recon loss at cluster level (learning)
@@ -257,7 +250,7 @@ def learn_low_attn(
             # current attn weights for all positions.
             zero_counts = 0.
             tol_counts = 0.
-            for attn_position in attn_positions:
+            for attn_position in low_attn_positions:
                 layer_attn_weights = \
                     joint_model.get_layer(
                         'dcnn_model').get_layer(
@@ -306,7 +299,7 @@ def learn_low_attn(
 
     # log the latest attn weights at the end of this inner-loop.
     attn_weights = {}
-    for attn_position in attn_positions:
+    for attn_position in low_attn_positions:
         layer_attn_weights = \
             joint_model.get_layer(
                 'dcnn_model').get_layer(

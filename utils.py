@@ -6,18 +6,8 @@ import glob
 from PIL import Image
 
 
-def load_config(component, config_version):
-    """
-    inputs:
-    -------
-        component: `finetune` | `clustering` | None
-    """
-    if component is not None:
-        path_config = f'{component}/configs/config_{config_version}.yaml'
-    else:
-        # top-level config (i.e. attn config)
-        path_config = f'configs/config_{config_version}.yaml'
-
+def load_config(config_version):
+    path_config = f'configs/config_{config_version}.yaml'
     with open(path_config) as f:
         config = yaml.safe_load(f)
 

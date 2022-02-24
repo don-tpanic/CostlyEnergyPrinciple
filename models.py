@@ -18,43 +18,48 @@ from layers import AttnFactory
 from keras_custom import initializers
 
 
-def presave_dcnn(dcnn_config_version, path_model):
+def presave_dcnn(config_version, path_model):
     """
-    Load & save a finetuned dcnn.
+    Load & save a finetuned dcnn with lowAttn.
     """
-    # load two configs
-    dcnn_config = load_config(
-        component='finetune', 
-        config_version=dcnn_config_version)
+    
+    config = load_config(
+        config_version=config_version
+    )
 
     # load dcnn model.
-    model_dcnn, input_shape, preprocess_func = model_base(
-        model_name=dcnn_config['model_name'], 
-        actv_func=dcnn_config['actv_func'],
-        kernel_constraint=dcnn_config['kernel_constraint'],
-        kernel_regularizer=dcnn_config['kernel_regularizer'],
-        hyperbolic_strength=dcnn_config['hyperbolic_strength'],
-        lr=dcnn_config['lr'],
-        train=dcnn_config['train'],
-        stimulus_set=dcnn_config['stimulus_set'],
-        layer=dcnn_config['layer'],
-        intermediate_input=False)
-    model_name = dcnn_config['model_name']
-    dcnn_save_path = f'finetune/results/{model_name}/config_{dcnn_config_version}/trained_weights'
+    model_dcnn, _, _ = model_base(
+        config=config
+    )
+    
+    dcnn_base = config['dcnn_base']
+    dcnn_config_version = config['dcnn_config_version']
+    dcnn_save_path = f'finetune/results/{dcnn_base}/{dcnn_config_version}/trained_weights'
+    
+    # load pred layer weights.
     with open(os.path.join(dcnn_save_path, 'pred_weights.pkl'), 'rb') as f:
         pred_weights = pickle.load(f)
     model_dcnn.get_layer('pred').set_weights(pred_weights)
+    
+    # load attn layer weights.
+    attn_positions = config['low_attn_positions'].split(',')
+    attn_weights = np.load(
+        f'{dcnn_save_path}/attn_weights.npy', allow_pickle=True
+    )
+    attn_weights = attn_weights.ravel()[0]
+    for attn_position in attn_positions:
+        layer_attn_weights = attn_weights[attn_position]
+        model_dcnn.get_layer(
+            f'attn_factory_{attn_position}').set_weights([layer_attn_weights])
+            
     # save model for loading later.
     model_dcnn.save(path_model)
-    print(f'dcnn model saved as {path_model}.')
+    print(f'dcnn_model-with-lowAttn saved as {path_model}.')
 
 
-def DCNN(attn_config_version, 
-         dcnn_config_version, 
-         intermediate_input):
+def DCNN(config_version):
     """
-    Load trained dcnn model with option to add 
-    a single or multiple layers of attn.
+    Load trained dcnn model.
 
     impl: 
     -----
@@ -67,131 +72,56 @@ def DCNN(attn_config_version,
         model_dcnn: finetuned dcnn with attn
         preprocess_func: preprocessing for this dcnn
     """
-    attn_config = load_config(
-            component=None, 
-            config_version=attn_config_version)
-    dcnn_config = load_config(
-        component='finetune', 
-        config_version=dcnn_config_version)
-    dcnn_base = dcnn_config['model_name']
-    
+    config = load_config(config_version=config_version)
+    dcnn_config_version = config['dcnn_config_version']
+    dcnn_base = config['dcnn_base']
     if dcnn_base == 'vgg16':
         preprocess_func = tf.keras.applications.vgg16.preprocess_input
 
     # load dcnn model.
-    path_model = f'dcnn_models/{dcnn_config_version}'
+    path_model = f'dcnn_models-with-lowAttn/{dcnn_config_version}'
     if not os.path.exists(path_model):
-        presave_dcnn(dcnn_config_version, path_model)
+        presave_dcnn(config_version, path_model)
     model_dcnn = tf.keras.models.load_model(path_model)
-
-    # ------ attn stuff ------ #
-    # attn layer positions
-    attn_positions = attn_config['attn_positions'].split(',')
-    
-    # attn layer settings
-    if attn_config['attn_initializer'] == 'ones':
-        attn_initializer = tf.keras.initializers.Ones()
-    elif attn_config['attn_initializer'] == 'ones-withNoise':
-        attn_initializer = initializers.NoisyOnes(
-            noise_level=attn_config['noise_level'], 
-            noise_distribution=attn_config['noise_distribution'], 
-            random_seed=attn_config['random_seed']
-        )
-                
-    if attn_config['low_attn_constraint'] == 'nonneg':
-        low_attn_constraint = tf.keras.constraints.NonNeg()
-        
-    if attn_config['attn_regularizer'] == 'l1':
-        attn_regularizer = tf.keras.regularizers.l1(
-            attn_config['reg_strength'])
-    else:
-        attn_regularizer = None
-
-    # if no attn used, return the finetuned dcnn itself.
-    if attn_positions is None:
-        return model_dcnn, preprocess_func
-
-    # loop thru all layers and apply attn at multiple positions.
-    else:
-        dcnn_layers = model_dcnn.layers[1:]
-        x = model_dcnn.input
-        fake_inputs = []
-        for layer in dcnn_layers:
-
-            # regardless of attn
-            # apply one layer at a time from DCNN.
-            layer.trainable = False
-            x = layer(x)
-
-            # apply attn at the output of the above layer output
-            if layer.name in attn_positions:
-                attn_size = x.shape[-1]
-
-                fake_input = layers.Input(
-                    shape=(attn_size,),
-                    name=f'fake_input_{layer.name}'
-                )
-                fake_inputs.append(fake_input)
-                
-                attn_weights = AttnFactory(
-                    output_dim=attn_size, 
-                    input_shape=fake_input.shape,
-                    name=f'attn_factory_{layer.name}',
-                    initializer=attn_initializer,
-                    constraint=low_attn_constraint,
-                    regularizer=attn_regularizer
-                )(fake_input)
-
-                # reshape attn to be compatible.
-                attn_weights = layers.Reshape(
-                    target_shape=(1, 1, attn_weights.shape[-1]),
-                    name=f'reshape_attn_{layer.name}')(attn_weights)
-
-                # apply attn to prev layer output
-                x = layers.Multiply(name=f'post_attn_actv_{layer.name}')([x, attn_weights])
-
-        inputs = [model_dcnn.inputs]
-        inputs.extend(fake_inputs)
-        model_dcnn = Model(inputs=inputs, outputs=x, name='dcnn_model')
-        return model_dcnn, preprocess_func
+    return model_dcnn, preprocess_func
 
 
 class JointModel(Model):
     
     def __init__(
             self,
-            attn_config_version,
-            dcnn_config_version, 
-            intermediate_input=False,
+            config_version,
             name="joint_model",
             **kwargs
         ):
         super(JointModel, self).__init__(name=name, **kwargs)
         
-        attn_config = load_config(
-            component=None,
-            config_version=attn_config_version,
-        )
+        config = load_config(config_version=config_version)
         
         # --- finetuned DCNN with attn --- #
         self.DCNN, self.preprocess_func = DCNN(
-            attn_config_version=attn_config_version,
-            dcnn_config_version=dcnn_config_version,
-            intermediate_input=intermediate_input
+            config_version=config_version,
         )
         
+        # freeze DCNN except attn layers.
+        for layer in self.DCNN.layers:
+            if 'attn' in layer.name:
+                continue
+            else:
+                layer.trainable = False
+
         # --- freshly defined cluster model --- #
-        num_clusters = attn_config['num_clusters']
-        r = attn_config['r']
-        q = attn_config['q']
-        specificity = attn_config['specificity']
-        trainable_specificity = attn_config['trainable_specificity']
-        high_attn_constraint = attn_config['high_attn_constraint']
-        Phi = attn_config['Phi']
-        actv_func = attn_config['actv_func']
-        beta = attn_config['beta']
-        temp1 = attn_config['temp1']
-        temp2 = attn_config['temp2']
+        num_clusters = config['num_clusters']
+        r = config['r']
+        q = config['q']
+        specificity = config['specificity']
+        trainable_specificity = config['trainable_specificity']
+        high_attn_constraint = config['high_attn_constraint']
+        Phi = config['Phi']
+        actv_func = config['clus_actv_func']
+        beta = config['beta']
+        temp1 = config['temp1']
+        temp2 = config['temp2']
         
         output_dim = self.DCNN.output.shape[-1]
         self.Distance0 = Distance(output_dim=output_dim, name=f'd0')
@@ -395,3 +325,5 @@ class JointModel(Model):
 
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
+    
+    JointModel(config_version='top')

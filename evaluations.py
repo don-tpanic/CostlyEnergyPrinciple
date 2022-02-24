@@ -2083,10 +2083,10 @@ if __name__ == '__main__':
     compare_across_types_V3(
         attn_config_version,
         canonical_runs_only=True,
-        threshold=[0.01, 0.01, 0.01]
+        threshold=[0., 0., 0.]
     )
 
-    compare_alt_cluster_actv_targets(
-        original='v1_independent', 
-        alt=attn_config_version
-    )
+    # compare_alt_cluster_actv_targets(
+    #     original='v1_independent', 
+    #     alt=attn_config_version
+    # )

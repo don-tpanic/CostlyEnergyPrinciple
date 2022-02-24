@@ -1,6 +1,6 @@
 # Ignore big files
 dcnn_models/
-results/
+results/v*
 
 # Ignore content from clustering/
 clustering/results/

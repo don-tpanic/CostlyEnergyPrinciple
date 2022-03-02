@@ -1,0 +1,55 @@
+
+
+config_version: config_v2_naive-withNoise-t1.vgg16.block4_pool.None.run8-with-lowAttn
+
+# ------- finetune params -------
+dcnn_config_version: config_t1.vgg16.block4_pool.None.run8-with-lowAttn
+dcnn_actv_func: sigmoid
+low_attn_initializer: ones
+low_attn_positions: block4_pool
+low_attn_regularizer: l1
+low_attn_constraint: nonneg
+layer: block4_pool
+lr_finetune: 0.003
+dcnn_base: vgg16
+noise_distribution: null
+noise_level: null
+finetune_run: 8
+stimulus_set: 1
+train: finetune-with-lowAttn
+# except reg_strength which can be different from during finetune
+reg_strength: 0.001
+
+# ------- sparsity training params -------
+# some params are shared from above
+num_runs: 50
+lr_low_attn: 0.00092
+recon_level: cluster
+inner_loop_epochs: 5
+recon_clusters_weighting: 10
+
+# ------- clustering params -------
+num_blocks: 32
+random_seed: 999
+Phi: 10.0
+clus_actv_func: softmax
+asso_lr_multiplier: 1.0
+high_attn_constraint: sumtoone
+attn_lr_multiplier: 1.0
+beta: 3.0
+center_lr_multiplier: 1.0
+from_logits: true
+lr_clus: 0.1
+num_clusters: 8
+q: 1
+r: 2
+specificity: 0.25
+temp1: equivalent
+temp2: 0.012
+thr: -0.4
+trainable_specificity: false
+unsup_rule: threshold
+
+
+
+

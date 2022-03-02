@@ -61,7 +61,7 @@ recon_clusters_weighting_ = [1]
 ##############################################
 
 default_dict['dcnn_base'] = dcnn_base
-default_dict['low_attention_positions'] = low_attention_positions
+default_dict['low_att_positions'] = low_attention_positions
 default_dict['layer'] = layer
 
 for run in finetune_runs:

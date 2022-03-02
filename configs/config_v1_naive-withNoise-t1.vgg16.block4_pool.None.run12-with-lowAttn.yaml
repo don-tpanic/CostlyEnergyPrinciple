@@ -8,15 +8,14 @@ config_version: config_v1_naive-withNoise-t1.vgg16.block4_pool.None.run12-with-l
 dcnn_actv_func: sigmoid
 dcnn_base: vgg16
 dcnn_config_version: config_t1.vgg16.block4_pool.None.run12-with-lowAttn
-finetune_run: null
+finetune_run: 12
 from_logits: true
 high_attn_constraint: sumtoone
 inner_loop_epochs: 5
 layer: block4_pool
-low_att_positions: block4_pool
 low_attn_constraint: nonneg
 low_attn_initializer: ones
-low_attn_positions: null
+low_attn_positions: block4_pool
 low_attn_regularizer: l1
 lr_clus: 0.1
 lr_finetune: 0.003

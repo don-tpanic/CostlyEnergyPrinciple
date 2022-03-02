@@ -49,19 +49,19 @@ default_dict = {
 ##############################################
 begin_run = 8
 end_run = 8
-# finetune_runs = range(begin_run, end_run+1)
-finetune_runs = [1, 5, 12, 17, 19, 20, 26]
+finetune_runs = range(begin_run, end_run+1)
+# finetune_runs = [1, 5, 12, 17, 19, 20, 26]
 dcnn_base = 'vgg16'
 low_attention_positions = 'block4_pool'
 layer = 'block4_pool'
 reg_strength_ = [0.001]
 lr_low_attn_ = [0.00092]
 inner_loop_epochs_ = [5]
-recon_clusters_weighting_ = [1]
+recon_clusters_weighting_ = [1, 10, 100, 1000]
 ##############################################
 
 default_dict['dcnn_base'] = dcnn_base
-default_dict['low_att_positions'] = low_attention_positions
+default_dict['low_attn_positions'] = low_attention_positions
 default_dict['layer'] = layer
 
 for run in finetune_runs:
@@ -77,6 +77,7 @@ for run in finetune_runs:
             for lr_low_attn in lr_low_attn_:
 
                 config_version = f'config_v{v}_naive-withNoise-{dcnn_config_version}'
+                default_dict['finetune_run'] = run
                 default_dict['config_version'] = config_version
                 default_dict['recon_clusters_weighting'] = recon_clusters_weighting
                 default_dict['inner_loop_epochs'] = inner_loop_epochs

@@ -778,7 +778,7 @@ def viz_cluster_params(
 
 
 def examine_clustering_learning_curves(
-        attn_config_version, recon_level='cluster'):
+        config_version, recon_level='cluster'):
     """
     Just sanity check that the lc 
     of types are expected.
@@ -790,7 +790,7 @@ def examine_clustering_learning_curves(
     for i in range(num_types):
         problem_type = i + 1
         lc = np.load(
-            f'results/{attn_config_version}/lc_type{problem_type}_{recon_level}.npy'
+            f'results/{config_version}/lc_type{problem_type}_{recon_level}.npy'
         )
         trapz_areas[i] = np.round(np.trapz(lc), 3)
         ax.errorbar(
@@ -803,7 +803,7 @@ def examine_clustering_learning_curves(
     plt.legend()
     plt.title(f'{trapz_areas}')
     plt.tight_layout()
-    plt.savefig(f'results/{attn_config_version}/lc.png')
+    plt.savefig(f'results/{config_version}/lc.png')
 
 
 def attn_weights_stability():
@@ -853,11 +853,8 @@ def find_canonical_runs(
     """
     num_types = 6
     results_path = f'results/{attn_config_version}'
-    attn_config = load_config(
-        component=None,
-        config_version=attn_config_version
-    )
-    num_runs = attn_config['num_runs']
+    config = load_config(config_version=config_version)
+    num_runs = config['num_runs']
     type2cluster = {
         1: 2, 2: 4,
         3: 6, 4: 6, 5: 6,
@@ -872,7 +869,7 @@ def find_canonical_runs(
         for run in range(num_runs):
 
             mask_non_recruit = np.load(
-                f'results/{attn_config_version}/mask_non_recruit_type{problem_type}_run{run}_cluster.npy')
+                f'results/{config_version}/mask_non_recruit_type{problem_type}_run{run}_cluster.npy')
             num_nonzero = len(np.nonzero(mask_non_recruit)[0])
             if canonical_runs_only:
                 if num_nonzero == type2cluster[problem_type]:
@@ -941,7 +938,7 @@ def canonical_runs_correspondence_to_attn_n_binary(
   
 
 def compare_across_types_V3(
-        attn_config_version, 
+        config_version, 
         canonical_runs_only=False, 
         threshold=[0, 0, 0], 
         counterbalancing=True):
@@ -965,17 +962,14 @@ def compare_across_types_V3(
          if threshold [0.1, 0.1, 0.1], the same alphas is considered 
             strategy type [True, False, False]
     """
-    attn_config = load_config(
-        component=None,
-        config_version=attn_config_version
-    )
-    num_runs = attn_config['num_runs']
+    config = load_config(config_version=config_version)
+    num_runs = config['num_runs']
     num_types = 6
     num_dims = 3
     comparisons = ['zero_attn', 'binary_recon']
-    results_path = f'results/{attn_config_version}'
+    results_path = f'results/{config_version}'
     type2runs = find_canonical_runs(
-        attn_config_version, canonical_runs_only=canonical_runs_only)
+        config, canonical_runs_only=canonical_runs_only)
 
     for c in range(len(comparisons)):
         comparison = comparisons[c]
@@ -2057,8 +2051,7 @@ def post_attn_actv_thru_time(attn_config_version):
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
     
-    attn_config_version = 'v4_naive-withNoise'
-    dcnn_config_version = 't1.vgg16.block4_pool.None.run1'
+    config_version = 'v4_naive-withNoise-t1.vgg16.block4_pool.None.run8-with-lowAttn'
     
     # how_low_can_att_weights(
     #     attn_weight_constant=1.,
@@ -2069,7 +2062,7 @@ if __name__ == '__main__':
     #     seed=15
     # )
 
-    examine_clustering_learning_curves(attn_config_version)
+    examine_clustering_learning_curves(config_version)
     
     # for problem_type in [1]:
     #     for run in [0]:
@@ -2081,7 +2074,7 @@ if __name__ == '__main__':
     #         )
 
     compare_across_types_V3(
-        attn_config_version,
+        config_version,
         canonical_runs_only=True,
         threshold=[0., 0., 0.]
     )

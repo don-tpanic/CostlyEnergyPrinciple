@@ -49,14 +49,15 @@ default_dict = {
 ##############################################
 begin_run = 8
 end_run = 8
-finetune_runs = range(begin_run, end_run+1)
+# finetune_runs = range(begin_run, end_run+1)
+finetune_runs = [1, 5, 12, 17, 19, 20, 26]
 dcnn_base = 'vgg16'
 low_attention_positions = 'block4_pool'
 layer = 'block4_pool'
 reg_strength_ = [0.001]
 lr_low_attn_ = [0.00092]
 inner_loop_epochs_ = [5]
-recon_clusters_weighting_ = [1, 10, 100, 1000]
+recon_clusters_weighting_ = [1]
 ##############################################
 
 default_dict['dcnn_base'] = dcnn_base

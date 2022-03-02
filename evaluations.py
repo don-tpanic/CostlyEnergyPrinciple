@@ -646,7 +646,7 @@ def examine_optimal_attn_weights_binary_output(
     
 
 def viz_losses(
-        attn_config_version,
+        config_version,
         problem_type,
         recon_level,
         run):
@@ -656,22 +656,19 @@ def viz_losses(
         - theother recon loss
         - reg loss
     """
-    attn_config = load_config(
-        component=None,
-        config_version=attn_config_version
-    )
-    inner_loop_epochs = attn_config['inner_loop_epochs']
+    config = load_config(config_version=config_version)
+    inner_loop_epochs = config['inner_loop_epochs']
     recon_loss = np.load(
-        f'results/{attn_config_version}/all_recon_loss_type{problem_type}_run{run}_{recon_level}.npy'
+        f'results/{config_version}/all_recon_loss_type{problem_type}_run{run}_{recon_level}.npy'
     )
     recon_loss_ideal = np.load(
-        f'results/{attn_config_version}/all_recon_loss_ideal_type{problem_type}_run{run}_{recon_level}.npy'
+        f'results/{config_version}/all_recon_loss_ideal_type{problem_type}_run{run}_{recon_level}.npy'
     )
     reg_loss = np.load(
-        f'results/{attn_config_version}/all_reg_loss_type{problem_type}_run{run}_{recon_level}.npy'
+        f'results/{config_version}/all_reg_loss_type{problem_type}_run{run}_{recon_level}.npy'
     )
     percent_zero = np.load(
-        f'results/{attn_config_version}/all_percent_zero_attn_type{problem_type}_run{run}_{recon_level}.npy'
+        f'results/{config_version}/all_percent_zero_attn_type{problem_type}_run{run}_{recon_level}.npy'
     )
 
     final_recon_loss_ideal = recon_loss_ideal[-1]
@@ -696,7 +693,7 @@ def viz_losses(
     ax[3].set_title(f'percentage of zeroed attn weights (DCNN) [{final_percent_zero:.3f}]')
 
     plt.tight_layout()
-    plt.savefig(f'results/{attn_config_version}/losses_type{problem_type}_run{run}_{recon_level}.png')
+    plt.savefig(f'results/{config_version}/losses_type{problem_type}_run{run}_{recon_level}.png')
     plt.close()
 
 
@@ -2051,7 +2048,7 @@ def post_attn_actv_thru_time(attn_config_version):
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
     
-    config_version = 'v4_naive-withNoise-t1.vgg16.block4_pool.None.run8-with-lowAttn'
+    config_version = 'v2_naive-withNoise-t1.vgg16.block4_pool.None.run8-with-lowAttn'
     
     # how_low_can_att_weights(
     #     attn_weight_constant=1.,
@@ -2064,14 +2061,14 @@ if __name__ == '__main__':
 
     examine_clustering_learning_curves(config_version)
     
-    # for problem_type in [1]:
-    #     for run in [0]:
-    #         viz_losses(
-    #             attn_config_version=attn_config_version,
-    #             problem_type=problem_type,
-    #             recon_level='cluster',
-    #             run=run
-    #         )
+    for problem_type in [1]:
+        for run in [0]:
+            viz_losses(
+                config_version=config_version,
+                problem_type=problem_type,
+                recon_level='cluster',
+                run=run
+            )
 
     compare_across_types_V3(
         config_version,

@@ -230,7 +230,7 @@ def multicuda_execute(
     by launching them to all available GPUs.
     """
     num_types = 6
-    cuda_id_list = [0, 1, 2, 3, 4, 5]
+    cuda_id_list = [0, 1, 2, 3, 4, 6]
 
     args_list = []
     single_entry = {}
@@ -276,7 +276,34 @@ if __name__ == '__main__':
             multicuda_execute(
                 target_func=train_model, 
                 configs=[
-                    'top',
+                    'v2_naive-withNoise-t1.vgg16.block4_pool.None.run1-with-lowAttn',
+                    'v2_naive-withNoise-t1.vgg16.block4_pool.None.run5-with-lowAttn',
+                    'v2_naive-withNoise-t1.vgg16.block4_pool.None.run12-with-lowAttn',
+                    'v2_naive-withNoise-t1.vgg16.block4_pool.None.run17-with-lowAttn',
+                    'v2_naive-withNoise-t1.vgg16.block4_pool.None.run19-with-lowAttn',
+                    'v2_naive-withNoise-t1.vgg16.block4_pool.None.run20-with-lowAttn',
+                    'v2_naive-withNoise-t1.vgg16.block4_pool.None.run26-with-lowAttn',
+                    'v3_naive-withNoise-t1.vgg16.block4_pool.None.run1-with-lowAttn',
+                    'v3_naive-withNoise-t1.vgg16.block4_pool.None.run5-with-lowAttn',
+                    'v3_naive-withNoise-t1.vgg16.block4_pool.None.run12-with-lowAttn',
+                    'v3_naive-withNoise-t1.vgg16.block4_pool.None.run17-with-lowAttn',
+                    'v3_naive-withNoise-t1.vgg16.block4_pool.None.run19-with-lowAttn',
+                    'v3_naive-withNoise-t1.vgg16.block4_pool.None.run20-with-lowAttn',
+                    'v3_naive-withNoise-t1.vgg16.block4_pool.None.run26-with-lowAttn',
+                    'v4_naive-withNoise-t1.vgg16.block4_pool.None.run1-with-lowAttn',
+                    'v4_naive-withNoise-t1.vgg16.block4_pool.None.run5-with-lowAttn',
+                    'v4_naive-withNoise-t1.vgg16.block4_pool.None.run12-with-lowAttn',
+                    'v4_naive-withNoise-t1.vgg16.block4_pool.None.run17-with-lowAttn',
+                    'v4_naive-withNoise-t1.vgg16.block4_pool.None.run19-with-lowAttn',
+                    'v4_naive-withNoise-t1.vgg16.block4_pool.None.run20-with-lowAttn',
+                    'v4_naive-withNoise-t1.vgg16.block4_pool.None.run26-with-lowAttn',
+                    'v5_naive-withNoise-t1.vgg16.block4_pool.None.run1-with-lowAttn',
+                    'v5_naive-withNoise-t1.vgg16.block4_pool.None.run5-with-lowAttn',
+                    'v5_naive-withNoise-t1.vgg16.block4_pool.None.run12-with-lowAttn',
+                    'v5_naive-withNoise-t1.vgg16.block4_pool.None.run17-with-lowAttn',
+                    'v5_naive-withNoise-t1.vgg16.block4_pool.None.run19-with-lowAttn',
+                    'v5_naive-withNoise-t1.vgg16.block4_pool.None.run20-with-lowAttn',
+                    'v5_naive-withNoise-t1.vgg16.block4_pool.None.run26-with-lowAttn',
                 ]
             )
 

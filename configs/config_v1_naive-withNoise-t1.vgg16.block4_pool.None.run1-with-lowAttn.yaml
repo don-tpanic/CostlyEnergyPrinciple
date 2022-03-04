@@ -30,7 +30,7 @@ r: 2
 random_seed: 999
 recon_clusters_weighting: 1
 recon_level: cluster
-reg_strength: null
+reg_strength: 0.001
 specificity: 0.25
 stimulus_set: 1
 temp1: equivalent

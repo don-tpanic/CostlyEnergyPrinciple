@@ -57,7 +57,7 @@ layer = 'block4_pool'
 reg_strength = 0.001
 lr_low_attn_ = [0.00092]
 inner_loop_epochs_ = [5]
-recon_clusters_weighting_ = [10, 100, 1000]
+recon_clusters_weighting_ = [10, 100, 1000, 10000]
 ##############################################
 
 default_dict['dcnn_base'] = dcnn_base

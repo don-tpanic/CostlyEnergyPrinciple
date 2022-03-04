@@ -1022,13 +1022,13 @@ def compare_across_types_V3(
             std_metrics = []
             for z in range(num_types):
                 problem_type = z + 1
-                print(f'--------- Type {problem_type} ---------')
+                # print(f'--------- Type {problem_type} ---------')
                 # e.g. {(True, False, False): [metric]}
                 strategy2metric = type2strategy2metric[problem_type]
                 strategies = list(strategy2metric.keys())
-                print(f'strategies = {strategies}')
+                # print(f'strategies = {strategies}')
                 num_strategies = len(strategies)
-                print(f'num_strategies = {num_strategies}')
+                # print(f'num_strategies = {num_strategies}')
 
                 x_left = x_axis[z] + 1
                 x_right = x_axis[z+1] - 1
@@ -1091,11 +1091,11 @@ def compare_across_types_V3(
                 row_idx = z // num_cols
                 col_idx = z % num_cols
 
-                print(f'--------- Type {problem_type} ---------')
+                # print(f'--------- Type {problem_type} ---------')
                 # e.g. {(True, False, False): [ [metric_dim1, dim2. dim3], [dim1, dim2, dim3], .. ]}
                 strategy2metric = type2strategy2metric[problem_type]
                 strategies = list(strategy2metric.keys())
-                print(f'strategies = {strategies}')
+                # print(f'strategies = {strategies}')
                 num_strategies = len(strategies)
 
                 all_strategies_collector = []
@@ -2047,36 +2047,36 @@ def post_attn_actv_thru_time(attn_config_version):
                     
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
-    
-    config_version = 'v2_naive-withNoise-t1.vgg16.block4_pool.None.run8-with-lowAttn'
-    
-    # how_low_can_att_weights(
-    #     attn_weight_constant=1.,
-    #     attn_config_version=attn_config_version,
-    #     dcnn_config_version=dcnn_config_version,
-    #     problem_type=1,
-    #     noise_level=0.4,
-    #     seed=15
-    # )
 
-    examine_clustering_learning_curves(config_version)
-    
-    for problem_type in [1]:
-        for run in [0]:
-            viz_losses(
-                config_version=config_version,
-                problem_type=problem_type,
-                recon_level='cluster',
-                run=run
+    config_versions = [
+                    'v1_naive-withNoise-t1.vgg16.block4_pool.None.run1-with-lowAttn',
+                    'v1_naive-withNoise-t1.vgg16.block4_pool.None.run5-with-lowAttn',
+                    'v1_naive-withNoise-t1.vgg16.block4_pool.None.run12-with-lowAttn',
+                    'v1_naive-withNoise-t1.vgg16.block4_pool.None.run17-with-lowAttn',
+                    'v1_naive-withNoise-t1.vgg16.block4_pool.None.run19-with-lowAttn',
+                    'v1_naive-withNoise-t1.vgg16.block4_pool.None.run20-with-lowAttn',
+                    'v1_naive-withNoise-t1.vgg16.block4_pool.None.run26-with-lowAttn',
+                ]
+    for config_version in config_versions:
+        
+        print(f'\n\n[Check] Evaluating.. {config_version}')
+
+        examine_clustering_learning_curves(config_version)
+        
+        for problem_type in [1]:
+            for run in [0]:
+                viz_losses(
+                    config_version=config_version,
+                    problem_type=problem_type,
+                    recon_level='cluster',
+                    run=run
+                )
+        try:
+            compare_across_types_V3(
+                config_version,
+                canonical_runs_only=True,
+                threshold=[0., 0., 0.]
             )
+        except Exception:
+            print(f'Exploding causing no canonicals.')
 
-    compare_across_types_V3(
-        config_version,
-        canonical_runs_only=True,
-        threshold=[0., 0., 0.]
-    )
-
-    # compare_alt_cluster_actv_targets(
-    #     original='v1_independent', 
-    #     alt=attn_config_version
-    # )

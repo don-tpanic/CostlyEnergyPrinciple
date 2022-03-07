@@ -304,6 +304,7 @@ def learn_low_attn(
             joint_model.get_layer(
                 'dcnn_model').get_layer(
                     f'attn_factory_{attn_position}').get_weights()[0]
+        print(f'[Check] min attn weight = {np.min(layer_attn_weights)}')
         attn_weights[attn_position] = layer_attn_weights
         
     return joint_model, attn_weights, \

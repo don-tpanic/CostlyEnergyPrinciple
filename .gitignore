@@ -1,6 +1,8 @@
 # Ignore big files
 dcnn_models/
 results/v*
+finetune/results/
+finetune/configs/
 
 # Ignore content from clustering/
 clustering/results/

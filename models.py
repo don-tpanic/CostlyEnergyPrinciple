@@ -51,10 +51,12 @@ def presave_dcnn(config_version, path_model):
         layer_attn_weights = attn_weights[attn_position]
         model_dcnn.get_layer(
             f'attn_factory_{attn_position}').set_weights([layer_attn_weights])
-            
-    # save model for loading later.
-    model_dcnn.save(path_model)
-    print(f'dcnn_model-with-lowAttn saved as {path_model}.')
+    
+    # # FIXME:
+    # # save model for loading later.
+    # model_dcnn.save(path_model)
+    # print(f'dcnn_model-with-lowAttn saved as {path_model}.')
+    return model_dcnn
 
 
 def DCNN(config_version):
@@ -80,9 +82,13 @@ def DCNN(config_version):
 
     # load dcnn model.
     path_model = f'dcnn_models-with-lowAttn/{dcnn_config_version}'
-    if not os.path.exists(path_model):
-        presave_dcnn(config_version, path_model)
-    model_dcnn = tf.keras.models.load_model(path_model)
+    # if not os.path.exists(path_model):
+    #     presave_dcnn(config_version, path_model)
+    # model_dcnn = tf.keras.models.load_model(path_model)
+    
+    # FIXME:
+    model_dcnn = presave_dcnn(config_version, path_model)
+
     return model_dcnn, preprocess_func
 
 

@@ -33,24 +33,7 @@ def dcnn_final_connections(
     something in the final connections that 
     can explain this robustness.
     """
-    # dcnn model
-    model, preprocess_func = load_dcnn_model(
-        attn_config_version=attn_config_version,
-        dcnn_config_version=dcnn_config_version,
-        intermediate_input=False
-    )
-    weights = model.get_layer('pred').get_weights()[0]
-    print(weights.shape)
-
-    # plot dim-wise
-    fig, ax = plt.subplots(weights.shape[1])
-    for dim in range(weights.shape[1]):
-        dim_weights = weights[:, dim]
-        ax[dim].hist(dim_weights)
-        ax[dim].set_title(f'to output unit {dim}')
-        ax[dim].set_xlim([-0.01, 0.01])
-    plt.tight_layout()
-    plt.savefig('pred_weights_hist.png')
+    NotImplementedError()
 
 
 def how_many_preattn_actv_already_zero(
@@ -64,75 +47,7 @@ def how_many_preattn_actv_already_zero(
     given the finetuned DCNN, how a given layer's output
     look like given the stimulus inputs.
     """
-    # dcnn model
-    model, preprocess_func = load_dcnn_model(
-        attn_config_version=attn_config_version,
-        dcnn_config_version=dcnn_config_version,
-        intermediate_input=False
-    )
-
-    # model kept at a layer
-    partial_model = Model(
-        inputs=model.input,
-        outputs=model.get_layer(layer).output
-    )
-
-    # load inputs
-    fig, ax = plt.subplots(1, 2)
-    dataset = data_loader(
-        dcnn_config_version=dcnn_config_version, 
-        preprocess_func=preprocess_func,
-        problem_type=1  # does not matter in this analysis
-    )
-
-    num_filter = partial_model.layers[-1].output.shape[-1]
-    num_stimuli = len(dataset)
-    filter_zero_percentage = np.empty((num_filter, num_stimuli))
-    print(f'filter_zero_percentage.shape = {filter_zero_percentage.shape}')
-
-    for i in range(num_stimuli):
-        dp = dataset[i]
-        x = dp[0]
-        signature = dp[2]
-        print(f'[Check] Signature = {signature}')
-        # layer's output of 1 input (H, W, C)
-        actv = partial_model(x, training=False)[0].numpy()
-
-        already_all_zero_filter_idx = []
-
-        for c in range(actv.shape[-1]):
-            filter_actv = actv[:, :, c].flatten()
-            zero_percent = (
-                len(filter_actv) - len(np.nonzero(filter_actv)[0])
-            ) / (len(filter_actv))
-            # print(f'zero_percent = {zero_percent}')
-            filter_zero_percentage[c, i] = zero_percent
-
-            if zero_percent >= threshold:
-                already_all_zero_filter_idx.append(c)
-            
-        np.save(
-            f'already_all_zero_filter_idx_signature{signature}.npy',
-            already_all_zero_filter_idx)
-        print(f'% already zero filters = {len(already_all_zero_filter_idx) / actv.shape[-1]}')
-    
-    
-    data = []
-    for i in range(num_stimuli):
-        data.append(
-            filter_zero_percentage[:, i]
-        )
-    fig, ax = plt.subplots()
-    sns.violinplot(
-        data=data, 
-        linewidth=.8,
-        gridsize=300,
-        ax=ax
-    )
-    ax.set_title('average percentage zero pre-attn actv')
-
-    plt.tight_layout()
-    plt.savefig('test.png')
+    NotImplementedError()
 
 
 def how_low_can_att_weights(
@@ -204,447 +119,6 @@ def how_low_can_att_weights(
     print(f'y_pred = \n {y_pred}')
 
 
-def if_remove_already_zero_filters(
-        attn_config_version='attn_v1',
-        dcnn_config_version='t1.block4_pool.None.run1'):
-    """
-    `how_many_preattn_actv_already_zero` tells us 
-    some filters already have zero activations. 
-    Here we set the filter's attention weights directly
-    to zero and
-    """
-    # dcnn model
-    model, preprocess_func = load_dcnn_model(
-        attn_config_version=attn_config_version,
-        dcnn_config_version=dcnn_config_version,
-        intermediate_input=False
-    )
-    # sub in a low set of attn weights
-    attn_weights = model.get_layer('attention_factory').get_weights()[0]
-
-    # load data
-    dataset = data_loader(
-        dcnn_config_version=dcnn_config_version, 
-        preprocess_func=preprocess_func,
-        problem_type=1
-    )
-
-    # each stimulus, train indendently
-    y_pred = []
-    for i in range(len(dataset)):
-        dp = dataset[i]
-        x = dp[0]
-        signature = dp[2]
-        already_zero_filters = np.load(
-            f'already_all_zero_filter_idx_signature{signature}.npy')
-
-        attn_weights[already_zero_filters] = 0
-        # print(f'attn_weights = {attn_weights}')
-        model.get_layer('attention_factory').set_weights([attn_weights])
-        y_pred.append(model.predict(x))
-
-    y_pred = np.array(y_pred)
-    print(y_pred)
-
-
-def examine_optimal_attn_weights_stimuluslevel(
-        stimulus_set,
-        attn_config_version,
-        dcnn_config_version,
-        num_epochs=100,
-        lr=0.01,
-        problem_type=1,
-        attn_weight_constant=1,
-        recon_level='dcnn',
-        mode='train'):
-    """
-    Find out the optimal (upper bound) of the 
-    attention weights can be when being independently
-    optimised for each stimulus.
-
-    Optimising targets can be either the cluster activations
-    of a trained clustering model or the targets can be the 
-    binary codins of the stimuli. The difference is that if 
-    cluster activations, attention weights are problem_type
-    specfic. Also when optimising cluster activations, 
-    there is no guarantee that binary codings will be respected.
-    But the opposite is true.
-
-    If recon_level is 'binary':
-        this code is self-contained, meaning 
-        we do attn training and plotting in one.
-    If recon_level is 'cluster': 
-        this code can only plot the trained 
-        and saved attn weights using the normal 
-        `train.py` routine as it involves clustering
-        learning which cannot be contained here.
-
-    Outputs of this function:
-    -------------------------
-    1. trained attention weights
-    2. Progress of recon & reg losses
-    3. Heatmaps of nonzero intersections between pairs of attn weights
-    4. Heatmaps of pairwise correlations of attn weights.
-    5. Histograms of stimulus-level attn weights.
-    """
-    signature2coding = {
-        0: [0, 0, 0],
-        1: [0, 0, 1],
-        2: [0, 1, 0],
-        3: [0, 1, 1],
-        4: [1, 0, 0],
-        5: [1, 0, 1],
-        6: [1, 1, 0],
-        7: [1, 1, 1]
-    }
-
-    if recon_level == 'binary' and mode == 'train':
-        # model till 3 binary units.
-        model, preprocess_func = load_dcnn_model(
-            attn_config_version,
-            dcnn_config_version,
-            intermediate_input=False
-        )
-        optimizer = tf.keras.optimizers.SGD(learning_rate=lr)
-        loss_fn = tf.keras.losses.BinaryCrossentropy()
-
-        # dataset 
-        dataset = data_loader(
-            dcnn_config_version=dcnn_config_version, 
-            preprocess_func=preprocess_func,
-            problem_type=problem_type
-        )
-
-        # each stimulus, train indendently
-        for i in range(len(dataset)):
-            dp = dataset[i]
-            x = dp[0]
-            signature = dp[2]
-            y_true = np.array(signature2coding[signature]).reshape((1, 3))
-
-            # sub in a low set of attn weights
-            attn_weights = model.get_layer('attention_factory').get_weights()[0]
-            low_attn_weights = np.ones((attn_weights.shape)) * attn_weight_constant
-            model.get_layer('attention_factory').set_weights([low_attn_weights])
-
-            # for each stimulus, train a few epochs
-
-            recon_loss_overtime = []
-            reg_loss_overtime = []
-            for e in range(num_epochs):
-                with tf.GradientTape() as tape:
-                    y_pred = model(x)
-                    recon_loss = loss_fn(y_true, y_pred)
-                    reg_loss = model.losses
-                    loss_value = recon_loss + reg_loss
-
-                # update attn weights
-                model.get_layer(f'attention_factory').trainable = True
-                grads = tape.gradient(loss_value, model.trainable_weights)
-                optimizer.apply_gradients(zip(grads, model.trainable_weights))
-                print(f'* epoch=[{e}], y_pred={y_pred}\n, recon_loss={recon_loss}, reg_loss={reg_loss}')
-                # print('grads', grads)
-
-                # track loss overtime
-                recon_loss_overtime.append(recon_loss)
-                reg_loss_overtime.append(reg_loss)
-
-            # plot for per stimulus
-            fig, ax = plt.subplots(2)
-            ax[0].plot(range(len(recon_loss_overtime)), recon_loss_overtime)
-            ax[0].set_title('recon loss')
-            ax[1].plot(range(len(reg_loss_overtime)), reg_loss_overtime)
-            ax[1].set_title('reg loss')
-            plt.tight_layout()
-            plt.savefig(f'temp_analysis/loss_overtime-{signature}-{stimulus_set}-{problem_type}-{lr}.png')
-
-            # at the end of all epochs,
-            attn_weights = model.get_layer('attention_factory').get_weights()[0]
-            np.save(f'temp_analysis/attn_weights-{signature}-{stimulus_set}-{problem_type}-{lr}.npy', attn_weights)
-
-    signatures = range(8)
-    intersect_mtx = np.zeros((8, 8))
-    correlation_mtx_full = np.zeros((8, 8))
-    correlation_mtx_intersect = np.zeros((8, 8))
-    for i in signatures:
-        for j in signatures:
-            if i >= j:
-                continue
-            else:
-                fpath_i = f'temp_analysis/attn_weights-{i}-{stimulus_set}-{problem_type}-{lr}.npy'
-                attn_weights_i = np.load(fpath_i)
-                nonzero_filter_i = np.nonzero(attn_weights_i)[0]
-                # print(f'sig {i}, nonzero {len(nonzero_filter_i)}')
-
-                fpath_j = f'temp_analysis/attn_weights-{j}-{stimulus_set}-{problem_type}-{lr}.npy'
-                attn_weights_j = np.load(fpath_j)
-                nonzero_filter_j = np.nonzero(attn_weights_j)[0]
-                # print(f'sig {j}, nonzero {len(nonzero_filter_j)}')
-
-                intersect = np.intersect1d(nonzero_filter_i, nonzero_filter_j)
-                # NOTE, nonzero differs between two data-points, take average.
-                intersect_percent = 2 * len(intersect) / ( len(nonzero_filter_i) + len(nonzero_filter_j))
-                intersect_mtx[i, j] = intersect_percent
-
-                # compute pair-wise correlation 
-                # one is corr between 512 weights; 
-                # the other is corr between intersected weights
-                r_full, _ = stats.spearmanr(attn_weights_i, attn_weights_j)
-                correlation_mtx_full[i, j] = r_full
-
-                r_intersect, _ = stats.spearmanr(
-                    attn_weights_i[intersect],
-                    attn_weights_j[intersect]
-                )
-                correlation_mtx_intersect[i, j] = r_intersect
-    print('[Check] intersect indices', intersect)
-    # mtx_corr, _ = stats.spearmanr(
-    #     intersect_mtx[np.triu_indices(intersect_mtx.shape[0], k=1)], 
-    #     correlation_mtx_intersect[np.triu_indices(correlation_mtx_intersect.shape[0], k=1)]
-    # )
-    # print(f'intersect_mtx vs correlation_mtx_intersect, r={mtx_corr}')
-
-    # ============ plotting ===============
-    labels = ['000', '001', '010', '011', '100', '101', '110', '111']
-    fig, ax = plt.subplots(2)
-    sns.heatmap(
-        intersect_mtx, 
-        annot=True,
-        xticklabels=labels,
-        yticklabels=labels,
-        ax=ax[0])
-    ax[0].set_title(f'percentage overlap\nstimulus_set={stimulus_set}, problem={problem_type}')
-    # sns.heatmap(
-    #     correlation_mtx_full, 
-    #     annot=True,
-    #     xticklabels=labels,
-    #     yticklabels=labels,
-    #     ax=ax[1])
-    # ax[1].set_title(f'spearman correlation (full)')
-    sns.heatmap(
-        correlation_mtx_intersect, 
-        annot=True,
-        xticklabels=labels,
-        yticklabels=labels,
-        ax=ax[1])
-    ax[1].set_title(f'spearman correlation (intersect)')
-    plt.tight_layout()
-    plt.savefig(f'temp_analysis/attn_intersect+corr-{stimulus_set}-{problem_type}-{lr}.png')
-
-
-
-    # plot attn weights histograms
-    fig, ax = plt.subplots(2, 4)
-    for i in signatures:
-        fpath = f'temp_analysis/attn_weights-{i}-{stimulus_set}-{problem_type}-{lr}.npy'
-        attn_weights = np.load(fpath)
-        if i // 4 == 0:
-            ax[0, i].hist(attn_weights)
-        else:
-            ax[1, i % 4].hist(attn_weights)
-    plt.suptitle('optimal attn weights')
-    plt.savefig(f'temp_analysis/attn_hist-{stimulus_set}-{problem_type}-{lr}.png')
-
-
-def examine_optimal_attn_weights_batchlevel(
-        stimulus_set,
-        attn_config_version,
-        dcnn_config_version,
-        num_epochs=100,
-        lr=0.01,
-        problem_type=1,
-        attn_weight_constant=1,
-        recon_level='binary',
-        mode='train',
-        batch_size=None):
-    """
-    Find out the optimal (upper bound) of the 
-    attention weights can be when being independently
-    optimised for a batch (all or some stimuli)
-
-    NOTE: different from stimulus level, we now have only
-    one set of attn weights for all stimuli. Hence we cannot 
-    compare attn weights intersection like we did above. If we 
-    really want to, we could compare post-attn actv.
-
-    There are two settings due to `batch_size`
-    1. batch_size=None, all stimuli involved in one update;
-    2. batch_size=1, 1 stimulus per update. Note this is different
-       from indepedently optimise for each stimulus.
-    """
-    # model till 3 binary units.
-    model, preprocess_func = load_dcnn_model(
-        attn_config_version,
-        dcnn_config_version,
-        intermediate_input=False
-    )
-
-    # dataset
-    dataset = data_loader(
-        dcnn_config_version=dcnn_config_version, 
-        preprocess_func=preprocess_func,
-        problem_type=problem_type
-    )
-    
-    y_true = np.array([
-        [0, 0, 0],
-        [0, 0, 1],
-        [0, 1, 0],
-        [0, 1, 1],
-        [1, 0, 0],
-        [1, 0, 1],
-        [1, 1, 0],
-        [1, 1, 1]],
-        dtype=np.float32
-    )
-
-    if batch_size is None:
-        num_steps = 1
-        batch_size = len(dataset)
-        signature = f'batch{batch_size}'
-    else:
-        num_steps = len(dataset)
-        signature = f'batch{batch_size}'
-    fname = f'{signature}-{stimulus_set}-{problem_type}-{lr}'
-
-    if recon_level == 'binary' and mode == 'train':
-        model.get_layer(f'attention_factory').trainable = True
-        optimizer = tf.keras.optimizers.SGD(learning_rate=lr)
-
-        # model.get_layer('pred').activation = None
-        # loss_fn = tf.keras.losses.BinaryCrossentropy(from_logits=True)
-        loss_fn = binary_crossentropy()
-
-        # convert dataset to a TF data mtx.
-        # (8, 224, 224, 3)
-        images = np.empty( (len(dataset), ) + dataset[0][0][0].shape[1:])
-        for i in range(len(dataset)):
-            dp = dataset[i]
-            image = dp[0][0]
-            images[i] = image
-        
-        # sub in a low set of attn weights
-        attn_weights = model.get_layer('attention_factory').get_weights()[0]
-        low_attn_weights = np.ones((attn_weights.shape)) * attn_weight_constant
-        model.get_layer('attention_factory').set_weights([low_attn_weights])
-
-        # for every batch, train a few epochs
-        recon_loss_overtime = []
-        reg_loss_overtime = []
-        percent_zero_attn = []
-        np.random.seed(999)
-
-        assoc_weights = np.random.uniform(
-            low=-1e-6, high=1e-6, size=(8,2)
-        )
-
-        for e in range(num_epochs):
-            print('-------------------------------------------------------------------')
-            # at every epoch, shuffle dataset
-            shuffled_indices = np.random.choice(
-                np.arange(len(dataset), 
-                dtype=int), 
-                size=len(dataset), 
-                replace=False
-            )
-            print('shuffled_indices', shuffled_indices)
-            shuffled_images = images[shuffled_indices]
-            shuffled_y_true = y_true[shuffled_indices]
-            print(f'shuffled_images.shape = {shuffled_images.shape}')
-            print(f'shuffled_y_true.shape = {shuffled_y_true.shape}')
-            for step in range(num_steps):
-                with tf.GradientTape() as tape:
-                    # add ones
-                    ones_batch = np.ones((batch_size, dataset[0][0][1].shape[1]))
-                    # get batch of x and y
-                    batch_x = [shuffled_images[ step * batch_size : (step+1) * batch_size ], ones_batch]
-                    batch_y = shuffled_y_true[ step * batch_size : (step+1) * batch_size ]
-                    # predict and compute loss
-                    y_pred = model(batch_x, training=False)
-                    recon_loss = loss_fn(batch_y, y_pred)
-                    reg_loss = model.losses
-                    loss_value = recon_loss + reg_loss
-                    print(f'>>> y_true', batch_y)
-                    print(f'>>> y_pred', y_pred)
-                    print(f'>>> loss_value', loss_value)
-
-                # update attn weights
-                grads = tape.gradient(loss_value, model.trainable_weights)
-                print('grads', grads, '\n\n')
-                optimizer.apply_gradients(zip(grads, model.trainable_weights))
-                
-                attn_weights = model.get_layer('attention_factory').get_weights()[0]
-                percent_zero = (len(attn_weights) - len(np.nonzero(attn_weights)[0])) / len(attn_weights)
-                print(f'* epoch=[{e}], step=[{step}], recon_loss={recon_loss}, reg_loss={reg_loss}, percent_zero={percent_zero}')
-
-                # exit()
-
-                # track loss n change of attn overtime
-                recon_loss_overtime.append(recon_loss)
-                reg_loss_overtime.append(reg_loss)
-                percent_zero_attn.append(percent_zero)
-
-        # at the end of all epochs,
-        np.save(f'temp_analysis/attn_weights-{fname}.npy', attn_weights)
-        np.save(f'temp_analysis/recon_loss-{fname}.npy', recon_loss_overtime)
-        np.save(f'temp_analysis/reg_loss-{fname}.npy', reg_loss_overtime)
-        np.save(f'temp_analysis/percent_zero_attn-{fname}.npy', percent_zero_attn)
-
-    attn_weights = np.load(f'temp_analysis/attn_weights-{fname}.npy')
-    recon_loss_overtime = np.load(f'temp_analysis/recon_loss-{fname}.npy')
-    reg_loss_overtime = np.load(f'temp_analysis/reg_loss-{fname}.npy')
-    percent_zero_attn = np.load(f'temp_analysis/percent_zero_attn-{fname}.npy')
-
-    # plot for per stimulus
-    fig, ax = plt.subplots(3)
-    ax[0].plot(range(len(recon_loss_overtime)), recon_loss_overtime)
-    ax[0].set_title('recon loss')
-    ax[1].plot(range(len(reg_loss_overtime)), reg_loss_overtime)
-    ax[1].set_title('reg loss')
-    # ax[2].hist(attn_weights)
-    # ax[2].set_title('attention weights')
-    ax[2].plot(range(len(percent_zero_attn)), percent_zero_attn)
-    ax[2].set_title('percentage of zero attn weights')
-    plt.tight_layout()
-    plt.savefig(f'temp_analysis/loss_overtime_n_attn_weights-{fname}.png')
-
-
-def examine_optimal_attn_weights_binary_output(
-        stimulus_set=1,
-        attn_config_version='attn_v1',
-        dcnn_config_version='t1.block4_pool.None.run1',
-        num_epochs=100000,
-        lr=0.1,
-        problem_type=1,
-        signature='batch'):
-    """
-    After obtain optimal attn weights from above,
-    plug them back into dcnn and check binary outputs.
-    """
-    model, preprocess_func = load_dcnn_model(
-        attn_config_version,
-        dcnn_config_version,
-        intermediate_input=False
-    )
-
-    attn_weights_fpath = f'temp_analysis/attn_weights-{signature}-{stimulus_set}-{problem_type}-{lr}.npy'
-    attn_weights = np.load(attn_weights_fpath)
-    model.get_layer('attention_factory').set_weights([attn_weights])
-
-    dataset = data_loader(
-        dcnn_config_version,
-        preprocess_func,
-        problem_type
-    )
-
-    y_pred = []
-    for i in range(len(dataset)):
-        dp = dataset[i]
-        x = dp[0]
-        y_pred.append(model.predict(x))
-    print(np.array(y_pred))
-    
-
 def viz_losses(
         config_version,
         problem_type,
@@ -697,83 +171,6 @@ def viz_losses(
     plt.close()
 
 
-def viz_cluster_params(
-        attn_config_version,
-        problem_type,
-        recon_level,
-        run
-        ):
-    """
-    Visulize cluster params change over time.
-    1. How lambdas change.
-    2. How centers change.
-    """
-    # 1. lambdas ----
-    # (744,)
-    alphas = np.load(
-        f'results/{attn_config_version}/all_alphas_type{problem_type}_run{run}_{recon_level}.npy'
-    )
-    print(f'alphas.shape = {alphas.shape}')
-    
-    num_steps = int(len(alphas) / 3)
-    # (3, num_steps)
-    alphas = alphas.reshape((num_steps, 3)).T
-
-    fig, ax = plt.subplots(dpi=300)
-    for i in range(alphas.shape[0]):
-        alphas_row_i = alphas[i, :]
-        ax.plot(
-            range(num_steps), alphas_row_i, 
-            # s=plt.rcParams['lines.markersize'] / 8,
-            label=f'dim {i}')
-
-    ax.set_title(f'alphas tuning')
-    ax.set_xlabel(f'num of epochs (exc first epoch)')
-    ax.set_xticks(range(0, num_steps, 8 * 5))
-    ax.set_xticklabels(range(0, 31, 5))
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(f'results/{attn_config_version}/alphas_type{problem_type}_run{run}_{recon_level}.png')
-    plt.close()
-    print('[Check] saved alphas figure.')
-
-    # 2. centers ----
-    # centers = np.load(
-    #     f'results/{attn_config_version}/all_centers_type{problem_type}_run{run}_{recon_level}.npy'
-    # )
-    # # print(centers.shape) # (24 * 8 * 31, )
-    # # every step has 24 (3 * 8 clusters) values
-    # num_clusters = 8
-    # num_dims = 3
-    # num_steps = int(len(centers) / (num_clusters * num_dims))
-    # # (steps, 24)
-    # centers = centers.reshape((num_steps, num_clusters * num_dims)).T
-
-    # num_cols = 4
-    # num_rows = int(num_clusters / num_cols)
-    # fig, ax = plt.subplots(num_rows, num_cols)
-    # for i in range(num_clusters):
-    #     # extract
-    #     # (3, steps)
-    #     center_i_overtime = centers[i * num_dims : (i+1) * num_dims, :]
-    #     # plot
-    #     row_idx = i // num_cols
-    #     col_idx = i % num_cols
-    #     # plot each dim of a cluster at a time
-    #     for dim in range(num_dims):
-    #         center_i_dim_overtime = center_i_overtime[dim, :]
-    #         ax[row_idx, col_idx].plot(center_i_dim_overtime, label=f'dim{dim}')
-    #     center_i_final_loc = np.around(center_i_overtime[:, -1], 1)
-    #     ax[row_idx, col_idx].set_title(f'cluster #{i}\n{center_i_final_loc}')
-    #     ax[row_idx, col_idx].get_xaxis().set_visible(False)
-    #     ax[row_idx, col_idx].set_ylim([-0.05, 1.05])
-    # plt.tight_layout()
-    # plt.legend()
-    # plt.savefig(f'results/{attn_config_version}/centers_type{problem_type}_run{run}_{recon_level}.png')
-    # plt.close()
-    # print(f'[Check] saved centers figure.')
-
-
 def examine_clustering_learning_curves(
         config_version, recon_level='cluster'):
     """
@@ -801,40 +198,6 @@ def examine_clustering_learning_curves(
     plt.title(f'{trapz_areas}')
     plt.tight_layout()
     plt.savefig(f'results/{config_version}/lc.png')
-
-
-def attn_weights_stability():
-    versions = [
-        'attn_v3b_rerun0', 'attn_v3b_rerun1', 
-        'attn_v3b_rerun2', 'attn_v3b_rerun3',
-        'attn_v3b_rerun4'
-    ]
-
-    num_types = 6
-    num_runs = 10
-
-    for i in range(num_types):
-        problem_type = i + 1
-
-        print(f'========= [Check] Type {problem_type} =========')
-
-        for run in range(num_runs):
-            all_attn_weights = np.empty((len(versions), 512))
-            for i in range(len(versions)):
-                v = versions[i]
-                fpath = f'results/{v}/attn_weights_type{problem_type}_run{run}_cluster.npy'
-                attn_weights = np.load(fpath)
-                all_attn_weights[i, :] = attn_weights
-            
-            for i in range(len(versions)):
-                for j in range(len(versions)):
-                    if i >= j:
-                        continue
-                    else:
-                        attn1 = all_attn_weights[i]
-                        attn2 = all_attn_weights[j]
-                        r, _ = stats.spearmanr(attn1, attn2)
-                        print(f'run {run}, {versions[i]} v {versions[j]}, r = {r}')
 
 
 def find_canonical_runs(
@@ -1070,10 +433,23 @@ def compare_across_types_V3(
                 label='overall'
             )
 
+            # plot baseline model's zero attn % (from finetuned lowAttn)
+            dcnn_config_version = config['dcnn_config_version']
+            dcnn_base = config['dcnn_base']
+            baseline_attn_path = f'finetune/results/{dcnn_base}/{dcnn_config_version}/trained_weights'
+            attn_position = config['low_attn_positions'].split(',')[0]
+            attn_weights = np.load(
+                f'{baseline_attn_path}/attn_weights.npy', 
+                allow_pickle=True
+            ).ravel()[0][attn_position]
+            zero_percentage = 1 - (len(np.nonzero(attn_weights)[0]) / len(attn_weights))
+            ax.hlines(y=zero_percentage, xmin=0, xmax=np.max(x_axis), color='k', label='baseline')
+
+            # specify more about the plot
             ax.set_xticks(x_axis[:num_types]+0.5)
             ax.set_xticklabels(
                 [f'Type {problem_type}' for problem_type in range(1, num_types+1)])
-            # ax.set_ylim([0.6, 0.9])
+            ax.set_ylim([-0.05, 1.05])
             ax.set_ylabel('percentage of zero attention weights')
             plt.tight_layout()
             plt.legend()
@@ -2049,13 +1425,13 @@ if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
 
     config_versions = [
-                    'v4_naive-withNoise-t1.vgg16.block4_pool.None.run1-with-lowAttn',
-                    'v4_naive-withNoise-t1.vgg16.block4_pool.None.run5-with-lowAttn',
-                    'v4_naive-withNoise-t1.vgg16.block4_pool.None.run12-with-lowAttn',
-                    'v4_naive-withNoise-t1.vgg16.block4_pool.None.run17-with-lowAttn',
-                    'v4_naive-withNoise-t1.vgg16.block4_pool.None.run19-with-lowAttn',
-                    'v4_naive-withNoise-t1.vgg16.block4_pool.None.run20-with-lowAttn',
-                    'v4_naive-withNoise-t1.vgg16.block4_pool.None.run26-with-lowAttn',
+                    'v5_naive-withNoise-t1.vgg16.block4_pool.None.run5-with-lowAttn',
+                    # 'v5_naive-withNoise-t1.vgg16.block4_pool.None.run5-with-lowAttn',
+                    # 'v5_naive-withNoise-t1.vgg16.block4_pool.None.run12-with-lowAttn',
+                    # 'v5_naive-withNoise-t1.vgg16.block4_pool.None.run17-with-lowAttn',
+                    # 'v5_naive-withNoise-t1.vgg16.block4_pool.None.run19-with-lowAttn',
+                    # 'v5_naive-withNoise-t1.vgg16.block4_pool.None.run20-with-lowAttn',
+                    # 'v5_naive-withNoise-t1.vgg16.block4_pool.None.run26-with-lowAttn',
                 ]
     for config_version in config_versions:
         
@@ -2077,6 +1453,7 @@ if __name__ == '__main__':
                 canonical_runs_only=True,
                 threshold=[0., 0., 0.]
             )
-        except Exception:
+        except Exception as e:
+            print(e)
             print(f'Exploding causing no canonicals.')
 

@@ -65,5 +65,10 @@ class AttnFactory(Layer):
     
     def get_config(self):
         config = super(AttnFactory, self).get_config()
-        config.update({'output_dim': self.output_dim})
+        config.update(
+            {
+             'output_dim': self.output_dim,
+             'regularizer': self.regularizer
+            }
+        )
         return config

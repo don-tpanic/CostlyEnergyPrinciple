@@ -443,7 +443,11 @@ def compare_across_types_V3(
                 allow_pickle=True
             ).ravel()[0][attn_position]
             zero_percentage = 1 - (len(np.nonzero(attn_weights)[0]) / len(attn_weights))
-            ax.hlines(y=zero_percentage, xmin=0, xmax=np.max(x_axis), color='k', label='baseline')
+            ax.hlines(
+                y=zero_percentage, 
+                xmin=0, xmax=np.max(x_axis), 
+                color='k', linestyles='dashed',
+                label='baseline')
 
             # specify more about the plot
             ax.set_xticks(x_axis[:num_types]+0.5)
@@ -451,6 +455,7 @@ def compare_across_types_V3(
                 [f'Type {problem_type}' for problem_type in range(1, num_types+1)])
             ax.set_ylim([-0.05, 1.05])
             ax.set_ylabel('percentage of zero attention weights')
+            plt.title(f'baseline zero attention weights = {zero_percentage}')
             plt.tight_layout()
             plt.legend()
             plt.savefig(f'{results_path}/compare_types_percent_zero_canonical_runs{canonical_runs_only}.png')
@@ -1425,13 +1430,13 @@ if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
 
     config_versions = [
-                    'v5_naive-withNoise-t1.vgg16.block4_pool.None.run5-with-lowAttn',
-                    # 'v5_naive-withNoise-t1.vgg16.block4_pool.None.run5-with-lowAttn',
-                    # 'v5_naive-withNoise-t1.vgg16.block4_pool.None.run12-with-lowAttn',
-                    # 'v5_naive-withNoise-t1.vgg16.block4_pool.None.run17-with-lowAttn',
-                    # 'v5_naive-withNoise-t1.vgg16.block4_pool.None.run19-with-lowAttn',
-                    # 'v5_naive-withNoise-t1.vgg16.block4_pool.None.run20-with-lowAttn',
-                    # 'v5_naive-withNoise-t1.vgg16.block4_pool.None.run26-with-lowAttn',
+                    'v4_naive-withNoise-t1.vgg16.block4_pool.None.run1-with-lowAttn',
+                    'v4_naive-withNoise-t1.vgg16.block4_pool.None.run5-with-lowAttn',
+                    'v4_naive-withNoise-t1.vgg16.block4_pool.None.run12-with-lowAttn',
+                    'v4_naive-withNoise-t1.vgg16.block4_pool.None.run17-with-lowAttn',
+                    'v4_naive-withNoise-t1.vgg16.block4_pool.None.run19-with-lowAttn',
+                    'v4_naive-withNoise-t1.vgg16.block4_pool.None.run20-with-lowAttn',
+                    'v4_naive-withNoise-t1.vgg16.block4_pool.None.run26-with-lowAttn',
                 ]
     for config_version in config_versions:
         

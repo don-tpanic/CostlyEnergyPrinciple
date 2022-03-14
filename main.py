@@ -6,6 +6,7 @@ import time
 import yaml
 import argparse
 import numpy as np
+import multiprocessing
 import matplotlib.pyplot as plt
 import tensorflow as tf
 from tensorflow.keras import backend as K
@@ -224,61 +225,128 @@ def train_model(
 
 
 def multicuda_execute(
-        target_func, configs):
+        target_func, 
+        version_begin, version_end, 
+        cuda_id_list, 
+        run_begin, run_end
+    ):
     """
     Train a bunch of models at once
     by launching them to all available GPUs.
-    """
+    """    
     num_types = 6
-    cuda_id_list = [0, 1, 2, 3, 4, 6]
-
     args_list = []
     single_entry = {}
-    for config_version in configs:
-        for problem_type in range(1, num_types+1):
-            single_entry['problem_type'] = problem_type
-            single_entry['config_version'] = config_version
-            args_list.append(single_entry)
-            single_entry = {}
+
+    for v in range(version_begin, version_end+1):
+        # for run in range(run_begin, run_end+1):
+        for run in [36, 38, 41, 42, 43, 44]:
+            config_version = f'v{v}_naive-withNoise-t1.vgg16.block4_pool.None.run{run}-with-lowAttn'
+
+            for problem_type in range(1, num_types+1):
+                single_entry['problem_type'] = problem_type
+                single_entry['config_version'] = config_version
+                args_list.append(single_entry)
+                single_entry = {}
 
     print(args_list)
     print(len(args_list))
-
     cuda_manager(
         target_func, args_list, cuda_id_list
     )
+
+
+def multiprocess_execute(
+        target_func, 
+        version_begin,
+        version_end,
+        num_processes,
+        run_begin,
+        run_end
+    ):
+    """
+    Train a bunch of models at once 
+    by launching them to all avaialble CPU cores.
+    
+    One process will run one (config & problem_type)
+    """
+    num_types = 6
+
+    with multiprocessing.Pool(num_processes) as pool:
+
+        for v in range(version_begin, version_end+1):
+            for run in range(begin, end+1):
+                config_version = f'v{v}_naive-withNoise-t1.vgg16.block4_pool.None.run{run}-with-lowAttn'
+
+                for problem_type in range(1, num_types+1):
+                    results = pool.apply_async(
+                        target_func, args=[problem_type, config_version]
+                    )
+            
+        pool.close()
+        pool.join()
+        print(results.get())
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-m', '--mode', dest='mode')
     parser.add_argument('-c', '--config', dest='config_version', default=None)
-    parser.add_argument('-p', '--problem_type', default=None, type=int, dest='problem_type')
-    parser.add_argument('-g', '--gpu_index', default='0', dest='gpu_index')
+    parser.add_argument('-p', '--problem_type', type=int, dest='problem_type', default=None)
+    parser.add_argument('-gpu', '--gpu_index', dest='gpu_index', default=None)
+    parser.add_argument('-cpu', '--num_cpus', type=int, dest='num_cpus', default=None)
+    parser.add_argument('-vb', '--version_begin', type=int, dest='version_begin', default=None)
+    parser.add_argument('-ve', '--version_end', type=int, dest='version_end', default=None)
+    parser.add_argument('-rb', '--run_begin', type=int, dest='run_begin', default=None)
+    parser.add_argument('-re', '--run_end', type=int, dest='run_end', default=None)
+
     args = parser.parse_args()
+    mode = args.mode
     config_version = args.config_version
     problem_type = args.problem_type
     gpu_index = args.gpu_index
-    mode = args.mode
+    num_cpus = args.num_cpus
+    version_begin = args.version_begin
+    version_end = args.version_end
+    run_begin = args.run_begin
+    run_end = args.run_end
 
     start_time = time.time()
     if mode == 'train':
         # Train one problem_type at a time on single GPU
-        if problem_type:
+        if problem_type and gpu_index:
             print(f'*** Run Type: {problem_type} ***')
             os.environ["CUDA_VISIBLE_DEVICES"] = f"{gpu_index}"
             train_model(
                 problem_type=problem_type, 
                 config_version=config_version,
             )
-        # Do multi-GPU for all when there is no problem_type specified.
+
+        # Do multi-GPU or multi-CPU training 
+        # for all when there is no problem_type specified.
         else:
-            multicuda_execute(
-                target_func=train_model, 
-                configs=[
-                    'v4_naive-withNoise-t1.vgg16.block4_pool.None.run8-with-lowAttn',
-                ]
-            )
+            # run on cpus when provided
+            if num_cpus:
+                os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
+                multiprocess_execute(
+                    target_func=train_model,
+                    version_begin=version_begin,
+                    version_end=version_end,
+                    num_processes=num_cpus,
+                    run_begin=run_begin,
+                    run_end=run_end
+                )
+
+            # otherwise run on gpus
+            else:
+                multicuda_execute(
+                    target_func=train_model,
+                    version_begin=version_begin,
+                    version_end=version_end,
+                    cuda_id_list=[0, 1, 2, 3, 4, 6],
+                    run_begin=run_begin,
+                    run_end=run_end
+                )
 
     duration = time.time() - start_time
     print(f'duration = {duration}s')

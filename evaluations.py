@@ -1430,13 +1430,18 @@ if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
 
     config_versions = [
-                    'v4_naive-withNoise-t1.vgg16.block4_pool.None.run1-with-lowAttn',
-                    'v4_naive-withNoise-t1.vgg16.block4_pool.None.run5-with-lowAttn',
-                    'v4_naive-withNoise-t1.vgg16.block4_pool.None.run12-with-lowAttn',
-                    'v4_naive-withNoise-t1.vgg16.block4_pool.None.run17-with-lowAttn',
-                    'v4_naive-withNoise-t1.vgg16.block4_pool.None.run19-with-lowAttn',
-                    'v4_naive-withNoise-t1.vgg16.block4_pool.None.run20-with-lowAttn',
-                    'v4_naive-withNoise-t1.vgg16.block4_pool.None.run26-with-lowAttn',
+                    'v4_naive-withNoise-t1.vgg16.block4_pool.None.run36-with-lowAttn',
+                    'v4_naive-withNoise-t1.vgg16.block4_pool.None.run38-with-lowAttn',
+                    'v4_naive-withNoise-t1.vgg16.block4_pool.None.run41-with-lowAttn',
+                    'v4_naive-withNoise-t1.vgg16.block4_pool.None.run42-with-lowAttn',
+                    'v4_naive-withNoise-t1.vgg16.block4_pool.None.run43-with-lowAttn',
+                    'v4_naive-withNoise-t1.vgg16.block4_pool.None.run44-with-lowAttn',
+                    'v5_naive-withNoise-t1.vgg16.block4_pool.None.run36-with-lowAttn',
+                    'v5_naive-withNoise-t1.vgg16.block4_pool.None.run38-with-lowAttn',
+                    'v5_naive-withNoise-t1.vgg16.block4_pool.None.run41-with-lowAttn',
+                    'v5_naive-withNoise-t1.vgg16.block4_pool.None.run42-with-lowAttn',
+                    'v5_naive-withNoise-t1.vgg16.block4_pool.None.run43-with-lowAttn',
+                    'v5_naive-withNoise-t1.vgg16.block4_pool.None.run44-with-lowAttn',
                 ]
     for config_version in config_versions:
         

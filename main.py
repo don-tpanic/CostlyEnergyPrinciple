@@ -246,7 +246,7 @@ def multicuda_execute(
     by launching them to all available GPUs.
     """
     num_types = 6
-    cuda_id_list = [0, 1, 2, 3, 4, 5]
+    cuda_id_list = [0, 1, 2, 3, 4, 6]
 
     args_list = []
     single_entry = {}

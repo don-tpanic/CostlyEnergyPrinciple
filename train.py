@@ -170,7 +170,7 @@ def fit(joint_model,
             dataset=dataset,
             attn_config_version=attn_config_version,
             dcnn_config_version=dcnn_config_version,
-            loss_fn_attn=loss_fn_attn,
+            loss_fn_attn=loss_fn_clus,
             optimizer_attn=optimizer_attn,
             inner_loop_epochs=inner_loop_epochs,
             global_steps=global_steps,
@@ -227,8 +227,8 @@ def learn_low_attn(
         dcnn_config_version=dcnn_config_version
     )
     
-    # true cluster actv
-    _, batch_y_true, _, _ = joint_model(batch_x)
+    # true final binary logits
+    _, _, batch_y_true, _ = joint_model(batch_x)
     print(f'[Check] batch_y_true.shape={batch_y_true.shape}')
     print(f'[Check] batch_y_true={batch_y_true}')
     
@@ -248,7 +248,7 @@ def learn_low_attn(
         with tf.GradientTape() as tape:
             # use the separate trainable dcnn 
             # in order to track loss.
-            batch_x_binary_pred, batch_y_pred, _, _ = joint_model(batch_x, training=True)
+            batch_x_binary_pred, _, batch_y_pred, _ = joint_model(batch_x, training=True)
             recon_loss = loss_fn_attn(batch_y_true, batch_y_pred) * recon_clusters_weighting
             
             reg_loss = joint_model.losses

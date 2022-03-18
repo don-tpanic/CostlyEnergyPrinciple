@@ -1082,7 +1082,7 @@ def compare_across_types_V3(
             ax.set_xticks(x_axis[:num_types]+0.5)
             ax.set_xticklabels(
                 [f'Type {problem_type}' for problem_type in range(1, num_types+1)])
-            # ax.set_ylim([0.6, 0.9])
+            ax.set_ylim([-0.05, 1.05])
             ax.set_ylabel('percentage of zero attention weights')
             plt.tight_layout()
             plt.legend()

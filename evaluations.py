@@ -2057,7 +2057,7 @@ def post_attn_actv_thru_time(attn_config_version):
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
     
-    attn_config_version = 'v4_naive-withNoise'
+    attn_config_version = 'v5_naive-withNoise-e2e'
     dcnn_config_version = 't1.vgg16.block4_pool.None.run1'
     
     # how_low_can_att_weights(

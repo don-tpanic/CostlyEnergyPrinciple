@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import scipy.stats as stats
+import seaborn as sns
 import matplotlib.pyplot as plt
 from collections import defaultdict
 import tensorflow as tf
@@ -1065,10 +1066,14 @@ def compare_across_types_V3(
                     color=colors[z],
                     label=f'single strategy, type {problem_type}'
                 )
+                print(len(temp_collector))
+                np.save(f'{results_path}/{comparison}_type{problem_type}_allStrategies.npy', temp_collector)
                 average_metrics.append(np.mean(temp_collector))
                 std_metrics.append(np.std(temp_collector))
 
             # plot bar of averaged over strategies.
+            print(f'average_metrics = {average_metrics}')
+            print(f'std_metrics = {std_metrics}')
             ax.errorbar(
                 x=x_axis[:num_types]+0.5,
                 y=average_metrics,
@@ -1155,6 +1160,78 @@ def compare_across_types_V3(
                 f'{results_path}/compare_types_dimension_binary_recon_canonical_runs_only{canonical_runs_only}.png')
 
 
+def stats_significance_of_zero_attn(attn_config_version):
+    """
+    Evaluate statistic significance across types 
+    of the difference in percentage of zero low attn
+    weights over runs & strategies.
+    """
+    results_path = f'results/{attn_config_version}'
+    type1 = np.load(f'{results_path}/zero_attn_type1_allStrategies.npy')
+    type2 = np.load(f'{results_path}/zero_attn_type2_allStrategies.npy')
+    type6 = np.load(f'{results_path}/zero_attn_type6_allStrategies.npy')
+    print(len(type1), len(type2), len(type6))
+
+    print(stats.ttest_ind(type1, type2, equal_var=False))
+    print(stats.ttest_ind(type1, type6, equal_var=False))
+
+    print(stats.ttest_rel(type1, type2, equal_var=False))
+    print(stats.ttest_rel(type1, type6, equal_var=False))
+
+
+def histogram_low_attn_weights(attn_config_version):
+    """
+    Plot the histogram of learned low-level attn weights
+    across types.
+    """
+    attn_config = load_config(
+        component=None,
+        config_version=attn_config_version
+    )
+    num_runs = attn_config['num_runs']
+    num_types = 6
+    num_dims = 3
+    attn_position = attn_config['attn_positions'].split(',')[0]
+    results_path = f'results/{attn_config_version}'
+    type2runs = find_canonical_runs(
+        attn_config_version, canonical_runs_only=True)
+    
+    type1 = []
+    type2 = []
+    type6 = []
+    for z in range(num_types):
+        if z in [0, 1, 5]:
+            problem_type = z + 1
+            for run in type2runs[z]:
+                attn_weights = np.load(
+                    f'{results_path}/attn_weights_type{problem_type}_run{run}_cluster.npy',
+                    allow_pickle=True
+                ).ravel()[0][attn_position]
+
+                if problem_type == 1:
+                    type1.extend(attn_weights)
+                elif problem_type == 2:
+                    type2.extend(attn_weights)
+                elif problem_type == 6:
+                    type6.extend(attn_weights)
+
+    fig, ax = plt.subplots()
+    colors = {'type1': 'y', 'type2': 'g', 'type6': 'r'}
+    print('max type1 = ', np.max(type1))
+    print('max type2 = ', np.max(type2))
+    print('max type6 = ', np.max(type6))
+
+    ax.axvline(np.max(type1), color=colors['type1'], linestyle='dashed')
+    ax.axvline(np.max(type2), color=colors['type2'], linestyle='dashed')
+    ax.axvline(np.max(type6), color=colors['type6'], linestyle='dashed')
+    sns.kdeplot(type1, label='Type 1', ax=ax, color=colors['type1'])
+    sns.kdeplot(type2, label='Type 2', ax=ax, color=colors['type2'])
+    sns.kdeplot(type6, label='Type 6', ax=ax, color=colors['type6'])
+    ax.set_xlabel(f'attn weights')
+    plt.legend()
+    plt.savefig(f'{results_path}/attn_weights_histogram.png')
+                
+    
 def compare_across_types_thru_time_V3(
         attn_config_version, canonical_runs_only=True, counterbalancing=True):
     """
@@ -2060,33 +2137,13 @@ if __name__ == '__main__':
     attn_config_version = 'v4_naive-withNoise'
     dcnn_config_version = 't1.vgg16.block4_pool.None.run1'
     
-    # how_low_can_att_weights(
-    #     attn_weight_constant=1.,
-    #     attn_config_version=attn_config_version,
-    #     dcnn_config_version=dcnn_config_version,
-    #     problem_type=1,
-    #     noise_level=0.4,
-    #     seed=15
-    # )
-
-    examine_clustering_learning_curves(attn_config_version)
+    # examine_clustering_learning_curves(attn_config_version)
     
-    # for problem_type in [1]:
-    #     for run in [0]:
-    #         viz_losses(
-    #             attn_config_version=attn_config_version,
-    #             problem_type=problem_type,
-    #             recon_level='cluster',
-    #             run=run
-    #         )
-
-    compare_across_types_V3(
-        attn_config_version,
-        canonical_runs_only=True,
-        threshold=[0., 0., 0.]
-    )
-
-    # compare_alt_cluster_actv_targets(
-    #     original='v1_independent', 
-    #     alt=attn_config_version
+    # compare_across_types_V3(
+    #     attn_config_version,
+    #     canonical_runs_only=True,
+    #     threshold=[0., 0., 0.]
     # )
+
+    # stats_significance_of_zero_attn(attn_config_version)
+    histogram_low_attn_weights(attn_config_version)

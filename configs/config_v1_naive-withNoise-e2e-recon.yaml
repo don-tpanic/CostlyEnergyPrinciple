@@ -1,4 +1,4 @@
-config_version: config_v1_naive-withNoise-e2e
+config_version: config_v1_naive-withNoise-e2e-recon
 
 # --- training ---
 num_runs: 50

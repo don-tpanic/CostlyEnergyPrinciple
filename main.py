@@ -246,7 +246,7 @@ def multicuda_execute(
     by launching them to all available GPUs.
     """
     num_types = 6
-    cuda_id_list = [0, 1, 2, 3, 4, 5]
+    cuda_id_list = [0, 1, 2, 3, 4, 6]
 
     args_list = []
     single_entry = {}
@@ -289,11 +289,14 @@ if __name__ == '__main__':
             )
         # Do multi-GPU for all when there is no problem_type specified.
         else:
+            versions = range(8, 47)
+            attn_configs = []
+            for v in versions:
+                attn_configs.append(f'v{v}_naive-withNoise')
+
             multicuda_execute(
                 target_func=train_model, 
-                attn_configs=[
-                    'v4_naive-withNoise',
-                ]
+                attn_configs=attn_configs
             )
 
     duration = time.time() - start_time

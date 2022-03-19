@@ -1015,12 +1015,26 @@ def compare_across_types_V3(
                 alphas_fpath = f'{results_path}/all_alphas_type{problem_type}_run{run}_cluster.npy'
                 # get the final 3 alphas
                 alphas = np.load(alphas_fpath)[-3:]
+                print(alphas)
                 alphas = alphas - np.array(threshold)
 
                 # 1e-6 is the lower bound of alpha constraint.
                 # use tuple instead of list because tuple is not mutable.
                 strategy = tuple(alphas > 1.0e-6)
-                type2strategy2metric[problem_type][strategy].append(metric)
+
+                # FIXME:
+                if problem_type in [1]:
+                    if np.sum(strategy) >= 2:
+                        pass
+                    else:
+                        type2strategy2metric[problem_type][strategy].append(metric)
+                elif problem_type in [2]:
+                    if np.sum(strategy) == 3:
+                        pass
+                    else:
+                        type2strategy2metric[problem_type][strategy].append(metric)
+                else:
+                    type2strategy2metric[problem_type][strategy].append(metric)
                 
         # plot
         if comparison == 'zero_attn':
@@ -1175,8 +1189,13 @@ def stats_significance_of_zero_attn(attn_config_version):
     print(stats.ttest_ind(type1, type2, equal_var=False))
     print(stats.ttest_ind(type1, type6, equal_var=False))
 
-    print(stats.ttest_rel(type1, type2, equal_var=False))
-    print(stats.ttest_rel(type1, type6, equal_var=False))
+    # print(stats.ttest_rel(type1, type2, equal_var=False))
+    # print(stats.ttest_rel(type1, type6, equal_var=False))
+
+    cohen_d = (np.mean(type1) - np.mean(type2)) / np.mean((np.std(type1) + np.std(type2)))
+    print(cohen_d)
+    cohen_d = (np.mean(type2) - np.mean(type6)) / np.mean((np.std(type2) + np.std(type6)))
+    print(cohen_d)
 
 
 def histogram_low_attn_weights(attn_config_version):
@@ -2139,11 +2158,11 @@ if __name__ == '__main__':
     
     # examine_clustering_learning_curves(attn_config_version)
     
-    # compare_across_types_V3(
-    #     attn_config_version,
-    #     canonical_runs_only=True,
-    #     threshold=[0., 0., 0.]
-    # )
+    compare_across_types_V3(
+        attn_config_version,
+        canonical_runs_only=True,
+        threshold=[0.0, 0.0, 0.0]
+    )
 
-    # stats_significance_of_zero_attn(attn_config_version)
+    stats_significance_of_zero_attn(attn_config_version)
     histogram_low_attn_weights(attn_config_version)

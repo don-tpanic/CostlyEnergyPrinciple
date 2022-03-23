@@ -69,7 +69,7 @@ def train_model(
         print(f'[Check] Beginning run {run}')
 
         optimizer_clus = tf.keras.optimizers.SGD(learning_rate=lr)
-        optimizer_attn = tf.keras.optimizers.Adam(learning_rate=lr_attn)
+        optimizer_attn = tf.keras.optimizers.SGD(learning_rate=lr_attn)
         loss_fn_clus = tf.keras.losses.BinaryCrossentropy(from_logits=from_logits)
         
         # different level of recon uses different loss func
@@ -289,10 +289,10 @@ if __name__ == '__main__':
             )
         # Do multi-GPU for all when there is no problem_type specified.
         else:
-            versions = range(8, 47)
+            versions = range(1, 25)
             attn_configs = []
             for v in versions:
-                attn_configs.append(f'v{v}_naive-withNoise')
+                attn_configs.append(f'v{v}_naive-withNoise-SGD')
 
             multicuda_execute(
                 target_func=train_model, 

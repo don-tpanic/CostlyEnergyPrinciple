@@ -48,14 +48,14 @@ default_dict = {
 }
 
 ##############################################
-lr_attn_ = [0.00092, 0.0092, 0.092]
-recon_clusters_weighting_ = [500, 1500, 2000, 2500, 3000, 4000, 5000, 8000, 12000]
-# recon_clusters_weighting_ = [10, 100, 1000, 10000, 100000, 1000000]
+lr_attn_ = [0.000092, 0.00092, 0.0092, 0.092]
+# recon_clusters_weighting_ = [500, 1500, 2000, 2500, 3000, 4000, 5000, 8000, 12000]
+recon_clusters_weighting_ = [10, 100, 1000, 10000, 100000, 1000000]
 ##############################################
-v = 20   # v to resume
+v = 1   # v to resume
 for recon_clusters_weighting in recon_clusters_weighting_:
     for lr_attn in lr_attn_:
-        config_version = f'config_v{v}_naive-withNoise'
+        config_version = f'config_v{v}_naive-withNoise-SGD'
         default_dict['config_version'] = config_version
         default_dict['recon_clusters_weighting'] = recon_clusters_weighting
         # default_dict['inner_loop_epochs'] = inner_loop_epochs

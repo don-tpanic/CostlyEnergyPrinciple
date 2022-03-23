@@ -985,9 +985,10 @@ def compare_across_types_V3(
         type2strategy2metric = defaultdict(lambda: defaultdict(list))
 
         for z in range(num_types):
+            problem_type = z + 1
+            print(f'------------ problem_type = {problem_type} ------------')
 
             for run in type2runs[z]:
-                problem_type = z + 1
                 
                 # First grab the final metric
                 if comparison == 'zero_attn':
@@ -1015,27 +1016,28 @@ def compare_across_types_V3(
                 alphas_fpath = f'{results_path}/all_alphas_type{problem_type}_run{run}_cluster.npy'
                 # get the final 3 alphas
                 alphas = np.load(alphas_fpath)[-3:]
-                print(alphas)
                 alphas = alphas - np.array(threshold)
 
                 # 1e-6 is the lower bound of alpha constraint.
                 # use tuple instead of list because tuple is not mutable.
                 strategy = tuple(alphas > 1.0e-6)
+                type2strategy2metric[problem_type][strategy].append(metric)
+                # TODO: do this filtering or not?
+                # filter out attn strategies that aren't typical for the 
+                # associated problem type.
+                # if problem_type in [1]:
+                #     if np.sum(strategy) >= 2:
+                #         pass
+                #     else:
+                #         type2strategy2metric[problem_type][strategy].append(metric)
+                # elif problem_type in [2]:
+                #     if np.sum(strategy) == 3:
+                #         pass
+                #     else:
+                #         type2strategy2metric[problem_type][strategy].append(metric)
+                # else:
+                #     type2strategy2metric[problem_type][strategy].append(metric)
 
-                # FIXME:
-                if problem_type in [1]:
-                    if np.sum(strategy) >= 2:
-                        pass
-                    else:
-                        type2strategy2metric[problem_type][strategy].append(metric)
-                elif problem_type in [2]:
-                    if np.sum(strategy) == 3:
-                        pass
-                    else:
-                        type2strategy2metric[problem_type][strategy].append(metric)
-                else:
-                    type2strategy2metric[problem_type][strategy].append(metric)
-                
         # plot
         if comparison == 'zero_attn':
             fig, ax = plt.subplots()
@@ -1186,11 +1188,8 @@ def stats_significance_of_zero_attn(attn_config_version):
     type6 = np.load(f'{results_path}/zero_attn_type6_allStrategies.npy')
     print(len(type1), len(type2), len(type6))
 
-    print(stats.ttest_ind(type1, type2, equal_var=False))
-    print(stats.ttest_ind(type1, type6, equal_var=False))
-
-    # print(stats.ttest_rel(type1, type2, equal_var=False))
-    # print(stats.ttest_rel(type1, type6, equal_var=False))
+    print('Type 1 vs 2: ', stats.ttest_ind(type1, type2, equal_var=False))
+    print('Type 1 vs 6: ', stats.ttest_ind(type1, type6, equal_var=False))
 
     cohen_d = (np.mean(type1) - np.mean(type2)) / np.mean((np.std(type1) + np.std(type2)))
     print(cohen_d)
@@ -1198,7 +1197,7 @@ def stats_significance_of_zero_attn(attn_config_version):
     print(cohen_d)
 
 
-def histogram_low_attn_weights(attn_config_version):
+def histogram_low_attn_weights(attn_config_version, threshold=[0., 0., 0.]):
     """
     Plot the histogram of learned low-level attn weights
     across types.
@@ -1222,6 +1221,19 @@ def histogram_low_attn_weights(attn_config_version):
         if z in [0, 1, 5]:
             problem_type = z + 1
             for run in type2runs[z]:
+
+                # # TODO: do this filtering or not?
+                # alphas_fpath = f'{results_path}/all_alphas_type{problem_type}_run{run}_cluster.npy'
+                # alphas = np.load(alphas_fpath)[-3:]
+                # alphas = alphas - np.array(threshold)
+                # strategy = tuple(alphas > 1.0e-6)
+                # if problem_type in [1]:
+                #     if np.sum(strategy) >= 2:
+                #         continue
+                # elif problem_type in [2]:
+                #     if np.sum(strategy) == 3:
+                #         continue
+
                 attn_weights = np.load(
                     f'{results_path}/attn_weights_type{problem_type}_run{run}_cluster.npy',
                     allow_pickle=True
@@ -2161,7 +2173,6 @@ if __name__ == '__main__':
     compare_across_types_V3(
         attn_config_version,
         canonical_runs_only=True,
-        threshold=[0.0, 0.0, 0.0]
     )
 
     stats_significance_of_zero_attn(attn_config_version)

@@ -289,7 +289,7 @@ if __name__ == '__main__':
             )
         # Do multi-GPU for all when there is no problem_type specified.
         else:
-            versions = range(1, 25)
+            versions = range(25, 37)
             attn_configs = []
             for v in versions:
                 attn_configs.append(f'v{v}_naive-withNoise-SGD')

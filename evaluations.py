@@ -2165,15 +2165,21 @@ def post_attn_actv_thru_time(attn_config_version):
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
     
-    attn_config_version = 'v4_naive-withNoise'
+    attn_config_version = 'v24_naive-withNoise-SGD'
     dcnn_config_version = 't1.vgg16.block4_pool.None.run1'
     
+    viz_losses(
+        attn_config_version,
+        problem_type=1,
+        recon_level='cluster',
+        run=12)
+
     # examine_clustering_learning_curves(attn_config_version)
     
-    compare_across_types_V3(
-        attn_config_version,
-        canonical_runs_only=True,
-    )
+    # compare_across_types_V3(
+    #     attn_config_version,
+    #     canonical_runs_only=True,
+    # )
 
-    stats_significance_of_zero_attn(attn_config_version)
-    histogram_low_attn_weights(attn_config_version)
+    # stats_significance_of_zero_attn(attn_config_version)
+    # histogram_low_attn_weights(attn_config_version)

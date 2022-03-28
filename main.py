@@ -71,11 +71,9 @@ def train_model(
         optimizer_clus = tf.keras.optimizers.SGD(learning_rate=lr)
         optimizer_attn = tf.keras.optimizers.Adam(learning_rate=lr_attn)
         loss_fn_clus = tf.keras.losses.BinaryCrossentropy(from_logits=from_logits)
-        
-        # different level of recon uses different loss func
-        if recon_level == 'cluster':
-            loss_fn_attn = tf.keras.losses.MeanSquaredError()
-        
+        # enable e2e, CE loss is used also for low-attn.
+        loss_fn_attn = tf.keras.losses.BinaryCrossentropy(from_logits=from_logits)
+
         joint_model = JointModel(
             attn_config_version=attn_config_version,
             dcnn_config_version=dcnn_config_version, 
@@ -292,12 +290,14 @@ if __name__ == '__main__':
             multicuda_execute(
                 target_func=train_model, 
                 attn_configs=[
+                    'v0_naive-withNoise-e2e',
                     'v1_naive-withNoise-e2e',
                     'v2_naive-withNoise-e2e',
                     'v3_naive-withNoise-e2e',
                     'v4_naive-withNoise-e2e',
                     'v5_naive-withNoise-e2e',
-
+                    'v6_naive-withNoise-e2e',
+                    'v7_naive-withNoise-e2e',
                 ]
             )
 

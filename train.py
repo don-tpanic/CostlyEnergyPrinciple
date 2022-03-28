@@ -9,7 +9,7 @@ from tensorflow.keras import layers
 
 from utils import load_config
 from losses import binary_crossentropy
-from data import load_X_only, dict_int2binary
+from data import load_XY_only, dict_int2binary
 from clustering.train import recruit_cluster, update_params
 
 
@@ -220,18 +220,14 @@ def learn_low_attn(
         model=joint_model
     )
         
-    # a batch of raw images(+ fake ones)
-    batch_x = load_X_only(
+    # a batch of raw images(+ fake ones) &
+    # a batch of true image labels.
+    batch_x, batch_y_true = load_XY_only(
         dataset=dataset, 
         attn_config_version=attn_config_version,
         dcnn_config_version=dcnn_config_version
     )
-    
-    # true final binary logits
-    _, _, batch_y_true, _ = joint_model(batch_x)
-    print(f'[Check] batch_y_true.shape={batch_y_true.shape}')
-    print(f'[Check] batch_y_true={batch_y_true}')
-    
+        
     # # Save trial-level cluster targets
     # fname = f'results/{attn_config_version}/cluster_targets_{problem_type}_{global_steps}_{run}.npy'
     # np.save(fname, batch_y_true)
@@ -249,6 +245,9 @@ def learn_low_attn(
             # use the separate trainable dcnn 
             # in order to track loss.
             batch_x_binary_pred, _, batch_y_pred, _ = joint_model(batch_x, training=True)
+            
+            # this is now CLS loss in terms of cross entropy.
+            # TODO: we could clean up the naming later but now we prefer consistency.
             recon_loss = loss_fn_attn(batch_y_true, batch_y_pred) * recon_clusters_weighting
             
             reg_loss = joint_model.losses

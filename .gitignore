@@ -1,6 +1,6 @@
 # Ignore big files
 dcnn_models*/
-results/*
+results
 finetune/results/
 finetune/configs/
 

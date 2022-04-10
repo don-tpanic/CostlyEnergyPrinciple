@@ -1021,22 +1021,22 @@ def compare_across_types_V3(
                 # 1e-6 is the lower bound of alpha constraint.
                 # use tuple instead of list because tuple is not mutable.
                 strategy = tuple(alphas > 1.0e-6)
-                type2strategy2metric[problem_type][strategy].append(metric)
+                # type2strategy2metric[problem_type][strategy].append(metric)
                 # TODO: do this filtering or not?
                 # filter out attn strategies that aren't typical for the 
                 # associated problem type.
-                # if problem_type in [1]:
-                #     if np.sum(strategy) >= 2:
-                #         pass
-                #     else:
-                #         type2strategy2metric[problem_type][strategy].append(metric)
-                # elif problem_type in [2]:
-                #     if np.sum(strategy) == 3:
-                #         pass
-                #     else:
-                #         type2strategy2metric[problem_type][strategy].append(metric)
-                # else:
-                #     type2strategy2metric[problem_type][strategy].append(metric)
+                if problem_type in [1]:
+                    if np.sum(strategy) >= 2:
+                        pass
+                    else:
+                        type2strategy2metric[problem_type][strategy].append(metric)
+                elif problem_type in [2]:
+                    if np.sum(strategy) == 3:
+                        pass
+                    else:
+                        type2strategy2metric[problem_type][strategy].append(metric)
+                else:
+                    type2strategy2metric[problem_type][strategy].append(metric)
 
         # plot
         if comparison == 'zero_attn':
@@ -1189,12 +1189,17 @@ def stats_significance_of_zero_attn(attn_config_version):
     print(len(type1), len(type2), len(type6))
 
     print('Type 1 vs 2: ', stats.ttest_ind(type1, type2, equal_var=False))
-    print('Type 1 vs 6: ', stats.ttest_ind(type1, type6, equal_var=False))
+    t_type1v2, p_type1v2 = stats.ttest_ind(type1, type2, equal_var=False)
 
-    cohen_d = (np.mean(type1) - np.mean(type2)) / np.mean((np.std(type1) + np.std(type2)))
-    print(cohen_d)
-    cohen_d = (np.mean(type2) - np.mean(type6)) / np.mean((np.std(type2) + np.std(type6)))
-    print(cohen_d)
+    print('Type 2 vs 6: ', stats.ttest_ind(type2, type6, equal_var=False))
+    t_type2v6, p_type2v6 = stats.ttest_ind(type2, type6, equal_var=False)
+
+    # cohen_d = (np.mean(type1) - np.mean(type2)) / np.mean((np.std(type1) + np.std(type2)))
+    # print(cohen_d)
+    # cohen_d = (np.mean(type2) - np.mean(type6)) / np.mean((np.std(type2) + np.std(type6)))
+    # print(cohen_d)
+
+    return t_type1v2, p_type1v2, t_type2v6, p_type2v6
 
 
 def histogram_low_attn_weights(attn_config_version, threshold=[0., 0., 0.]):
@@ -1222,17 +1227,17 @@ def histogram_low_attn_weights(attn_config_version, threshold=[0., 0., 0.]):
             problem_type = z + 1
             for run in type2runs[z]:
 
-                # # TODO: do this filtering or not?
-                # alphas_fpath = f'{results_path}/all_alphas_type{problem_type}_run{run}_cluster.npy'
-                # alphas = np.load(alphas_fpath)[-3:]
-                # alphas = alphas - np.array(threshold)
-                # strategy = tuple(alphas > 1.0e-6)
-                # if problem_type in [1]:
-                #     if np.sum(strategy) >= 2:
-                #         continue
-                # elif problem_type in [2]:
-                #     if np.sum(strategy) == 3:
-                #         continue
+                # TODO: do this filtering or not?
+                alphas_fpath = f'{results_path}/all_alphas_type{problem_type}_run{run}_cluster.npy'
+                alphas = np.load(alphas_fpath)[-3:]
+                alphas = alphas - np.array(threshold)
+                strategy = tuple(alphas > 1.0e-6)
+                if problem_type in [1]:
+                    if np.sum(strategy) >= 2:
+                        continue
+                elif problem_type in [2]:
+                    if np.sum(strategy) == 3:
+                        continue
 
                 attn_weights = np.load(
                     f'{results_path}/attn_weights_type{problem_type}_run{run}_cluster.npy',
@@ -1252,13 +1257,22 @@ def histogram_low_attn_weights(attn_config_version, threshold=[0., 0., 0.]):
     print('max type2 = ', np.max(type2))
     print('max type6 = ', np.max(type6))
 
-    ax.axvline(np.max(type1), color=colors['type1'], linestyle='dashed')
-    ax.axvline(np.max(type2), color=colors['type2'], linestyle='dashed')
-    ax.axvline(np.max(type6), color=colors['type6'], linestyle='dashed')
+    # ax.axvline(np.max(type1), color=colors['type1'], linestyle='dashed')
+    # ax.axvline(np.max(type2), color=colors['type2'], linestyle='dashed')
+    # ax.axvline(np.max(type6), color=colors['type6'], linestyle='dashed')
     sns.kdeplot(type1, label='Type 1', ax=ax, color=colors['type1'])
     sns.kdeplot(type2, label='Type 2', ax=ax, color=colors['type2'])
     sns.kdeplot(type6, label='Type 6', ax=ax, color=colors['type6'])
     ax.set_xlabel(f'attn weights')
+
+    # plot t-test results
+    t_type1v2, p_type1v2, \
+    t_type2v6, p_type2v6 = stats_significance_of_zero_attn(attn_config_version)
+
+    plt.text(0.2, 10, f'Type 1 v Type 2: t={t_type1v2:.3f}, p-value < 1e-4')
+    plt.text(0.2, 8, f'Type 2 v Type 6: t={t_type2v6:.3f}, p-value < 1e-4')
+
+
     plt.legend()
     plt.savefig(f'{results_path}/attn_weights_histogram.png')
                 

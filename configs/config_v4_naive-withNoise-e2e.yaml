@@ -1,6 +1,6 @@
 config_version: config_v4_naive-withNoise-e2e
 # --- training ---
-num_runs: 50
+num_runs: 500
 num_blocks: 32
 random_seed: 999
 

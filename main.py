@@ -209,11 +209,11 @@ def train_model(
                 results_path, f'all_recon_loss_ideal_type{problem_type}_run{run}_{recon_level}.npy'),
                 all_recon_loss_ideal
         )
-        np.save(
-            os.path.join(
-                results_path, f'all_reg_loss_type{problem_type}_run{run}_{recon_level}.npy'), 
-                all_reg_loss
-        )
+        # np.save(
+        #     os.path.join(
+        #         results_path, f'all_reg_loss_type{problem_type}_run{run}_{recon_level}.npy'), 
+        #         all_reg_loss
+        # )
         np.save(
             os.path.join(
                 results_path, f'all_percent_zero_attn_type{problem_type}_run{run}_{recon_level}.npy'),
@@ -224,11 +224,11 @@ def train_model(
                 results_path, f'all_alphas_type{problem_type}_run{run}_{recon_level}.npy'),
                 all_alphas
         )
-        np.save(
-            os.path.join(
-                results_path, f'all_centers_type{problem_type}_run{run}_{recon_level}.npy'),
-                all_centers
-        )
+        # np.save(
+        #     os.path.join(
+        #         results_path, f'all_centers_type{problem_type}_run{run}_{recon_level}.npy'),
+        #         all_centers
+        # )
     
     # Save average lc across all runs
     assert num_runs * num_blocks * len(dataset) == ct, f'got incorrect ct = {ct}'
@@ -292,12 +292,7 @@ if __name__ == '__main__':
                 attn_configs=[
                     'v0_naive-withNoise-e2e',
                     'v1_naive-withNoise-e2e',
-                    'v2_naive-withNoise-e2e',
-                    'v3_naive-withNoise-e2e',
-                    'v4_naive-withNoise-e2e',
-                    'v5_naive-withNoise-e2e',
-                    'v6_naive-withNoise-e2e',
-                    'v7_naive-withNoise-e2e',
+                    # 'v4_naive-withNoise-e2e'
                 ]
             )
 

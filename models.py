@@ -396,3 +396,9 @@ class JointModel(Model):
 
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
+    model = JointModel(
+        attn_config_version='v4_naive-withNoise',
+        dcnn_config_version='t1.vgg16.block4_pool.None.run1'
+    )
+    model.build(input_shape=[(1, 224, 224, 3), (1, 512)])
+    model.summary()

@@ -226,11 +226,11 @@ class JointModel(Model):
             name='mask_non_recruit'
         )
 
-        self.Inhibition = ClusterInhibition(
-            num_clusters, 
-            beta=beta, 
-            name='inhibition'
-        )
+        # self.Inhibition = ClusterInhibition(
+        #     num_clusters, 
+        #     beta=beta, 
+        #     name='inhibition'
+        # )
         
         self.ClsLayer = Classification(
             2, Phi=Phi, activation=actv_func, 
@@ -311,7 +311,7 @@ class JointModel(Model):
         )
 
         clusters_actv_softmax = tf.multiply(clusters_actv, softmax_weights)
-        print('[Check] clusters_actv_softmax', clusters_actv_softmax)
+        # print('[Check] clusters_actv_softmax', clusters_actv_softmax)
         return clusters_actv_softmax
         
     def call(self, inputs, y_true=None):
@@ -370,9 +370,10 @@ class JointModel(Model):
         # whether to compute totalSupport depends.
         totalSupport = 0
         if y_true is None:
-            print(f'[Check] Not evaluating totalSupport.')
+            # print(f'[Check] Not evaluating totalSupport.')
+            pass
         else:
-            print(f'[Check] Evaluating totalSupport')
+            # print(f'[Check] Evaluating totalSupport')
             assoc_weights = self.ClsLayer.get_weights()[0]
             totalSupport = 0
             for cluster_index in nonzero_clusters:
@@ -387,9 +388,9 @@ class JointModel(Model):
                 totalSupport += support * single_cluster_actv
 
             totalSupport = totalSupport / tf.reduce_sum(clusters_actv_softmax)
-            print(f'[Check] totalSupport = {totalSupport}')
+            # print(f'[Check] totalSupport = {totalSupport}')
 
-        print(f'[Check] un-inhibited cluster outputs')
+        # print(f'[Check] un-inhibited cluster outputs')
         return inputs_binary, clusters_actv, y_pred, totalSupport
     
 

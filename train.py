@@ -52,7 +52,7 @@ def fit(joint_model,
         optimizer_clus, 
         optimizer_attn, 
         lr_multipliers, 
-        epoch, 
+        repetition, 
         i, 
         run,
         attn_config_version, 
@@ -60,7 +60,9 @@ def fit(joint_model,
         inner_loop_epochs,
         global_steps,
         problem_type,
-        recon_clusters_weighting):
+        recon_clusters_weighting,
+        sub
+    ):
     """
     A single train step given a stimulus.
     """        
@@ -74,7 +76,7 @@ def fit(joint_model,
         model=joint_model
     )
                 
-    if epoch == 0 and i == 0:
+    if repetition == 0 and i == 0:
         print(f'[Check] Load the first item.')
         print(f'--------------------------------------------------------')
         

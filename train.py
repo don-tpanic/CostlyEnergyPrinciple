@@ -54,14 +54,13 @@ def fit(joint_model,
         lr_multipliers, 
         repetition, 
         i, 
-        run,
+        sub,
         attn_config_version, 
         dcnn_config_version,
         inner_loop_epochs,
         global_steps,
         problem_type,
         recon_clusters_weighting,
-        sub
     ):
     """
     A single train step given a stimulus.
@@ -176,7 +175,7 @@ def fit(joint_model,
             optimizer_attn=optimizer_attn,
             inner_loop_epochs=inner_loop_epochs,
             global_steps=global_steps,
-            run=run,
+            sub=sub,
             item_proberror=item_proberror,
             problem_type=problem_type,
             recon_clusters_weighting=recon_clusters_weighting)
@@ -202,7 +201,7 @@ def learn_low_attn(
         optimizer_attn, 
         inner_loop_epochs,
         global_steps,
-        run,
+        sub,
         item_proberror,
         problem_type,
         recon_clusters_weighting):
@@ -235,7 +234,7 @@ def learn_low_attn(
     print(f'[Check] batch_y_true={batch_y_true}')
     
     # # Save trial-level cluster targets
-    # fname = f'results/{attn_config_version}/cluster_targets_{problem_type}_{global_steps}_{run}.npy'
+    # fname = f'results/{attn_config_version}/cluster_targets_{problem_type}_{global_steps}_{sub}.npy'
     # np.save(fname, batch_y_true)
     
     recon_loss_collector = []           # recon loss at cluster level (learning)

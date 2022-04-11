@@ -6,6 +6,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras.preprocessing import image
 from utils import load_config
+from clustering import human
 
 
 def dict_int2binary():
@@ -291,6 +292,102 @@ def load_X_only(dataset,
     return batch_x
         
 
+def data_loader_human_order(
+        attn_config_version, 
+        problem_type, sub, repetition,
+        preprocess_func,
+        color_mode='rgb',
+        interpolation='nearest',
+        target_size=(224, 224),
+        data_format='channels_last'):
+    """
+    Given a problem type, a subject and a repetition (16 total),
+    return a dataset that contains data-points of that repetition,
+    which are the exact 8 stimuli in a random order. The data-points 
+    include stimuli images (+fake ones), labels and signatures.
+    
+    What makes things a bit complicated is that within each fMRI run,
+    there are 32 trials which need to be further divided into 4 repetitions.
+    
+    return:
+    -------
+        An array of data-points of all trials within a repetition.
+    """
+    # attn stuff
+    attn_config = load_config(
+        component=None,
+        config_version=attn_config_version)
+    dcnn_config_version = attn_config['dcnn_config_version']
+    
+    dcnn_config = load_config(
+        component='finetune', 
+        config_version=dcnn_config_version)
+    
+    attn_positions = attn_config['attn_positions'].split(',')
+    layer2attn_size = dict_layer2attn_size(
+        model_name=dcnn_config['model_name'])
+    stimulus_set = dcnn_config['stimulus_set']
+    data_dir = f'dataset/task{stimulus_set}'
+    
+    # human stuff
+    subject2dcnn_mapper = human.convert_subjectCoding_to_dcnnCoding(sub=sub)
+    behaviour = human.load_behaviour(
+        problem_type=problem_type, 
+        sub=sub,
+        repetition=repetition
+    )
+    
+    dataset = []
+    for i in range(len(behaviour)):
+        behaviour_i = behaviour[i][0].split('\t')
+        sub_stimulus = ''.join(behaviour_i[3:6])  # '001'
+        signature = human.binary_to_signature[sub_stimulus]
+        
+        # convert to DCNN coding so we can load 
+        # the raw images accordingly
+        dcnn_stimulus = subject2dcnn_mapper[sub_stimulus]
+        # '000' -> 0
+        fname = human.binary_to_signature[dcnn_stimulus]
+        img_fpath = f'{data_dir}/{fname}.jpg'
+        img = image.load_img(
+            img_fpath,
+            color_mode=color_mode,
+            target_size=target_size,
+            interpolation=interpolation
+        )
+        x = image.img_to_array(
+            img,
+            data_format=data_format
+        )
+        # Pillow images should be closed after `load_img`,
+        # but not PIL images.
+        if hasattr(img, 'close'):
+            img.close()
+        if preprocess_func:
+            x = preprocess_func(x)
+        
+        # get y
+        label = behaviour_i[6]                    # 6 - ground true answer
+        label = human.label_to_oneHot[label]
+        
+        # preserve dim=0 (i.e. batch_size dim)
+        x = np.expand_dims(x, axis=0)
+        y = np.expand_dims(label, axis=0)
+
+        # add fake inputs.
+        inputs = [x]
+        for attn_position in attn_positions:
+            attn_size = layer2attn_size[attn_position]
+            fake_input = np.ones((1, attn_size))
+            inputs.extend([fake_input])
+
+        # TODO: double check to use which signature (subject or DCNN?)
+        dataset.append([inputs, y, signature])
+            
+    return np.array(dataset, dtype=object)
+
+
+
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
     # data_loader_V2(
@@ -299,11 +396,18 @@ if __name__ == '__main__':
     #     preprocess_func=None
     # )
 
-    data_loader_V2(
-        attn_config_version='attn_v3b_cb_multi_test',
-        dcnn_config_version='t1.block4_pool.None.run1', 
-        problem_type=1,
+    # data_loader_V2(
+    #     attn_config_version='attn_v3b_cb_multi_test',
+    #     dcnn_config_version='t1.block4_pool.None.run1', 
+    #     problem_type=1,
+    #     preprocess_func=None
+    # )
+    
+    dataset = data_loader_human_order(
+        attn_config_version='v4_naive-withNoise', 
+        problem_type=1, sub='02', repetition=1,
         preprocess_func=None
     )
+    print(dataset)
 
     

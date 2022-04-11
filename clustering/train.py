@@ -25,77 +25,76 @@ def recruit_cluster(center, signature, model):
     mask_non_recruit_weights = model.get_layer('mask_non_recruit').get_weights()
     mask_non_recruit_weights[0][signature] = 1.
     model.get_layer('mask_non_recruit').set_weights(mask_non_recruit_weights)
-    print(f'[Check] Recruited clusters mask = {mask_non_recruit_weights}')
+    # print(f'[Check] Recruited clusters mask = {mask_non_recruit_weights}')
     
 
 def fit(model, x, y_true, signature, 
-        loss_fn, optimizer, lr, lr_multipliers, 
-        epoch, i,
+        loss_fn, optimizer, lr, lr_multipliers, thr,
+        repetition, i,
         problem_type,
-        run,
         config_version,
-        global_steps):
+        global_steps,
+        sub
+    ):
     """
     A complete learning trial of the clustering model.
     """
     """
     A complete learning trial of the clustering model.
     """
-    print(f'========================================================')
-    print(f'[Check] epoch = {epoch}, trial {i}')
-    print(f'[Check] x={x}, y_true={y_true}, sig={signature}')
+    # print(f'========================================================')
+    # print(f'[Check] repetition = {repetition}, trial {i}')
+    # print(f'[Check] x={x}, y_true={y_true}, sig={signature}')
 
-    if epoch == 0 and i == 0:
-        print(f'[Check] Load the first item.')
-        print(f'--------------------------------------------------------')
-    
-        model(x, build_model=True)
-        print(f'[Check] *** finished building ***')
-        
+    if repetition == 0 and i == 0:
+        # print(f'[Check] Load the first item.')
+        # print(f'--------------------------------------------------------')
+            
         # recruit the first item by centering on it.
         recruit_cluster(center=x, signature=signature, model=model)
 
         # Evaluation to get classification loss.
         with tf.GradientTape() as tape:
-            y_pred = model(x, training=True)
+            _, y_pred, _ = model(x, training=True)
             loss_value = loss_fn(y_true, y_pred)
-            print(f'[Check] y_pred = {y_pred}')
+            # print(f'[Check] y_pred = {y_pred}')
         
         # Convert loss to proberror used in SUSTAIN.
         item_proberror = 1. - tf.reduce_max(y_pred * y_true)
-        print(f'[Check] item_proberror = {item_proberror}')
+        # print(f'[Check] item_proberror = {item_proberror}')
         
     else:
-        print(f'[Check] Load non-first item.')
-        print(f'--------------------------------------------------------')
+        # print(f'[Check] Load non-first item.')
+        # print(f'--------------------------------------------------------')
         
         # First eval loss using existing.
         with tf.GradientTape() as tape:
-            y_pred, totalSupport = model(x, y_true=y_true, training=True)
+            _, y_pred, totalSupport = model(x, y_true=y_true, training=True)
             loss_value = loss_fn(y_true, y_pred)
         
         item_proberror = 1. - tf.reduce_max(y_pred * y_true)
-        print(f'[Check] item_proberror = {item_proberror}')
+        # print(f'[Check] item_proberror = {item_proberror}')
 
         # Apply the unsupervised thresholding rule.
-        config = load_config(config_version)
-        unsup_rule = config['unsup_rule']
-        thr = config['thr']
-        print(f'[Check] totalSupport={totalSupport} vs thr={thr}')
+        # config = load_config(config_version)
+        # unsup_rule = config['unsup_rule']
+        # thr = config['thr']
+        # print(f'[Check] totalSupport={totalSupport} vs thr={thr}')
         
         # Successful recruit if lower than thr
         if totalSupport < thr:
-            print(f'[Check] lower than thr, recruit.')
+            # print(f'[Check] lower than thr, recruit.')
             recruit_cluster(center=x, signature=signature, model=model)
             
             # Evaluate loss given new recruit.
             with tf.GradientTape() as tape:
-                y_pred = model(x, training=True)
+                _, y_pred, _ = model(x, training=True)
                 loss_value = loss_fn(y_true, y_pred)
             
         # Unsuccessful recruit if higher than thr
         else:
-            print(f'[Check] exceeding thr, do not recruit.')
+            pass
+            # print(f'[Check] exceeding thr, do not recruit.')
         
     # Update trainable parameters.
     model = update_params(
@@ -105,6 +104,17 @@ def fit(model, x, y_true, signature,
         optimizer,
         lr_multipliers
     )
+    
+    # TODO: temp - save repetition-wise attn weights (at the end of each rep)
+    if i == 7 and 'best' in config_version:
+        attn_weights = model.get_layer(
+            'dimensionwise_attn_layer').get_weights()[0]
+        np.save(
+            f'results/{config_version}/' \
+            f'attn_weights_type{problem_type}_sub{sub}_rp{repetition}.npy', 
+            attn_weights
+        )
+        
     return model, item_proberror, global_steps
 
 
@@ -118,7 +128,7 @@ def update_params(
     """
     Update trainable params in the model.
     """
-    print(f'[Check] update ALL parameters')
+    # print(f'[Check] update ALL parameters')
     
     # len(grads) == 10 (8 + 1 + 1)
     grads = tape.gradient(loss_value, model.trainable_weights)
@@ -135,21 +145,21 @@ def update_params(
             # assoc
             grads[i] *= lr_multipliers[2]
     
-    print(f'---------------------- all grads -----------------------')
-    for i in range(len(grads[:8])):
-        print(f'[Check] center {i} grads {grads[i]}')
-    print(f'[Check] attn grads {grads[8]}')
-    print(f'[Check] assco grads \n{grads[9]}')
-    print(f'--------------------------------------------------------')
+    # print(f'---------------------- all grads -----------------------')
+    # for i in range(len(grads[:8])):
+    #     print(f'[Check] center {i} grads {grads[i]}')
+    # print(f'[Check] attn grads {grads[8]}')
+    # print(f'[Check] assco grads \n{grads[9]}')
+    # print(f'--------------------------------------------------------')
 
 
     optimizer.apply_gradients(zip(grads, model.trainable_weights))
     
     
-    print('--------------------- updated params -------------------')
-    for i in range(8):
-        print(f'[Check] center {i}', model.get_layer(f'd{i}').get_weights()[0])
-    print('[Check] attn', model.get_layer('dimensionwise_attn_layer').get_weights()[0])
-    print('[Check] assoc', model.get_layer(f'classification').get_weights()[0])
-    print(f'--------------------------------------------------------')
+    # print('--------------------- updated params -------------------')
+    # for i in range(8):
+    #     print(f'[Check] center {i}', model.get_layer(f'd{i}').get_weights()[0])
+    # print('[Check] attn', model.get_layer('dimensionwise_attn_layer').get_weights()[0])
+    # print('[Check] assoc', model.get_layer(f'classification').get_weights()[0])
+    # print(f'--------------------------------------------------------')
     return model

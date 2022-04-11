@@ -10,6 +10,7 @@ def load_config(config_version):
     # print(f'[Check] Loading [config_{config_version}]')
     return config
 
+
 def load_data(problem_type):
     """
     Shepard six problems
@@ -78,6 +79,22 @@ def load_data(problem_type):
         dp6 = [[[1, 1, 0]], [[0., 1.]], 6]
         dp7 = [[[1, 1, 1]], [[1., 0.]], 7]
     return np.array([dp0, dp1, dp2, dp3, dp4, dp5, dp6, dp7], dtype=object)
+
+
+def load_X_only(dataset):
+    """
+    Given a dataset, extract and return 
+    only the X part. This is for evaluating 
+    model activations when Y labels are not needed.
+    """
+    batch_x = np.empty( (len(dataset), len(dataset[0][0][0])) )
+    for i in range(len(dataset)):
+        dp = dataset[i]
+        x = dp[0][0]   # un-batch a single data-point
+        batch_x[i] = x
+
+    # print(batch_x.shape)   # (8, 3)
+    return batch_x
 
 
 def cuda_manager(target, args_list, cuda_id_list, n_concurrent=None):

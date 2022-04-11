@@ -10,136 +10,151 @@ import pandas as pd
 import multiprocessing
 
 from main import train_model
-from evaluations import examine_lc, examine_recruited_clusters_n_attn
 from utils import cuda_manager, load_config
-    
 
-def search(problem_type, v):    
+"""
+Functions used for hyper-params search and evaluation.
+"""
+
+def per_subject_compare_human_to_model(sub, begin, end):
+    """
+    For a given subject, find the best config over
+    a range of hyper-params combo.
+    """
+    problem_types = [1, 2, 6]
+    best_config = ''
+    best_diff = 99999
     for i in range(begin, end):
-        config_version = f'hyper{i}_{v}'        
-        train_model(
-            problem_type=problem_type, 
-            config_version=config_version
-        )
+        # config_version = f'hyper{i}_{v}'       # for 0-22100 when sub are not separated.
+        config_version = f'hyper{i}_sub{sub}_{v}'
+
+        per_config_sum_of_abs_diff = 0
+        try:
+            # one subject's one config's score
+            for problem_type in problem_types:
+                human_lc = np.load(f'results/human/lc_type{problem_type}_sub{sub}.npy')
+                model_lc = np.load(f'results/{config_version}/lc_type{problem_type}_sub{sub}.npy')
+                per_config_sum_of_abs_diff += np.sum(np.abs(human_lc - model_lc))
+        except FileNotFoundError:
+            # catch config with missing files
+            continue
+        
+        print(f'[sub{sub}], current config {config_version}, diff = {per_config_sum_of_abs_diff}')
+        if per_config_sum_of_abs_diff < best_diff:
+            best_config = config_version
+            best_diff = per_config_sum_of_abs_diff
+        print(f'[sub{sub}], best config {best_config}, diff = {best_diff}')
+    
+    # save best config's name and the best diff
+    np.save(f'results/sub{sub}_best_config.npy', best_config)
 
 
-def eval_candidates(v):
+def multiprocess_eval(target_func, v, num_processes, retrain=False):
     """
     Eval all choices of hyper-param combo.
+    
+    Optional:
+        if retrain: we retrain the best config for each subject, 
+        this is a workaround to get attn_weights overtime that 
+        were not previously saved (only applies to hyper0-22100)
 
     return:
     -------
-        A list of hyper-param indices that satisfy 
-        the criteria.
+        For each subject, the best config will be saved 
+        as .npy
     """
-    qualified = []
-    for i in range(begin, end):
-        config_version = f'hyper{i}_{v}'
-        config = load_config(config_version)
-
-        print(f'----------------------------------------')
-        try:
-            areas = examine_lc(
-                config_version, 
-                plot_learn_curves=True
+    num_subs = 23
+    subs = [f'{i:02d}' for i in range(2, num_subs+2)]
+    with multiprocessing.Pool(num_processes) as pool:
+        
+        for s in range(num_subs):
+            sub = subs[s]
+            
+            results = pool.apply_async(
+                target_func, args=[sub, begin, end]
             )
-        except FileNotFoundError:
-            print(f'{config_version} incomplete!')
-            continue
         
-        print(f'{config_version}')
-        if (np.max(areas) != areas[-1] 
-            or areas[0] > 3 
-            or areas[2] - areas[1] < 0.5
-            or areas[-1] > 8
-            or (areas[2] > areas[3] and areas[2] > areas[4])
-        ):
-            continue
+        pool.close()
+        pool.join()
+    
+    if retrain:
+        with multiprocessing.Pool(num_processes) as pool:
+            for sub in subs:
+                config_version = str(
+                    np.load(
+                        f'results/sub{sub}_best_config.npy'
+                    )
+                )
+                results = pool.apply_async(
+                    train_model,
+                    args=[sub, config_version]
+                )
         
-        else:
-            qualified.append(i)
-
-    np.save(f'qualified_{begin}-{end}.npy', qualified)
-
-                
-def multicuda_execute(target_func, v, cuda_id_list):
-    num_types = 6
-    args_list = []
-    single_entry = {}
-    for problem_type in range(1, num_types+1):
-        single_entry['problem_type'] = problem_type
-        single_entry['v'] = v
-        args_list.append(single_entry)
-        single_entry = {}
-
-    # Execute
-    cuda_manager(
-        target_func, args_list, cuda_id_list
-    )
+            print(results.get())
+            pool.close()
+            pool.join()
 
 
-def multiprocess_execute(target_func, v, num_processes):
+def multiprocess_search(target_func, v, num_processes):
     """
     Train a bunch of models at once 
     by launching them to all avaialble CPU cores.
     
-    One process will run one (config & problem_type)
+    One process will run one (config's all problem_types and subs)
     """
-    num_types = 6
-
+    num_subs = 23
+    subs = [f'{i:02d}' for i in range(2, num_subs+2)]
     with multiprocessing.Pool(num_processes) as pool:
-
         for i in range(begin, end):
-            config_version = f'hyper{i}_{v}'
-
-            for problem_type in range(1, num_types+1):
+            for sub in subs:
+                # the same hyper_i with different sub 
+                # is a different set of params.                
+                config_version = f'hyper{i}_sub{sub}_{v}'
                 results = pool.apply_async(
-                    target_func, args=[problem_type, config_version]
+                    target_func, 
+                    args=[sub, config_version]
                 )
-        
         pool.close()
         pool.join()
-        print(results.get())
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     # latest v=='general'
     parser.add_argument('-v', '--version', dest='v')
-    # run code on CPU or GPU
-    parser.add_argument('-d', '--device', dest='device')
     # search params or eval trained candidates
     parser.add_argument('-m', '--mode', dest='mode')
     # beginning index of the hyper param choice
     parser.add_argument('-b', '--begin', dest='begin', type=int)
     # ending index of the hyper param choice (exc.)
     parser.add_argument('-e', '--end', dest='end', type=int)
+    
+    """
+    e.g. python hyper_tune.py -v fit-human -m search -b 0 -e 1
+    """
 
     args = parser.parse_args()
     mode = args.mode
-    device = args.device
     begin = args.begin
     end = args.end
     v = args.v
     start_time = time.time()
 
     if mode == 'search':
-        if device == 'cpu':
-            os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
-            multiprocess_execute(
-                target_func=train_model,
-                v=v,
-                num_processes=multiprocessing.cpu_count()-2
-            )
-        elif device == 'gpu':
-            multicuda_execute(
-                target_func=search,
-                v=v,
-                cuda_id_list=[0, 1, 2, 3, 4, 6]
-            )
+        os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
+        multiprocess_search(
+            target_func=train_model,
+            v=v,
+            num_processes=multiprocessing.cpu_count()-2
+        )
 
     elif mode == 'eval':
-        eval_candidates(v=v)
+        os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
+        multiprocess_eval(
+            target_func=per_subject_compare_human_to_model,
+            v=v,
+            num_processes=multiprocessing.cpu_count()-2,
+        )
 
     end_time = time.time()
     print(f'dur = {end_time - start_time}s')

@@ -18,7 +18,7 @@ class ClusterModel(Model):
             self,
             num_clusters,
             r, q, specificity, trainable_specificity, attn_constraint,
-            Phi, actv_func, beta, temp, output_dim=3,
+            Phi, actv_func, beta, temp1, temp2, output_dim=3,
             name="clustering_model",
             **kwargs
         ):
@@ -56,18 +56,20 @@ class ClusterModel(Model):
             name='mask_non_recruit'
         )
 
-        self.Inhibition = ClusterInhibition(
-            num_clusters, 
-            beta=beta, 
-            name='inhibition'
-        )
+        # self.Inhibition = ClusterInhibition(
+        #     num_clusters, 
+        #     beta=beta, 
+        #     name='inhibition'
+        # )
 
         self.ClsLayer = Classification(
             2, Phi=Phi, activation=actv_func, 
             name='classification'
         )
 
-        self.temp = temp
+        self.beta = beta  # for equivalent conversion
+        self.temp1 = temp1
+        self.temp2 = temp2
 
     def cluster_support(self, cluster_index, assoc_weights, y_true):
         """
@@ -78,7 +80,7 @@ class ClusterModel(Model):
         """
         # get assoc weights of a cluster
         cluster_assoc_weights = assoc_weights[cluster_index, :]
-        print(f'[Check] cluster_assoc_weights', cluster_assoc_weights)
+        # print(f'[Check] cluster_assoc_weights', cluster_assoc_weights)
 
         # based on y_true
         if y_true[0][0] == 0:
@@ -91,23 +93,31 @@ class ClusterModel(Model):
         support = (w_correct - w_incorrect) / (
             np.abs(w_correct) + np.abs(w_incorrect)
         )
-        print(f'[Check] w_correct={w_correct}, w_incorrect={w_incorrect}')
-        print(f'[Check] cluster{cluster_index} support = {support}')
+        # print(f'[Check] w_correct={w_correct}, w_incorrect={w_incorrect}')
+        # print(f'[Check] cluster{cluster_index} support = {support}')
         return support
 
-    def cluster_softmax(self, clusters_actv_inhibition, nonzero_clusters):
-        # nominator of softmax
-        nom = tf.exp(
-            tf.gather(
-                clusters_actv_inhibition[0], indices=nonzero_clusters) / self.temp
-        )
-        # denominator of softmax 
+    def cluster_softmax(self, clusters_actv, nonzero_clusters, which_temp):
+        """
+        Compute new clusters_actv by 
+            weighting clusters_actv using softmax(clusters_actv) probabilities.
+        """
+        clusters_actv_nonzero = tf.gather(
+            clusters_actv[0], indices=nonzero_clusters)
+        
+        if which_temp == 1:
+            temp = self.temp1
+            if temp == 'equivalent':
+                temp = clusters_actv_nonzero / (
+                    self.beta * tf.math.log(clusters_actv_nonzero)
+                )
+        elif which_temp == 2:
+            temp = self.temp2
+            
+        # softmax probabilities and flatten as required
+        nom = tf.exp(clusters_actv_nonzero / temp)
         denom = tf.reduce_sum(nom)
-
-        # softmax probabilities
-        softmax_proba = nom / tf.reduce_sum(nom)
-
-        # flatten as required
+        softmax_proba = nom / denom
         softmax_proba = tf.reshape(softmax_proba, [-1])
         
         # To expand the proba into the same size 
@@ -118,7 +128,7 @@ class ClusterModel(Model):
         # value update.
         softmax_weights = tf.constant(
             [0], 
-            shape=clusters_actv_inhibition[0].shape,
+            shape=clusters_actv[0].shape,
             dtype=tf.float32
         )
         
@@ -131,11 +141,11 @@ class ClusterModel(Model):
             updates=softmax_proba,
         )
 
-        clusters_actv_softmax = tf.multiply(clusters_actv_inhibition, softmax_weights)
-        print('[Check] clusters_actv_softmax', clusters_actv_softmax)
+        clusters_actv_softmax = tf.multiply(clusters_actv, softmax_weights)
+        # print('[Check] clusters_actv_softmax', clusters_actv_softmax)
         return clusters_actv_softmax
 
-    def call(self, inputs, build_model=False, y_true=None):
+    def call(self, inputs, y_true=None):
         """
         inputs:
         -------
@@ -163,56 +173,61 @@ class ClusterModel(Model):
             H_list.append(H_j_act)
 
         H_concat = self.Concat(H_list)
-        print(f'H_concat', H_concat)
+        # print(f'H_concat', H_concat)
 
-        H_out = self.MaskNonRecruit(H_concat)
-        print(f'H_out', H_out)
+        clusters_actv = self.MaskNonRecruit(H_concat)
+        # print(f'H_out', clusters_actv)
 
-        clusters_actv_inhibition = self.Inhibition(H_out)
-        print(f'clusters_actv_inhibition', clusters_actv_inhibition)
+        # do softmax only on the recruited clusters.
+        nonzero_clusters = tf.cast(
+            tf.where(clusters_actv[0] > 0),
+            dtype=tf.int32
+        )
 
-        if build_model:
-            y_pred = self.ClsLayer(clusters_actv_inhibition)
-            return y_pred
+        # print(f'[Check] nonzero_clusters = ', nonzero_clusters)
+
+        # weight cluster activations by softmax.
+        clusters_actv_softmax = self.cluster_softmax(
+            clusters_actv, 
+            nonzero_clusters,
+            which_temp=1
+        )
+        
+        clusters_actv_softmax = self.cluster_softmax(
+            clusters_actv_softmax, 
+            nonzero_clusters,
+            which_temp=2
+        )
+
+        y_pred = self.ClsLayer(clusters_actv_softmax)
+            
+        # whether to compute totalSupport depends.
+        totalSupport = 0
+        if y_true is None:
+            pass
+            # print(f'[Check] Not evaluating totalSupport.')
+        
+        # recruitment rule: checking `support`
         else:
-            # do softmax only on the recruited clusters.
-            nonzero_clusters = tf.cast(
-                tf.where(clusters_actv_inhibition[0] > 0),
-                dtype=tf.int32
-            )
+            # print(f'[Check] Evaluating totalSupport')
+            assoc_weights = self.ClsLayer.get_weights()[0]
+            totalSupport = 0
+            for cluster_index in nonzero_clusters:
+                support = self.cluster_support(
+                    cluster_index, assoc_weights, y_true
+                )
 
-            print(f'[Check] nonzero_clusters = ', nonzero_clusters)
+                single_cluster_actv = tf.gather(
+                    clusters_actv_softmax[0], indices=cluster_index
+                )
 
-            # weight cluster activations by softmax.
-            clusters_actv_softmax = self.cluster_softmax(
-                clusters_actv_inhibition, 
-                nonzero_clusters
-            )
+                totalSupport += support * single_cluster_actv
 
-            y_pred = self.ClsLayer(clusters_actv_softmax)
-            
-            # loss eval
-            if y_true is None:
-                return y_pred
-            
-            # recruitment rule: checking `support`
-            else:
-                assoc_weights = self.ClsLayer.get_weights()[0]
-                totalSupport = 0
-                for cluster_index in nonzero_clusters:
-                    support = self.cluster_support(
-                        cluster_index, assoc_weights, y_true
-                    )
+            totalSupport = totalSupport / tf.reduce_sum(clusters_actv_softmax)
+            # print(f'[Check] totalSupport = {totalSupport}')
 
-                    single_cluster_actv = tf.gather(
-                        clusters_actv_softmax[0], indices=cluster_index
-                    )
-
-                    totalSupport += support * single_cluster_actv
-
-                totalSupport = totalSupport / tf.reduce_sum(clusters_actv_softmax)
-                print(f'[Check] totalSupport = {totalSupport}')
-                return y_pred, totalSupport
+        # print(f'[Check] un-inhibited cluster outputs')
+        return clusters_actv, y_pred, totalSupport
 
 
 if __name__ == '__main__':

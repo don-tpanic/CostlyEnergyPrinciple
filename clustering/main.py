@@ -15,26 +15,46 @@ from train import fit
 from evaluations import *
 from utils import load_config, load_data, cuda_manager
 
+from human import load_data_human_order
 
-def train_model(
-        problem_type, 
-        config_version, 
-        save_model=True, 
-        save_proberror=True
-    ):
+
+def carryover(trained_model_path, new_model, num_clusters):
+    """
+    Transfer trained model's attn weights & clusters
+    to a new initialised model. This follows Mack et al.
+    """
+    trained_model = tf.keras.models.load_model(trained_model_path, compile=False)
+    
+    # carryover cluster centers
+    for i in range(num_clusters):
+        new_model.get_layer(f'd{i}').set_weights(
+            trained_model.get_layer(f'd{i}').get_weights()
+        )
+
+    # carryover attn weights
+    new_model.get_layer(f'dimensionwise_attn_layer').set_weights(
+        trained_model.get_layer(f'dimensionwise_attn_layer').get_weights()
+    )
+    
+    # carryover cluster recruitment
+    new_model.get_layer(f'mask_non_recruit').set_weights(
+        trained_model.get_layer(f'mask_non_recruit').get_weights()
+    )
+    return new_model
+    
+
+def train_model(sub, config_version):
     """
     Train clustering model for a few times.
     
     Save:
     -----
-        if save_model:
-            save the trained model
-        if save_proberror:
-            save probability of error like in sustain.
+        - save the trained model
+        - save probability of error like in sustain.
     """
     config = load_config(config_version)
-    num_runs = config['num_runs']
-    num_blocks = config['num_blocks']
+    num_subs = config['num_subs']
+    num_repetitions = config['num_repetitions']
     random_seed = config['random_seed']
     from_logits = config['from_logits']
     lr = config['lr']
@@ -42,7 +62,6 @@ def train_model(
     attn_lr_multiplier = config['attn_lr_multiplier']
     asso_lr_multiplier = config['asso_lr_multiplier']
     lr_multipliers = [center_lr_multiplier, attn_lr_multiplier, asso_lr_multiplier]
-
     num_clusters = config['num_clusters']
     r = config['r']
     q = config['q']
@@ -52,20 +71,27 @@ def train_model(
     Phi = config['Phi']
     actv_func = config['actv_func']
     beta = config['beta']
-    temp = config['temp']
-    print(f'[Check] Type={problem_type}, {config_version}')
+    temp1 = config['temp1']
+    temp2 = config['temp2']
+    thr = config['thr']
+    
+    print(f'[Check] {config_version}')
     results_path = f'results/{config_version}'
     if not os.path.exists(results_path):
         os.makedirs(results_path)
     np.random.seed(random_seed)
     # --------------------------------------------------------------------------
-    lc = np.empty(num_blocks)
-    ct = 0
-    for run in range(num_runs):
-        print(f'[Check] Beginning run {run}')
-        optimizer = tf.keras.optimizers.SGD(learning_rate=lr)
-        loss_fn = tf.keras.losses.BinaryCrossentropy(from_logits=from_logits)
-
+    print(f'[Check] Beginning sub {sub}')
+    optimizer = tf.keras.optimizers.SGD(learning_rate=lr)
+    loss_fn = tf.keras.losses.BinaryCrossentropy(from_logits=from_logits)
+            
+    if int(sub) % 2 == 0:
+        problem_types = [6, 1, 2]
+    else:
+        problem_types = [6, 2, 1]
+    for problem_type in problem_types:
+        lc = np.empty(num_repetitions)
+        
         # a new initialised model (all weights frozen)
         model = ClusterModel(
             num_clusters=num_clusters, r=r, q=q, 
@@ -75,30 +101,62 @@ def train_model(
             Phi=Phi, 
             actv_func=actv_func,
             beta=beta,
-            temp=temp,
+            temp1=temp1,
+            temp2=temp2
         )
-        assoc_weights = np.random.uniform(
-            low=0, high=0, size=(num_clusters, 2)
-        )
-        # model.get_layer('classification').set_weights([assoc_weights])
+        
+        # build the graph so carryover can work (enable weights substitute)
+        model.build(input_shape=(1, 3))
+        
+        if 'nocarryover' not in config_version:
+            # carryover from type6
+            if (int(sub) % 2 == 0 and problem_type == 1) \
+                or (int(sub) % 2 !=0 and problem_type == 2):
+                model_path = os.path.join(results_path, f'model_type6_sub{sub}')
+                model = carryover(
+                    trained_model_path=model_path, 
+                    new_model=model, 
+                    num_clusters=num_clusters
+                )
+        
+            # carryover from 1 if 2 (for even sub)
+            elif (int(sub) % 2 == 0 and problem_type == 2):
+                model_path = os.path.join(results_path, f'model_type1_sub{sub}')
+                model = carryover(
+                    trained_model_path=model_path, 
+                    new_model=model, 
+                    num_clusters=num_clusters
+                )
+            
+            # carryover from 2 if 1 (for odd sub)
+            elif (int(sub) % 2 != 0 and problem_type == 1):
+                model_path = os.path.join(results_path, f'model_type2_sub{sub}')
+                model = carryover(
+                    trained_model_path=model_path, 
+                    new_model=model, 
+                    num_clusters=num_clusters
+                )
+        else:
+            print(f'[Check] No carryover is applied.')
+        
         # --------------------------------------------------------------------------
-
-        # train multiple epochs
+        # train multiple repetitions
         # model keeps improving at this level.
         global_steps = 0
-        for epoch in range(num_blocks):
-
-            print(f'[Check] epoch = {epoch}')
-            # load and shuffle data
-            dataset = load_data(problem_type)
-            run2indices = np.load(f'run2indices_num_runs={num_runs}.npy')
-            shuffled_indices = run2indices[run][epoch]
-            shuffled_dataset = dataset[shuffled_indices]
-            print('[Check] shuffled_indices', shuffled_indices)
-
-            # each epoch trains on all items
-            for i in range(len(shuffled_dataset)):
-                dp = shuffled_dataset[i]
+        # repetitions (0 - 15): 8trials * 16 = 128 
+        # which is the same as 32trials * 4 runs in Mack file setup.
+        for repetition in range(num_repetitions):
+                        
+            # load data of per repetition (determined order)
+            dataset = load_data_human_order(
+                problem_type=problem_type, 
+                sub=sub, 
+                repetition=repetition
+            )
+            
+            # each repetition trains on all items once
+            for i in range(len(dataset)):
+                dp = dataset[i]
                 x = tf.cast(dp[0], dtype=tf.float32)
                 y_true = tf.cast(dp[1], dtype=tf.float32)
                 signature = dp[2]
@@ -111,84 +169,30 @@ def train_model(
                     optimizer=optimizer,
                     lr=lr,
                     lr_multipliers=lr_multipliers,
-                    epoch=epoch, 
+                    thr=thr,
+                    repetition=repetition, 
                     i=i,
                     problem_type=problem_type,
-                    run=run,
                     config_version=config_version,
-                    global_steps=global_steps
+                    global_steps=global_steps,
+                    sub=sub,
                 )
                 
                 print(f'[Check] item_proberror = {item_proberror}')
-                lc[epoch] += item_proberror
-                ct += 1
-            
-            print(f'[Check] type = [{problem_type}], run=[{run}], epoch=[{epoch}]')
-            print('---------\n')
-
-        # save one run's model weights.
-        if save_model:
-            model.save(os.path.join(results_path, f'model_type{problem_type}_run{run}')) 
+                lc[repetition] = item_proberror
+        
+        # save one sub's lc
+        np.save(os.path.join(results_path, f'lc_type{problem_type}_sub{sub}.npy'), lc)
+        # save one sub's model weights.
+        model.save(os.path.join(results_path, f'model_type{problem_type}_sub{sub}')) 
         K.clear_session()
         del model
-    
-    assert num_runs * num_blocks * len(dataset) == ct, f'got incorrect ct = {ct}'
-    lc = lc / (num_runs * len(dataset))
-    if save_proberror:
-        np.save(os.path.join(results_path, f'lc_type{problem_type}.npy'), lc)
-
-
-def multicuda_execute(target_func, config_list):
-    """
-    Train a bunch of models at once
-    by launching them to all available GPUs.
-    """
-    num_types = 6
-    cuda_id_list = [0, 1, 2, 3, 4, 6]
-
-    args_list = []
-    single_entry = {}
-    for config_version in config_list:
-        for problem_type in range(1, num_types+1):
-            single_entry['problem_type'] = problem_type
-            single_entry['config_version'] = config_version
-            args_list.append(single_entry)
-            single_entry = {}
-
-    print(args_list)
-    print(len(args_list))
-
-    # Execute multiprocess code.
-    cuda_manager(
-        target_func, args_list, cuda_id_list
-    )
-
-
+        
+        
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-c', '--config', dest='config_version')
-    parser.add_argument('-p', '--problem_type', default=None, type=int, dest='problem_type')
-    parser.add_argument('-g', '--gpu_index', default='0', dest='gpu_index')
-    parser.add_argument('-m', '--mode', dest='mode')
-    args = parser.parse_args()
-    config_version = args.config_version
-    problem_type = args.problem_type
-    gpu_index = args.gpu_index
-    mode = args.mode
-
-    start_time = time.time()
-    if mode == 'train':
-        # Execute a single problem type.
-        if problem_type:
-            print(f'*** Run problem type = {problem_type} ***')
-            os.environ["CUDA_VISIBLE_DEVICES"] = f"{gpu_index}"
-            train_model(problem_type=problem_type, config_version=config_version)
-        # Execute all problem types.
-        else:
-            multicuda_execute(
-                target_func=train_model, 
-                config_list=['sustain_v1']
-            )
-
-    duration = time.time() - start_time
-    print(f'duration = {duration}s')
+    config_version = 'nocarryover'
+    
+    num_subs = 23
+    subs = [f'{i:02d}' for i in range(2, num_subs+2)]
+    for sub in subs:
+        train_model(sub=sub, config_version=config_version)

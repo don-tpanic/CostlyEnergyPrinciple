@@ -161,7 +161,7 @@ def train_model(x0, sub, config_version):
                 )
                 
                 # print(f'[Check] item_proberror = {item_proberror}')
-                lc[repetition] = item_proberror
+                lc[repetition] += item_proberror
         
         human_lc = np.load(f'results/human/lc_type{problem_type}_sub{sub}.npy')
         # save one sub's model weights.
@@ -169,7 +169,7 @@ def train_model(x0, sub, config_version):
         K.clear_session()
         del model
         
-        model_lc = lc
+        model_lc = lc / len(dataset)
         per_config_sum_of_abs_diff += np.sum(np.abs(human_lc - model_lc))
     
     # the one value we want to minimize.

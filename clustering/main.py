@@ -179,9 +179,10 @@ def train_model(sub, config_version):
                 )
                 
                 print(f'[Check] item_proberror = {item_proberror}')
-                lc[repetition] = item_proberror
+                lc[repetition] += item_proberror
         
         # save one sub's lc
+        lc = lc / len(dataset)
         np.save(os.path.join(results_path, f'lc_type{problem_type}_sub{sub}.npy'), lc)
         # save one sub's model weights.
         model.save(os.path.join(results_path, f'model_type{problem_type}_sub{sub}')) 

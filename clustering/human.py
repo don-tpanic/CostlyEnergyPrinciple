@@ -107,16 +107,20 @@ class Mappings(object):
         self.sub2assignment_n_scheme = sub2assignment_n_scheme
 
 
-def convert_dcnnCoding_to_subjectCoding(sub):
+def convert_subjectCoding_to_dcnnCoding(sub):
     """
-    In order to extract stimulus-specific activations (for RSA later), 
-    we need to first establish the mapping between stimulus coding of 
-    DCNN (which is fixed due to finetuning) and stimulus coding of 
-    subjects (which differs for each subject due to random scheme).
+    Creates a subject-specific dictionary, where 
+    the keys are codings of the subject and the values
+    are of the DCNN coding (e.g. {'000': '101, ...})
     
-    Since the ultimate purpose is to find brain activation of each stimulus
-    (in terms of DCNN coding), we need to find the coding used by each subject
-    of every stimulus.
+    Why need this?
+    --------------
+    1. To fit joint model to human behaviour, the clustering model has to fit
+       to human behaviour; while we can easily get hold of the stimulus coding 
+       to load the raw images, we need to get hold of them using DCNN coding.
+    2. DCNN has fixed coding of the raw stimuli due to finetuning.
+    3. Subjects have different codings due to shuffling.
+    4. There is a unique and fixed mapping between two coding systems.
     
     e.g. In terms of DCNN coding, stimulus 000 (thin leg, thick antenna, pincer mandible)
     so what is the coding for this subject? i.e. thin leg=? thick antenna=? pincer mandible=?
@@ -128,25 +132,23 @@ def convert_dcnnCoding_to_subjectCoding(sub):
             
             with assignment 312 and scheme 12, 21, 12
             101 -> 110 -> 100
+    
+    impl:
+    -----
+        Given a DCNN coding stimulus, we apply the subject-specific shuffling 
+        to find out the corresponding coding. We then create a dict where the keys 
+        are the subject codings and the values are the DCNN codings.
             
     return:
     -------
-        Given all DCNN stimuli, return the conversion ordering for a given subject.
-        E.g. for subject a, the orders of the stimuli should be [6, 1, 7, 5, 4, 2, 3, 0]
-        where 6 corresponds to 000 in DCNN coding but 110 in subject coding.
+        Given a subject id, return a dictionary whose keys are subject codings 
+        and values are the DCNN codings.
     """
     sub2assignment_n_scheme = Mappings().sub2assignment_n_scheme
     coding_scheme = Mappings().coding_scheme
-    
-    conversion_ordering = []
-    stimulus2order_mapping = {
-        '000': 0, '001': 1, '010': 2, '011': 3,
-        '100': 4, '101': 5, '110': 6, '111': 7,
-    }
+    mapping = {}
     for dcnn_stimulus in ['000', '001', '010', '011', '100', '101', '110', '111']:
         sub_stimulus = [i for i in dcnn_stimulus]
-        # print(f'\n\n--------------------------------')
-        # print(f'[Check] DCNN stimulus {sub_stimulus}')
         
         # assignment (flip three dims)
         assignment_n_scheme = sub2assignment_n_scheme[sub]
@@ -167,13 +169,9 @@ def convert_dcnnCoding_to_subjectCoding(sub):
         sub_stimulus[2] = coding_scheme[dim3_scheme][sub_stimulus[2]]
         # print(f'[Check] sub{sub}, scheme stimulus {sub_stimulus}')
         
-        conversion_ordering.append(
-            stimulus2order_mapping[
-                ''.join(sub_stimulus)
-            ]
-        )
-        
-    return np.array(conversion_ordering)
+        mapping[''.join(sub_stimulus)] = dcnn_stimulus
+
+    return mapping
 
 
 def reorder_RDM_entries_into_chunks():

@@ -156,11 +156,11 @@ def fit(joint_model,
 
     ################################
     # inner-loop low_attn learning.
-    # 1. call after every trial (exc epoch 0)
+    # 1. call after every trial (exc repetition 0)
     # 2. batch update
     ################################    
     print('[Check] *** Beginning inner-loop ***')
-    if epoch > 0:
+    if repetition > 0:
         joint_model, attn_weights, \
         recon_loss_collector, recon_loss_ideal_collector, \
         reg_loss_collector, percent_zero_attn_collector, global_steps, \

@@ -13,16 +13,12 @@ from tensorflow.keras import backend as K
 from utils import load_config, cuda_manager
 from models import JointModel
 from train import fit
-from data import data_loader_V2
+from data import data_loader_human_order
 from losses import binary_crossentropy
+from clustering import main as clustering_main
 
 
-def train_model(
-        problem_type, 
-        attn_config_version,
-        intermediate_input=False
-    ):
-
+def train_model(sub, attn_config_version):
     # ------------------ load configs ------------------
     # load top-level config
     attn_config = load_config(
@@ -31,8 +27,8 @@ def train_model(
     )
 
     # Low attn training things
-    num_runs = attn_config['num_runs']
-    num_blocks = attn_config['num_blocks']
+    num_subs = attn_config['num_subs']
+    num_repetitions = attn_config['num_repetitions']
     random_seed = attn_config['random_seed']
     lr_attn = attn_config['lr_attn']
     recon_level = attn_config['recon_level']
@@ -56,19 +52,24 @@ def train_model(
         config_version=dcnn_config_version
     )
     stimulus_set = dcnn_config['stimulus_set']
-    print(f'[Check] Type={problem_type}, {attn_config_version}')
+    print(f'[Check] {attn_config_version}')
     results_path = f'results/{attn_config_version}'
     if not os.path.exists(results_path):
         os.makedirs(results_path)
     np.random.seed(random_seed)
-
+    # --------------------------------------------------------------------------
     # --- initialize models, optimizers, losses, training loops ----
-    lc = np.empty(num_blocks)
-    ct = 0
-    for run in range(num_runs):
-        print(f'[Check] Beginning run {run}')
+    print(f'[Check] Beginning sub {sub}')
+    if int(sub) % 2 == 0:
+        problem_types = [6, 1, 2]
+    else:
+        problem_types = [6, 2, 1]
+        
+    for problem_type in problem_types:
+        lc = np.empty(num_repetitions)
 
         optimizer_clus = tf.keras.optimizers.SGD(learning_rate=lr)
+        # TODO: should Adam also get carryover?
         optimizer_attn = tf.keras.optimizers.Adam(learning_rate=lr_attn)
         loss_fn_clus = tf.keras.losses.BinaryCrossentropy(from_logits=from_logits)
         
@@ -77,13 +78,42 @@ def train_model(
             loss_fn_attn = tf.keras.losses.MeanSquaredError()
         
         joint_model = JointModel(
-            attn_config_version=attn_config_version,
-            dcnn_config_version=dcnn_config_version, 
+            attn_config_version=attn_config_version, 
+            dcnn_config_version=dcnn_config_version
         )
         preprocess_func = joint_model.preprocess_func
-        assoc_weights = np.random.uniform(
-            low=0, high=0, size=(num_clusters, 2)
-        )
+        
+        if 'nocarryover' not in attn_config_version:
+            # carryover from type6
+            if (int(sub) % 2 == 0 and problem_type == 1) \
+                or (int(sub) % 2 !=0 and problem_type == 2):
+                model_path = os.path.join(results_path, f'model_type6_sub{sub}')
+                model = clustering_main.carryover(
+                    trained_model_path=model_path, 
+                    new_model=model, 
+                    num_clusters=num_clusters
+                )
+        
+            # carryover from 1 if 2 (for even sub)
+            elif (int(sub) % 2 == 0 and problem_type == 2):
+                model_path = os.path.join(results_path, f'model_type1_sub{sub}')
+                model = clustering_main.carryover(
+                    trained_model_path=model_path, 
+                    new_model=model, 
+                    num_clusters=num_clusters
+                )
+            
+            # carryover from 2 if 1 (for odd sub)
+            elif (int(sub) % 2 != 0 and problem_type == 1):
+                model_path = os.path.join(results_path, f'model_type2_sub{sub}')
+                model = clustering_main.carryover(
+                    trained_model_path=model_path, 
+                    new_model=model, 
+                    num_clusters=num_clusters
+                )
+        else:
+            print(f'[Check] No carryover is applied.')
+            
         # --------------------------------------------------------------------------
         # train multiple epochs
         # model keeps improving at this level.
@@ -94,37 +124,22 @@ def train_model(
         all_alphas = []
         all_centers = []
         global_steps = 0  # single step counter
-
-        # load dataset in same order.
-        dataset, counter_balancing = data_loader_V2(
-            attn_config_version=attn_config_version,
-            dcnn_config_version=dcnn_config_version, 
-            preprocess_func=preprocess_func,
-            problem_type=problem_type,
-            random_seed=run
-        )
-        # save each run's counter balancing used for later 
-        # in `evaluations.py`
-        np.save(
-            os.path.join(
-                results_path, f'counter_balancing_type{problem_type}_run{run}_{recon_level}.npy'),
-                counter_balancing
-        )
         
-        for epoch in range(num_blocks):
-            # shuffle for every epoch
-            run2indices = np.load(f'run2indices_num_runs={num_runs}.npy')
-            shuffled_indices = run2indices[run][epoch]
-            shuffled_dataset = dataset[shuffled_indices]
-            print('[Check] shuffled_indices', shuffled_indices)
-
-            for i in range(len(shuffled_dataset)):
-                print(f'\n\n **** [Check] epoch={epoch}, item={i} ****')
-                dp = shuffled_dataset[i]
+        for repetition in range(num_repetitions):
+            
+            # load data of per repetition (determined order)
+            dataset = data_loader_human_order(
+                attn_config_version=attn_config_version, 
+                problem_type=problem_type, 
+                sub=sub, repetition=repetition,
+                preprocess_func=preprocess_func,
+            ) 
+                
+            for i in range(len(dataset)):
+                dp = dataset[i]
                 x = dp[0]
                 y_true = dp[1]
                 signature = dp[2]
-                
                 joint_model, attn_weights, item_proberror, \
                 recon_loss_collector, recon_loss_ideal_collector, \
                 reg_loss_collector, percent_zero_attn_collector, \
@@ -142,9 +157,9 @@ def train_model(
                     optimizer_clus=optimizer_clus,
                     optimizer_attn=optimizer_attn,
                     lr_multipliers=lr_multipliers,
-                    epoch=epoch, 
+                    repetition=repetition, 
                     i=i,
-                    run=run,
+                    sub=sub,
                     attn_config_version=attn_config_version,
                     dcnn_config_version=dcnn_config_version,
                     inner_loop_epochs=inner_loop_epochs,
@@ -154,7 +169,7 @@ def train_model(
                 )
 
                 # record losses related to attn.
-                if epoch > 0:
+                if repetition > 0:
                     all_recon_loss.extend(recon_loss_collector)
                     all_recon_loss_ideal.extend(recon_loss_ideal_collector)
                     all_reg_loss.extend(reg_loss_collector)
@@ -173,15 +188,11 @@ def train_model(
 
                 # record item-level prob error
                 print(f'[Check] item_proberror = {item_proberror}')
-                lc[epoch] += item_proberror
-                ct += 1
-            print(f'>> run=[{run}], epoch=[{epoch}]')
-            print('---------\n')
-            
-            
+                lc[repetition] += item_proberror
+                        
         # ===== Saving stuff at the end of each run =====
-        # save one run's trained joint model.
-        joint_model.save(os.path.join(results_path, f'model_type{problem_type}_run{run}')) 
+        # save one sub's trained joint model.
+        joint_model.save(os.path.join(results_path, f'model_type{problem_type}_sub{sub}')) 
         
         # sub in model_double's final attn weights.
         mask_non_recruit = joint_model.get_layer('mask_non_recruit').get_weights()[0]
@@ -189,54 +200,53 @@ def train_model(
         # save final params (attn weights, mask_non_recruit)
         np.save(
             os.path.join(
-                results_path, f'attn_weights_type{problem_type}_run{run}_{recon_level}.npy'),
+                results_path, f'attn_weights_type{problem_type}_sub{sub}_{recon_level}.npy'),
                 attn_weights  # NOTE: [[aw_position1], [aw_position2], [aw_position3], ...]
         )
         np.save(
             os.path.join(
-                results_path, f'mask_non_recruit_type{problem_type}_run{run}_{recon_level}.npy'),
+                results_path, f'mask_non_recruit_type{problem_type}_sub{sub}_{recon_level}.npy'),
                 mask_non_recruit
         )
         K.clear_session()
         del joint_model
 
-        # Save one run's, all steps' losses, % zero attn weights, alphas, centers..
+        # Save one sub's, all steps' losses, % zero attn weights, alphas, centers..
         np.save(
             os.path.join(
-                results_path, f'all_recon_loss_type{problem_type}_run{run}_{recon_level}.npy'),
+                results_path, f'all_recon_loss_type{problem_type}_sub{sub}_{recon_level}.npy'),
                 all_recon_loss
         )
         np.save(
             os.path.join(
-                results_path, f'all_recon_loss_ideal_type{problem_type}_run{run}_{recon_level}.npy'),
+                results_path, f'all_recon_loss_ideal_type{problem_type}_sub{sub}_{recon_level}.npy'),
                 all_recon_loss_ideal
         )
         np.save(
             os.path.join(
-                results_path, f'all_reg_loss_type{problem_type}_run{run}_{recon_level}.npy'), 
+                results_path, f'all_reg_loss_type{problem_type}_sub{sub}_{recon_level}.npy'), 
                 all_reg_loss
         )
         np.save(
             os.path.join(
-                results_path, f'all_percent_zero_attn_type{problem_type}_run{run}_{recon_level}.npy'),
+                results_path, f'all_percent_zero_attn_type{problem_type}_sub{sub}_{recon_level}.npy'),
                 all_percent_zero_attn
         )
         np.save(
             os.path.join(
-                results_path, f'all_alphas_type{problem_type}_run{run}_{recon_level}.npy'),
+                results_path, f'all_alphas_type{problem_type}_sub{sub}_{recon_level}.npy'),
                 all_alphas
         )
         np.save(
             os.path.join(
-                results_path, f'all_centers_type{problem_type}_run{run}_{recon_level}.npy'),
+                results_path, f'all_centers_type{problem_type}_sub{sub}_{recon_level}.npy'),
                 all_centers
         )
     
-    # Save average lc across all runs
-    assert num_runs * num_blocks * len(dataset) == ct, f'got incorrect ct = {ct}'
-    lc = lc / (num_runs * len(dataset))
-    # save lc across all runs like sustain.
-    np.save(os.path.join(results_path, f'lc_type{problem_type}_{recon_level}.npy'), lc)
+        # Save per (sub, problem_type) lc.
+        # per repetition need averaging over unique stimuli.
+        lc = lc / len(dataset)
+        np.save(os.path.join(results_path, f'lc_type{problem_type}_sub{sub}_{recon_level}.npy'), lc)
 
 
 def multicuda_execute(
@@ -245,14 +255,18 @@ def multicuda_execute(
     Train a bunch of models at once
     by launching them to all available GPUs.
     """
-    num_types = 6
     cuda_id_list = [0, 1, 2, 3, 4, 6]
-
     args_list = []
     single_entry = {}
-    for attn_config_version in attn_configs:
-        for problem_type in range(1, num_types+1):
-            single_entry['problem_type'] = problem_type
+    
+    num_subs = 1
+    subs = [f'{i:02d}' for i in range(2, num_subs+2)]
+    for sub in subs:
+        
+        # TODO: later this will become per-sub best config
+        
+        for attn_config_version in attn_configs:
+            single_entry['sub'] = sub
             single_entry['attn_config_version'] = attn_config_version
             args_list.append(single_entry)
             single_entry = {}
@@ -266,38 +280,17 @@ def multicuda_execute(
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-m', '--mode', dest='mode')
-    parser.add_argument('-c', '--config', dest='config_version', default=None)
-    parser.add_argument('-p', '--problem_type', default=None, type=int, dest='problem_type')
-    parser.add_argument('-g', '--gpu_index', default='0', dest='gpu_index')
-    args = parser.parse_args()
-    config_version = args.config_version
-    problem_type = args.problem_type
-    gpu_index = args.gpu_index
-    mode = args.mode
-
     start_time = time.time()
-    if mode == 'train':
-        # Train one problem_type at a time on single GPU
-        if problem_type:
-            print(f'*** Run Type: {problem_type} ***')
-            os.environ["CUDA_VISIBLE_DEVICES"] = f"{gpu_index}"
-            train_model(
-                problem_type=problem_type, 
-                attn_config_version=config_version,
-            )
-        # Do multi-GPU for all when there is no problem_type specified.
-        else:
-            versions = range(8, 47)
-            attn_configs = []
-            for v in versions:
-                attn_configs.append(f'v{v}_naive-withNoise')
+    
+    attn_configs = []
+    versions = [4]
+    for v in versions:
+        attn_configs.append(f'v{v}_nocarryover')
 
-            multicuda_execute(
-                target_func=train_model, 
-                attn_configs=attn_configs
-            )
+    multicuda_execute(
+        target_func=train_model, 
+        attn_configs=attn_configs
+    )
 
     duration = time.time() - start_time
     print(f'duration = {duration}s')

@@ -1149,7 +1149,8 @@ def compare_across_types_V3(
                 ax[row_idx, 0].set_ylabel('binary recon loss')
                 ax[row_idx, col_idx].set_title(f'Type {problem_type}')
             
-            plt.legend(fontsize=7)
+            # plt.legend(fontsize=7)
+            ax[2, 0].legend(fontsize=7)
             plt.tight_layout()
             plt.savefig(
                 f'{results_path}/compare_types_dimension_binary_recon_canonical_runs_only{canonical_runs_only}.png')

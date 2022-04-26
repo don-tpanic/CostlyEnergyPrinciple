@@ -93,7 +93,7 @@ def train_model(sub, config_version):
     else:
         problem_types = [6, 2, 1]
     for problem_type in problem_types:
-        lc = np.empty(num_repetitions)
+        lc = np.zeros(num_repetitions)
         
         # a new initialised model (all weights frozen)
         model = ClusterModel(

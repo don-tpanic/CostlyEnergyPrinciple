@@ -71,7 +71,7 @@ def train_model(x0, sub, config_version):
     per_config_sum_of_abs_diff = 0
     for problem_type in problem_types:
         print(f'[Check] problem_type = {problem_type}')
-        lc = np.empty(num_repetitions)
+        lc = np.zeros(num_repetitions)
         
         # a new initialised model (all weights frozen)
         model = ClusterModel(

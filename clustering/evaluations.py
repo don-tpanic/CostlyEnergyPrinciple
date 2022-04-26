@@ -31,8 +31,9 @@ def process_lc(config_version, problem_types):
             sub = subs[s]
             lc.append(np.load(f'{results_path}/lc_type{problem_type}_sub{sub}.npy'))
         
+        lc = np.array(lc)
         avg_lc = np.mean(lc, axis=0)
-        std_lc = np.std(lc, axis=1)
+        std_lc = np.std(lc, axis=0)
         np.save(f'{results_path}/lc_type{problem_type}_avg.npy', avg_lc)
         np.save(f'{results_path}/lc_type{problem_type}_std.npy', std_lc)
 
@@ -116,6 +117,7 @@ def examine_subject_lc_and_attn_overtime(problem_types):
     num_repetitions = 16
     subs = [f'{i:02d}' for i in range(2, num_subs+2)]
     
+    best_diff_recorder = {}
     for sub in subs:
         fig = plt.figure()
         gs = fig.add_gridspec(2,2)
@@ -123,17 +125,17 @@ def examine_subject_lc_and_attn_overtime(problem_types):
         ax2 = fig.add_subplot(gs[0, 1])
         ax3 = fig.add_subplot(gs[1, :])
         colors = ['blue', 'orange', 'cyan']
-        config_version = str(np.load(f'results/sub{sub}_best_config.npy'))
+        config_version = f'best_config_sub{sub}'
         config = load_config(config_version)
         print(f'sub{sub}, config={config_version}')
         
         # plot lc - human vs model
-        per_config_sum_of_abs_diff = 0
+        per_config_mse = 0
         for idx in range(len(problem_types)):
             problem_type = problem_types[idx]
             human_lc = np.load(f'results/human/lc_type{problem_type}_sub{sub}.npy')
             model_lc = np.load(f'results/{config_version}/lc_type{problem_type}_sub{sub}.npy')
-            per_config_sum_of_abs_diff += np.sum(np.abs(human_lc - model_lc))
+            per_config_mse += np.mean( (human_lc - model_lc)**2 )
 
             ax1.set_title('human')
             ax1.errorbar(
@@ -159,6 +161,8 @@ def examine_subject_lc_and_attn_overtime(problem_types):
             ax2.set_xticklabels(range(0, num_repetitions+4, 4))
             ax2.set_xlabel('repetitions')
             ax2.set_ylim([-0.05, 1.05])
+        
+        best_diff_recorder[sub] = per_config_mse
         
         # plot attn weights overtime
         visualize_attn_overtime(
@@ -191,22 +195,23 @@ def examine_subject_lc_and_attn_overtime(problem_types):
         ax2.text(x_coord, y_coor-margin*7, f'temp2={temp2:.3f}')
         
         plt.legend()
-        plt.suptitle(f'sub{sub}, diff={per_config_sum_of_abs_diff:.3f}')
+        plt.suptitle(f'sub{sub}, diff={per_config_mse:.3f}')
         plt.tight_layout()
         plt.savefig(f'results/lc_sub{sub}.png')
         plt.close()
+    
+    # save current best configs' best diff to human lc.
+    # this will be used as benchmark for further search and eval.
+    np.save('best_diff_recorder.npy', best_diff_recorder)
         
             
-def examine_recruited_clusters_n_attn(config_version, canonical_runs_only=True):
+def examine_recruited_clusters_n_attn(problem_types, canonical_runs_only=True):
     """
     Record the runs that produce canonical solutions
     for each problem type. 
     Specificially, we check the saved `mask_non_recruit`
-    """
-    config = load_config(config_version)
-    problem_types = [1, 2, 6]
-    results_path = f'results/{config_version}'
-    num_subs = config['num_subs']
+    """    
+    num_subs = 23
     subs = [f'{i:02d}' for i in range(2, num_subs+2)]
     num_dims = 3
     type2cluster = {
@@ -226,7 +231,7 @@ def examine_recruited_clusters_n_attn(config_version, canonical_runs_only=True):
         all_runs_attn = np.empty((num_subs, num_dims))
         for i in range(num_subs):
             sub = subs[i]
-            model_path = os.path.join(results_path, f'model_type{problem_type}_sub{sub}')
+            model_path = f'results/best_config_sub{sub}/model_type{problem_type}_sub{sub}'
             model = tf.keras.models.load_model(model_path, compile=False)
             mask_non_recruit = model.get_layer('mask_non_recruit').get_weights()[0]
 
@@ -311,8 +316,10 @@ def visualize_attn_overtime(config_version, sub, ax):
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
     problem_types = [1, 2, 6]
+    
+    # process_lc(config_version='nocarryover', problem_types=problem_types)
+    # examine_lc(config_version='nocarryover', problem_types=problem_types)
+    # examine_recruited_clusters_n_attn(config_version='nocarryover', problem_types=problem_types)
+    
     examine_subject_lc_and_attn_overtime(problem_types)
-    # if config_version != 'human':
-    #     examine_recruited_clusters_n_attn(config_version)
-        
-    # visualize_attn_overtime(config_version, sub='04')
+    examine_recruited_clusters_n_attn(problem_types)

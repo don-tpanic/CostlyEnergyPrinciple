@@ -24,7 +24,7 @@ def per_subject_hyperparams_ranges(sub):
     # -----------------------------
     
     # best so far 
-    config_version = str(np.load(f'results/sub{sub}_best_config.npy'))
+    config_version = f'best_config_sub{sub}'
     config = load_config(config_version)
     lr = config['lr']
     Phi = config['Phi']
@@ -33,55 +33,58 @@ def per_subject_hyperparams_ranges(sub):
     beta = config['beta']
     temp2 = config['temp2']
     
-    lr_ = [
-        lr-lr_margin*2, 
-        lr-lr_margin*1, 
+    lr_ = np.abs([
+        # lr-lr_margin*2, 
+        # lr-lr_margin*1, 
         lr, 
-        lr+lr_margin*1, 
-        lr+lr_margin*2
-    ]
+        # lr+lr_margin*1, 
+        # lr+lr_margin*2
+    ])
     center_lr_multiplier_ = [1]
     attn_lr_multiplier_ = [
-        0.5, 
+        # 0.5, 
         1, 
-        5, 
+        # 5, 
     ]
     asso_lr_multiplier_ = [1]
-    Phi_ = [
+    Phi_ = np.abs([
         # Phi-Phi_margin*2, 
-        Phi-Phi_margin*1, 
+        # Phi-Phi_margin*1, 
         Phi, 
-        Phi+Phi_margin*1, 
+        # Phi+Phi_margin*1, 
         # Phi+Phi_margin*2
-    ]
-    specificity_ = [
+    ])
+    specificity_ = np.abs([
         # specificity-specificity_margin*2, 
-        specificity-specificity_margin*1, 
+        # specificity-specificity_margin*1, 
         specificity, 
-        specificity+specificity_margin*1, 
+        # specificity+specificity_margin*1, 
         # specificity+specificity_margin*2
-    ]
-    thr_ = [
-        # thr-thr_margin*2, 
-        thr-thr_margin*1, 
-        thr, 
-        thr+thr_margin*1, 
-        # thr+thr_margin*2
-    ]
-    beta_ = [
+    ])
+    # thr_ = np.abs([
+    #     # thr-thr_margin*2, 
+    #     thr-thr_margin*1, 
+    #     thr, 
+    #     thr+thr_margin*1, 
+    #     # thr+thr_margin*2
+    # ])
+    
+    thr_ = [-0.9, -0.8, -0.7, -0.6, -0.5, -0.4, -0.3, -0.2, -0.1, 0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+    
+    beta_ = np.abs([
         # beta-beta_margin*2,
-        beta-beta_margin*1,
+        # beta-beta_margin*1,
         beta,
-        beta+beta_margin*1,
+        # beta+beta_margin*1,
         # beta+beta_margin*2
-    ]
-    temp2_ = [
+    ])
+    temp2_ = np.abs([
         # temp2-temp2_margin*2,
-        temp2-temp2_margin*1,
+        # temp2-temp2_margin*1,
         temp2,
-        temp2+temp2_margin*1,
+        # temp2+temp2_margin*1,
         # temp2+temp2_margin*2
-    ]
+    ])
         
     return lr_, center_lr_multiplier_, \
         attn_lr_multiplier_, asso_lr_multiplier_, \
@@ -238,5 +241,8 @@ if __name__ == '__main__':
     subs = [f'{i:02d}' for i in range(2, num_subs+2)]
     for sub in subs:
         per_subject_generate_candidate_configs(
-            ct=0, v='fit-human', sub=sub
+            ct=3645, v='fit-human', sub=sub
         )
+        
+        # [0, 3645)
+        # [3645, 3664)

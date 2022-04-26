@@ -13,12 +13,9 @@ from tensorflow.keras import backend as K
 from models import ClusterModel
 from train import fit
 from evaluations import *
-from utils import load_config, cuda_manager
+from utils import load_config, load_data, cuda_manager
 
-try:
-    from clustering.human import load_data_human_order
-except ModuleNotFoundError:
-    from human import load_data_human_order
+from human import load_data_human_order
 
 
 def carryover(trained_model_path, new_model, num_clusters):
@@ -183,7 +180,10 @@ def train_model(sub, config_version):
                 
                 print(f'[Check] item_proberror = {item_proberror}')
                 lc[repetition] += item_proberror
-        
+
+            # save one sub's per repetition model weights.
+            model.save(os.path.join(results_path, f'model_type{problem_type}_sub{sub}_rp{repetition}')) 
+            
         # save one sub's lc
         lc = lc / len(dataset)
         np.save(os.path.join(results_path, f'lc_type{problem_type}_sub{sub}.npy'), lc)
@@ -194,9 +194,17 @@ def train_model(sub, config_version):
         
         
 if __name__ == '__main__':
-    config_version = 'nocarryover'
-    
     num_subs = 23
+    num_processes = 70
     subs = [f'{i:02d}' for i in range(2, num_subs+2)]
-    for sub in subs:
-        train_model(sub=sub, config_version=config_version)
+    
+    import multiprocessing
+    with multiprocessing.Pool(num_processes) as pool:
+        for sub in subs:
+            config_version = f'best_config_sub{sub}'
+            results = pool.apply_async(
+                    train_model, 
+                    args=[sub, config_version]
+                )
+        pool.close()
+        pool.join()

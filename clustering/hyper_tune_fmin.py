@@ -63,7 +63,7 @@ def multiprocess_search(v, num_processes):
     with multiprocessing.Pool(num_processes) as pool:
         
         for sub in subs:
-            config_version = str(np.load(f'results/sub{sub}_best_config.npy'))
+            config_version = f'best_config_sub{sub}'
             config = load_config(config_version)
             lr = config['lr']
             center_lr_multiplier = config['center_lr_multiplier']
@@ -87,11 +87,25 @@ def multiprocess_search(v, num_processes):
                 temp2,
                 thr
             ]
+            # results = pool.apply_async(
+            #     optimize.fmin,
+            #     args=(main_fmin.train_model, x0, (sub, config_version)),
+            #     kwds={'maxiter': 180000, 'full_output': 1}
+            # )
             results = pool.apply_async(
-                optimize.fmin,
-                args=(main_fmin.train_model, x0, (sub, config_version)),
-                kwds={'maxiter': 18000, 'full_output': 1}
+                optimize.basinhopping,
+                args=(main_fmin.train_model, x0),
+                kwds={
+                    'minimizer_kwargs': {
+                        'method': 'Nelder-Mead', 
+                        'args': (sub, config_version)}, 
+                    'stepsize': 2, 
+                    'niter_success': 1, 
+                    'niter': 1
+                }
             )
+            print(results.get())
+            exit()
             results_collector.append(results)
             
         pool.close()
@@ -128,19 +142,13 @@ def multiprocess_search(v, num_processes):
             filepath = os.path.join('configs', f'config_{config_version}.yaml')
             with open(filepath, 'w') as yaml_file:
                 yaml.dump(template, yaml_file, default_flow_style=False)
-            
-            # save best_config is a bit redundant now because 
-            # the best config is best config but not hyper[xxx],
-            # we do this to keep the rest of the code functioning for now.
-            np.save(f'results/sub{sub}_best_config.npy', config_version)
-            print(f'[Check] saved sub{sub}_best_config.npy')
-    
+                
     # once we have the best configs, we retrain these models (23 of them so fast)
     # to save lc and attn weights for evaluations. 
     # A cleaner way should not have to do this but using some sort of callback.
     with multiprocessing.Pool(num_processes) as pool:
         for sub in subs:
-            config_version = str(np.load(f'results/sub{sub}_best_config.npy'))
+            config_version = f'best_config_sub{sub}'
             results = pool.apply_async(
                     main.train_model, 
                     args=[sub, config_version]
@@ -162,7 +170,7 @@ if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
     multiprocess_search(
         v='fit-human',
-        num_processes=multiprocessing.cpu_count()-2,
+        num_processes=1,
     )
 
     end_time = time.time()

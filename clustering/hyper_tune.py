@@ -5,6 +5,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import time
 import yaml
 import argparse
+import subprocess
 import numpy as np
 import pandas as pd
 import multiprocessing
@@ -22,46 +23,49 @@ def per_subject_compare_human_to_model(sub, begin, end):
     a range of hyper-params combo.
     """
     problem_types = [1, 2, 6]
-    best_config = ''
-    best_diff = 99999
+    best_config = f'best_config_sub{sub}'
+    best_diff_recorder = np.load('best_diff_recorder.npy', allow_pickle=True)
+    best_diff = best_diff_recorder.ravel()[0][sub]
     for i in range(begin, end):
         # config_version = f'hyper{i}_{v}'       # for 0-22100 when sub are not separated.
         config_version = f'hyper{i}_sub{sub}_{v}'
 
-        per_config_sum_of_abs_diff = 0
+        per_config_mse = 0
         try:
             # one subject's one config's score
             for problem_type in problem_types:
                 human_lc = np.load(f'results/human/lc_type{problem_type}_sub{sub}.npy')
                 model_lc = np.load(f'results/{config_version}/lc_type{problem_type}_sub{sub}.npy')
-                per_config_sum_of_abs_diff += np.sum(np.abs(human_lc - model_lc))
+                per_config_mse += np.mean( (human_lc - model_lc)**2 )
         except FileNotFoundError:
             # catch config with missing files
             continue
         
-        print(f'[sub{sub}], current config {config_version}, diff = {per_config_sum_of_abs_diff}')
-        if per_config_sum_of_abs_diff < best_diff:
+        print(f'[sub{sub}], current config {config_version}, diff = {per_config_mse}')
+        if per_config_mse < best_diff:
             best_config = config_version
-            best_diff = per_config_sum_of_abs_diff
+            best_diff = per_config_mse
         print(f'[sub{sub}], best config {best_config}, diff = {best_diff}')
     
-    # save best config's name and the best diff
-    np.save(f'results/sub{sub}_best_config.npy', best_config)
+    # override the current best config 
+    # by the best config we just found
+    subprocess.run(
+        ['cp', 
+         f'configs/config_{best_config}.yaml', 
+         f'configs/config_best_config_sub{sub}.yaml'
+        ]
+    )
+    
 
-
-def multiprocess_eval(target_func, v, num_processes, retrain=False):
+def multiprocess_eval(target_func, v, num_processes):
     """
     Eval all choices of hyper-param combo.
     
-    Optional:
-        if retrain: we retrain the best config for each subject, 
-        this is a workaround to get attn_weights overtime that 
-        were not previously saved (only applies to hyper0-22100)
-
     return:
     -------
-        For each subject, the best config will be saved 
-        as .npy
+        For each subject, the best config will be overriden.
+        And model will be trained using the best configs to 
+        obtain attn weights and lc overtime for evaluations.
     """
     num_subs = 23
     subs = [f'{i:02d}' for i in range(2, num_subs+2)]
@@ -73,26 +77,20 @@ def multiprocess_eval(target_func, v, num_processes, retrain=False):
             results = pool.apply_async(
                 target_func, args=[sub, begin, end]
             )
-        
         pool.close()
         pool.join()
     
-    if retrain:
-        with multiprocessing.Pool(num_processes) as pool:
-            for sub in subs:
-                config_version = str(
-                    np.load(
-                        f'results/sub{sub}_best_config.npy'
-                    )
-                )
-                results = pool.apply_async(
-                    train_model,
-                    args=[sub, config_version]
-                )
-        
-            print(results.get())
-            pool.close()
-            pool.join()
+    # with multiprocessing.Pool(num_processes) as pool:
+    #     for sub in subs:
+    #         config_version = f'best_config_sub{sub}'
+    #         results = pool.apply_async(
+    #             train_model,
+    #             args=[sub, config_version]
+    #         )
+    
+    #     print(results.get())
+    #     pool.close()
+    #     pool.join()
 
 
 def multiprocess_search(target_func, v, num_processes):

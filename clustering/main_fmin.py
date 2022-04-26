@@ -68,7 +68,7 @@ def train_model(x0, sub, config_version):
     else:
         problem_types = [6, 2, 1]
         
-    per_config_sum_of_abs_diff = 0
+    per_config_mse = 0
     for problem_type in problem_types:
         print(f'[Check] problem_type = {problem_type}')
         lc = np.zeros(num_repetitions)
@@ -170,11 +170,11 @@ def train_model(x0, sub, config_version):
         del model
         
         model_lc = lc / len(dataset)
-        per_config_sum_of_abs_diff += np.sum(np.abs(human_lc - model_lc))
+        per_config_mse += np.mean( (human_lc - model_lc)**2 )
     
     # the one value we want to minimize.
-    print(f'total diff = {per_config_sum_of_abs_diff}')
-    return per_config_sum_of_abs_diff
+    print(f'per_config_mse = {per_config_mse}')
+    return per_config_mse
 
         
         

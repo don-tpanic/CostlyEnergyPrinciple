@@ -66,7 +66,7 @@ def train_model(sub, attn_config_version):
         problem_types = [6, 2, 1]
         
     for problem_type in problem_types:
-        lc = np.empty(num_repetitions)
+        lc = np.zeros(num_repetitions)
 
         optimizer_clus = tf.keras.optimizers.SGD(learning_rate=lr)
         # TODO: should Adam also get carryover?

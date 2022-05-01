@@ -5,8 +5,9 @@ finetune/results/
 finetune/configs/
 
 # Ignore content from clustering/
-clustering/results/
 clustering/configs/*hyper*
+clustering/.git*
+clustering/*_RDMs
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

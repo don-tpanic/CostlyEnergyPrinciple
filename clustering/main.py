@@ -13,9 +13,13 @@ from tensorflow.keras import backend as K
 from models import ClusterModel
 from train import fit
 from evaluations import *
-from utils import load_config, load_data, cuda_manager
+from utils import load_config #, load_data, cuda_manager
 
-from human import load_data_human_order
+try:
+    from clustering.human import load_data_human_order
+except ModuleNotFoundError:
+    from human import load_data_human_order
+
 
 
 def carryover(trained_model_path, new_model, num_clusters):

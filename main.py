@@ -5,6 +5,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import time
 import yaml
 import argparse
+import multiprocessing
 import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow as tf
@@ -39,8 +40,7 @@ def train_model(sub, attn_config_version):
     lr_multipliers = [
         attn_config['center_lr_multiplier'], 
         attn_config['attn_lr_multiplier'], 
-        attn_config['asso_lr_multiplier']
-    ]
+        attn_config['asso_lr_multiplier']]
     recon_clusters_weighting = attn_config['recon_clusters_weighting']
     # ClusterModel things
     num_clusters = attn_config['num_clusters']
@@ -49,8 +49,7 @@ def train_model(sub, attn_config_version):
     dcnn_config_version = attn_config['dcnn_config_version']
     dcnn_config = load_config(
         component='finetune',
-        config_version=dcnn_config_version
-    )
+        config_version=dcnn_config_version)
     stimulus_set = dcnn_config['stimulus_set']
     print(f'[Check] {attn_config_version}')
     results_path = f'results/{attn_config_version}'
@@ -64,12 +63,21 @@ def train_model(sub, attn_config_version):
         problem_types = [6, 1, 2]
     else:
         problem_types = [6, 2, 1]
-        
+            
     for problem_type in problem_types:
         lc = np.zeros(num_repetitions)
-
-        optimizer_clus = tf.keras.optimizers.SGD(learning_rate=lr)
+        
+        joint_model = JointModel(
+            attn_config_version=attn_config_version, 
+            dcnn_config_version=dcnn_config_version)
+        preprocess_func = joint_model.preprocess_func
+        
+        # TODO: avoid hard coding shape
+        joint_model.build(input_shape=[(1,224,224,3), (1, 512)])
+        
         # TODO: should Adam also get carryover?
+        # TODO: should DCNN(low-attn) get carryover?
+        optimizer_clus = tf.keras.optimizers.SGD(learning_rate=lr)
         optimizer_attn = tf.keras.optimizers.Adam(learning_rate=lr_attn)
         loss_fn_clus = tf.keras.losses.BinaryCrossentropy(from_logits=from_logits)
         
@@ -77,38 +85,35 @@ def train_model(sub, attn_config_version):
         if recon_level == 'cluster':
             loss_fn_attn = tf.keras.losses.MeanSquaredError()
         
-        joint_model = JointModel(
-            attn_config_version=attn_config_version, 
-            dcnn_config_version=dcnn_config_version
-        )
-        preprocess_func = joint_model.preprocess_func
-        
+        # whether there is carryover effect 
+        # where attn and clusters in clustering module gets
+        # carried over from one problem type to the next
         if 'nocarryover' not in attn_config_version:
             # carryover from type6
             if (int(sub) % 2 == 0 and problem_type == 1) \
                 or (int(sub) % 2 !=0 and problem_type == 2):
                 model_path = os.path.join(results_path, f'model_type6_sub{sub}')
-                model = clustering_main.carryover(
+                joint_model = clustering_main.carryover(
                     trained_model_path=model_path, 
-                    new_model=model, 
+                    new_model=joint_model, 
                     num_clusters=num_clusters
                 )
         
             # carryover from 1 if 2 (for even sub)
             elif (int(sub) % 2 == 0 and problem_type == 2):
                 model_path = os.path.join(results_path, f'model_type1_sub{sub}')
-                model = clustering_main.carryover(
+                joint_model = clustering_main.carryover(
                     trained_model_path=model_path, 
-                    new_model=model, 
+                    new_model=joint_model, 
                     num_clusters=num_clusters
                 )
             
             # carryover from 2 if 1 (for odd sub)
             elif (int(sub) % 2 != 0 and problem_type == 1):
                 model_path = os.path.join(results_path, f'model_type2_sub{sub}')
-                model = clustering_main.carryover(
+                joint_model = clustering_main.carryover(
                     trained_model_path=model_path, 
-                    new_model=model, 
+                    new_model=joint_model, 
                     num_clusters=num_clusters
                 )
         else:
@@ -249,8 +254,7 @@ def train_model(sub, attn_config_version):
         np.save(os.path.join(results_path, f'lc_type{problem_type}_sub{sub}_{recon_level}.npy'), lc)
 
 
-def multicuda_execute(
-        target_func, attn_configs):
+def multicuda_execute(configs, target_func):
     """
     Train a bunch of models at once
     by launching them to all available GPUs.
@@ -259,38 +263,54 @@ def multicuda_execute(
     args_list = []
     single_entry = {}
     
-    num_subs = 1
-    subs = [f'{i:02d}' for i in range(2, num_subs+2)]
-    for sub in subs:
-        
-        # TODO: later this will become per-sub best config
-        
-        for attn_config_version in attn_configs:
+    num_subs = 23
+    subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
+    
+    for attn_config_version in configs:
+        for sub in subs:
             single_entry['sub'] = sub
-            single_entry['attn_config_version'] = attn_config_version
+            single_entry['attn_config_version'] = f'{attn_config_version}_sub{sub}_fit-human'
             args_list.append(single_entry)
             single_entry = {}
 
     print(args_list)
     print(len(args_list))
-
     cuda_manager(
         target_func, args_list, cuda_id_list
     )
+    
+
+def multiprocess_search(begin, end, target_func, num_processes):
+    """
+    Train a bunch of models at once 
+    by launching them to all avaialble CPU cores.
+    
+    One process will run (one config, one sub)'s all problems
+    """
+    os.environ["CUDA_VISIBLE_DEVICES"] = '0'
+    
+    num_subs = 23
+    subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
+    with multiprocessing.Pool(num_processes) as pool:
+        for i in range(begin, end):
+            for sub in subs:
+                # the same hyper_i with different sub 
+                # is a different set of params.                
+                config_version = f'hyper{i}_sub{sub}_fit-human'
+                results = pool.apply_async(
+                    target_func, 
+                    args=[sub, config_version]
+                )
+        pool.close()
+        pool.join()
 
 
 if __name__ == '__main__':
+    
     start_time = time.time()
     
-    attn_configs = []
-    versions = [4]
-    for v in versions:
-        attn_configs.append(f'v{v}_nocarryover')
-
-    multicuda_execute(
-        target_func=train_model, 
-        attn_configs=attn_configs
-    )
-
+    # multicuda_execute(configs=['hyper0'], target_func=train_model)
+    multiprocess_search(begin=0, end=1, target_func=train_model, num_processes=70)
+        
     duration = time.time() - start_time
     print(f'duration = {duration}s')

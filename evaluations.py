@@ -984,19 +984,115 @@ def post_attn_actv_thru_time(attn_config_version):
                                     post_attn_actv.numpy().flatten()
                                     )[::-1][:5]])
                         
-                    
+                        
+def examine_subject_lc_and_attn_overtime(problem_types):
+    """
+    Plotting per subject (either human or model) lc using
+    the best config and plot the attn weights overtime.
+    """
+    num_subs = 23
+    num_repetitions = 16
+    subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
+    
+    best_diff_recorder = {}
+    for sub in subs:
+        fig = plt.figure()
+        gs = fig.add_gridspec(2,2)
+        ax1 = fig.add_subplot(gs[0, 0])
+        ax2 = fig.add_subplot(gs[0, 1])
+        ax3 = fig.add_subplot(gs[1, :])
+        colors = ['blue', 'orange', 'cyan']
+        config_version = f'best_config_sub{sub}'
+        config = load_config(
+            component=None, 
+            config_version=config_version)
+        print(f'sub{sub}, config={config_version}')
+        
+        # plot lc - human vs model
+        per_config_mse = 0
+        for idx in range(len(problem_types)):
+            problem_type = problem_types[idx]
+            human_lc = np.load(f'clustering/results/human/lc_type{problem_type}_sub{sub}.npy')
+            model_lc = np.load(f'results/{config_version}/lc_type{problem_type}_sub{sub}_cluster.npy')
+            per_config_mse += np.mean( (human_lc - model_lc)**2 )
+
+            ax1.set_title('human')
+            ax1.errorbar(
+                range(human_lc.shape[0]), 
+                1-human_lc,
+                color=colors[idx],
+                label=f'Type {problem_type}',
+            )
+            ax1.set_xticks(range(0, num_repetitions+4, 4))
+            ax1.set_xticklabels(range(0, num_repetitions+4, 4))
+            ax1.set_ylim([-0.05, 1.05])
+            ax1.set_xlabel('repetitions')
+            ax1.set_ylabel('average probability of error')
+            
+            ax2.set_title('model')
+            ax2.errorbar(
+                range(model_lc.shape[0]), 
+                1-model_lc,
+                color=colors[idx],
+                label=f'Type {problem_type}',
+            )
+            ax2.set_xticks(range(0, num_repetitions+4, 4))
+            ax2.set_xticklabels(range(0, num_repetitions+4, 4))
+            ax2.set_xlabel('repetitions')
+            ax2.set_ylim([-0.05, 1.05])
+        
+        best_diff_recorder[sub] = per_config_mse
+        
+        # # plot attn weights overtime
+        # visualize_attn_overtime(
+        #     config_version=config_version,
+        #     sub=sub,
+        #     ax=ax3
+        # )
+        
+        # plot hyper-params of this config on figure
+        x_coord = 9
+        y_coor = 0.6
+        margin = 0.07
+        lr = config['lr']
+        ax2.text(x_coord, y_coor, f'lr={lr:.3f}')
+        center_lr_multiplier = config['center_lr_multiplier']
+        ax2.text(x_coord, y_coor-margin*1, f'center_lr={center_lr_multiplier * lr:.3f}')
+        attn_lr_multiplier = config['attn_lr_multiplier']
+        ax2.text(x_coord, y_coor-margin*2, f'attn_lr={attn_lr_multiplier * lr:.3f}')
+        asso_lr_multiplier = config['asso_lr_multiplier']
+        ax2.text(x_coord, y_coor-margin*3, f'asso_lr={asso_lr_multiplier * lr:.3f}')
+        specificity = config['specificity']
+        ax2.text(x_coord, y_coor-margin*4, f'specificity={specificity:.3f}')
+        Phi = config['Phi']
+        ax2.text(x_coord, y_coor-margin*5, f'Phi={Phi:.3f}')
+        beta = config['beta']
+        ax2.text(x_coord, y_coor-margin*6, f'beta={beta:.3f}')
+        thr = config['thr']
+        ax2.text(x_coord, y_coor-margin*8, f'thr={thr:.3f}')
+        temp2 = config['temp2']
+        ax2.text(x_coord, y_coor-margin*7, f'temp2={temp2:.3f}')
+        
+        plt.legend()
+        plt.suptitle(f'sub{sub}, diff={per_config_mse:.3f}')
+        plt.tight_layout()
+        plt.savefig(f'results/lc_sub{sub}.png')
+        plt.close()
+    
+    # save current best configs' best diff to human lc.
+    # this will be used as benchmark for further search and eval.
+    np.save('best_diff_recorder.npy', best_diff_recorder)
+    
+                
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
+        
+    examine_subject_lc_and_attn_overtime(problem_types=[1,2,6])
     
-    attn_config_version = 'v4_naive-withNoise'
-    dcnn_config_version = 't1.vgg16.block4_pool.None.run1'
-    
-    # examine_clustering_learning_curves(attn_config_version)
-    
-    compare_across_types_V3(
-        attn_config_version,
-        canonical_runs_only=True,
-    )
+    # compare_across_types_V3(
+    #     attn_config_version,
+    #     canonical_runs_only=True,
+    # )
 
-    stats_significance_of_zero_attn(attn_config_version)
-    histogram_low_attn_weights(attn_config_version)
+    # stats_significance_of_zero_attn(attn_config_version)
+    # histogram_low_attn_weights(attn_config_version)

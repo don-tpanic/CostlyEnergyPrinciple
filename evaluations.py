@@ -22,7 +22,7 @@ from losses import binary_crossentropy
 Evaluation routines.
 """  
 
-def compare_across_types_V3(attn_config_version='best_config', threshold=[0, 0, 0]):
+def compare_across_types_V3(attn_config_version, threshold=[0, 0, 0]):
     """Key differences to the generic `compare_across_types_V3`:
     1. We only consider Type 1, 2 and 6. 
     2. Canonical run or not is no longer valid due to 
@@ -50,17 +50,17 @@ def compare_across_types_V3(attn_config_version='best_config', threshold=[0, 0, 
                 # First grab the final metric
                 if comparison == 'zero_attn':
                     # For %attn, we grab the last item
-                    metric_fpath = f'{results_path}/{attn_config_version}_sub{sub}/' \
+                    metric_fpath = f'{results_path}/{attn_config_version}_sub{sub}_fit-human/' \
                                    f'all_percent_zero_attn_type{problem_type}_sub{sub}_cluster.npy'
                     metric = np.load(metric_fpath)[-1]                    
                 else:
                     # For binary recon, we grab the last 3 entries (each for a dim)
-                    metric_fpath = f'{results_path}/{attn_config_version}_sub{sub}/' \
+                    metric_fpath = f'{results_path}/{attn_config_version}_sub{sub}_fit-human/' \
                                    f'all_recon_loss_ideal_type{problem_type}_sub{sub}_cluster.npy'
                     metric = np.load(metric_fpath)[-num_dims : ]
 
                 # Second group metric based on attn strategy
-                alphas_fpath = f'{results_path}/{attn_config_version}_sub{sub}/' \
+                alphas_fpath = f'{results_path}/{attn_config_version}_sub{sub}_fit-human/' \
                                f'all_alphas_type{problem_type}_sub{sub}_cluster.npy'
                 # get the final 3 alphas
                 alphas = np.load(alphas_fpath)[-3:]
@@ -397,11 +397,12 @@ def post_attn_actv_thru_time(attn_config_version):
                                     )[::-1][:5]])
                         
                         
-def examine_subject_lc_and_attn_overtime(problem_types):
+def examine_subject_lc_and_attn_overtime(attn_config_version):
     """
     Plotting per subject (either human or model) lc using
     the best config and plot the attn weights overtime.
     """
+    problem_types=[1,2,6]
     num_subs = 23
     num_repetitions = 16
     subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
@@ -414,7 +415,10 @@ def examine_subject_lc_and_attn_overtime(problem_types):
         ax2 = fig.add_subplot(gs[0, 1])
         ax3 = fig.add_subplot(gs[1, :])
         colors = ['blue', 'orange', 'cyan']
-        config_version = f'best_config_sub{sub}'
+        
+        # TODO.
+        config_version = f'{attn_config_version}_sub{sub}_fit-human'
+        
         config = load_config(
             component=None, 
             config_version=config_version)
@@ -499,8 +503,8 @@ def examine_subject_lc_and_attn_overtime(problem_types):
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
         
-    examine_subject_lc_and_attn_overtime(problem_types=[1,2,6])
-    # compare_across_types_V3('best_config')
+    examine_subject_lc_and_attn_overtime('hyper0')
+    compare_across_types_V3('hyper0')
 
     # stats_significance_of_zero_attn(attn_config_version)
     # histogram_low_attn_weights(attn_config_version)

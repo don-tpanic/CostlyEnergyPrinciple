@@ -1,67 +1,75 @@
 import os
 import yaml
+from utils import load_config
 
 
-default_dict = {
-    'config_version': 'config_v4_naive-withNoise',
+def hyperparams_ranges():
+    """
+    Return searching ranges for each hyperparameter
+    in joint_model
+    """
+    # lr_attn_ = [0.00092, 0.0092, 0.092]
+    lr_attn_ = [0.00092]
+    # inner_loop_epochs_ = [5, 10, 15, 20]
+    inner_loop_epochs_ = [10]
+    # recon_clusters_weighting_ = [1000, 10000, 100000, 1000000]
+    recon_clusters_weighting_ = [1000]
+    
+    return lr_attn_, inner_loop_epochs_, recon_clusters_weighting_
 
-    # --- training ---
-    'num_runs': 50,
-    'num_blocks': 32,
-    'random_seed': 999,
 
-    # --- DCNN attn layer ---
-    'attn_initializer': 'ones-withNoise',
-    'noise_distribution': 'uniform',
-    'noise_level': 0.5,
-    'low_attn_constraint': 'nonneg',
-    'attn_regularizer': 'l1',
-    'reg_strength': 0.001,
-    'attn_positions': 'block4_pool',
-    'lr_attn': 0.00092,
-    'recon_level': 'cluster',
-    'inner_loop_epochs': 5,
-    'recon_clusters_weighting': 1000,
+def per_subject_generate_candidate_configs(ct, v, sub, template_version='v4_naive-withNoise'):
+    """
+    Given a joint_model config as template, we replace params regarding clustering model with 
+    subject-specific best config. Then we iterate through hypers for training low_level attn
+    in the DCNN and save the configs.
+    """
+    clustering_config = load_config(
+        component='clustering',
+        config_version=f'best_config_sub{sub}')
+    clustering_config_keys = clustering_config.keys()
+    
+    # use the joint_model config as template
+    template = load_config(
+        component=None, 
+        config_version=template_version)
+    template['clustering_config_version'] = ''
+    template_keys = template.keys()
+    
+    # update all clustering entries in template
+    for key in clustering_config_keys:
+        if key == 'config_version':
+            template[f'clustering_{key}'] = clustering_config[key]
+        else:
+            template[key] = clustering_config[key]
+                
+    # TODO: this could be later adjusted to per sub
+    lr_attn_, \
+        inner_loop_epochs_, \
+            recon_clusters_weighting_ = hyperparams_ranges()
 
-    # --- clustering model ---
-    'Phi': 10.0,
-    'actv_func': 'softmax',
-    'asso_lr_multiplier': 1.0,
-    'high_attn_constraint': 'sumtoone',
-    'attn_lr_multiplier': 1.0,
-    'beta': 3.0,
-    'center_lr_multiplier': 1.0,
-    'from_logits': True,
-    'lr': 0.1,
-    'num_clusters': 8,
-    'q': 1,
-    'r': 2,
-    'specificity': 0.25,
-    'temp1': 'equivalent',
-    'temp2': 0.012,
-    'thr': -0.4,
-    'trainable_specificity': False,
-    'unsup_rule': 'threshold',
-
-    # stimulus set and finetuned DCNN.
-    'dcnn_config_version': 't1.vgg16.block4_pool.None.run1'
-}
-
-##############################################
-lr_attn_ = [0.00092, 0.0092, 0.092]
-recon_clusters_weighting_ = [500, 1500, 2000, 2500, 3000, 4000, 5000, 8000, 12000]
-# recon_clusters_weighting_ = [10, 100, 1000, 10000, 100000, 1000000]
-##############################################
-v = 20   # v to resume
-for recon_clusters_weighting in recon_clusters_weighting_:
+    # update all low_attn entries in template
     for lr_attn in lr_attn_:
-        config_version = f'config_v{v}_naive-withNoise'
-        default_dict['config_version'] = config_version
-        default_dict['recon_clusters_weighting'] = recon_clusters_weighting
-        # default_dict['inner_loop_epochs'] = inner_loop_epochs
-        default_dict['lr_attn'] = lr_attn
+        for inner_loop_epochs in inner_loop_epochs_:
+            for recon_clusters_weighting in recon_clusters_weighting_:
+                config_version = f'hyper{ct}_sub{sub}_{v}'
+                template['inner_loop_epochs'] = inner_loop_epochs
+                # config['lr_attn'] = lr_attn
+                # template['recon_clusters_weighting'] = recon_clusters_weighting
 
-        filepath = os.path.join(f'configs', f'{config_version}.yaml')
-        with open(filepath, 'w') as yaml_file:
-            yaml.dump(default_dict, yaml_file, default_flow_style=False)
-        v += 1
+                filepath = os.path.join(f'configs', f'config_{config_version}.yaml')
+                with open(filepath, 'w') as yaml_file:
+                    yaml.dump(template, yaml_file, default_flow_style=False)
+                ct += 1
+                                
+    print(f'Total number of candidates = {ct}')
+
+
+if __name__ == '__main__':
+    num_subs = 23
+    subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
+    for sub in subs:
+        per_subject_generate_candidate_configs(
+            ct=0, v='fit-human', sub=sub
+        )
+        

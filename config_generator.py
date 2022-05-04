@@ -8,12 +8,9 @@ def hyperparams_ranges():
     Return searching ranges for each hyperparameter
     in joint_model
     """
-    # lr_attn_ = [0.00092, 0.0092, 0.092]
-    lr_attn_ = [0.00092]
-    # inner_loop_epochs_ = [5, 10, 15, 20]
-    inner_loop_epochs_ = [10]
-    # recon_clusters_weighting_ = [1000, 10000, 100000, 1000000]
-    recon_clusters_weighting_ = [1000]
+    lr_attn_ = [0.00092, 0.0092, 0.092]
+    inner_loop_epochs_ = [5, 10, 15, 20]
+    recon_clusters_weighting_ = [1000, 10000, 100000, 1000000]
     
     return lr_attn_, inner_loop_epochs_, recon_clusters_weighting_
 
@@ -53,9 +50,9 @@ def per_subject_generate_candidate_configs(ct, v, sub, template_version='v4_naiv
         for inner_loop_epochs in inner_loop_epochs_:
             for recon_clusters_weighting in recon_clusters_weighting_:
                 config_version = f'hyper{ct}_sub{sub}_{v}'
+                template['lr_attn'] = lr_attn
                 template['inner_loop_epochs'] = inner_loop_epochs
-                # config['lr_attn'] = lr_attn
-                # template['recon_clusters_weighting'] = recon_clusters_weighting
+                template['recon_clusters_weighting'] = recon_clusters_weighting
 
                 filepath = os.path.join(f'configs', f'config_{config_version}.yaml')
                 with open(filepath, 'w') as yaml_file:

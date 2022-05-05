@@ -9,6 +9,9 @@ clustering/configs/*hyper*
 clustering/.git*
 clustering/*_RDMs
 
+# Ignore hyper configs in chunk
+configs/*hyper*
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

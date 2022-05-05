@@ -51,7 +51,7 @@ def presave_dcnn(dcnn_config_version, path_model):
 
 def DCNN(attn_config_version, 
          dcnn_config_version, 
-         intermediate_input):
+         intermediate_input=False):
     """
     Load trained dcnn model with option to add 
     a single or multiple layers of attn.

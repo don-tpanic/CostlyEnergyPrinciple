@@ -225,7 +225,6 @@ def learn_low_attn(
     batch_x = load_X_only(
         dataset=dataset, 
         attn_config_version=attn_config_version,
-        dcnn_config_version=dcnn_config_version
     )
     
     # true cluster actv

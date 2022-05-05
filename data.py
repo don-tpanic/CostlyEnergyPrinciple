@@ -248,9 +248,7 @@ def data_loader_V2(
     return np.array(dataset, dtype=object), counter_balancing
 
 
-def load_X_only(dataset, 
-                attn_config_version,
-                dcnn_config_version):
+def load_X_only(dataset, attn_config_version):
     """
     Given a dataset, extract and return 
     only the X part. This is for evaluating 
@@ -260,6 +258,7 @@ def load_X_only(dataset,
         component=None,
         config_version=attn_config_version
     )
+    dcnn_config_version = attn_config['dcnn_config_version']
     dcnn_config = load_config(
         component='finetune',
         config_version=dcnn_config_version

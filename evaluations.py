@@ -36,7 +36,14 @@ def compare_across_types_V3(attn_config_version, threshold=[0, 0, 0]):
     num_dims = 3
     comparisons = ['zero_attn', 'binary_recon']
     results_path = 'results'
-
+    config = load_config(
+        component=None, 
+        config_version=f'{attn_config_version}_sub02_fit-human'   # TODO: not ideal when hyper is sub-specific ok for now
+    )
+    lr_attn = config['lr_attn']
+    inner_loop_epochs = config['inner_loop_epochs']
+    recon_clusters_weighting = config['recon_clusters_weighting']
+    
     for c in range(len(comparisons)):
         comparison = comparisons[c]
         # e.g. { problem_type: {(True, False, False): [metric1, metric2, ... ]} }
@@ -133,7 +140,16 @@ def compare_across_types_V3(attn_config_version, threshold=[0, 0, 0]):
             ax.set_ylabel('percentage of zero attention weights')
             plt.tight_layout()
             plt.legend()
-            plt.savefig(f'{results_path}/compare_types_percent_zero.png')
+            
+            # text hypers
+            x_coord = 1
+            y_coor = 0.95
+            margin = 0.1
+            ax.text(x_coord, y_coor, f'lr_attn={lr_attn}')
+            ax.text(x_coord, y_coor-margin*1, f'inner_loop_epochs={inner_loop_epochs}')
+            ax.text(x_coord, y_coor-margin*2, f'recon_clusters_weighting={recon_clusters_weighting}')
+            
+            plt.savefig(f'{results_path}/compare_types_percent_zero_{attn_config_version}.png')
             plt.close()
 
         elif comparison == 'binary_recon':
@@ -193,7 +209,7 @@ def compare_across_types_V3(attn_config_version, threshold=[0, 0, 0]):
             
             plt.legend(fontsize=7)
             plt.tight_layout()
-            plt.savefig(f'{results_path}/compare_types_dimension_binary_recon.png')
+            plt.savefig(f'{results_path}/compare_types_dimension_binary_recon_{attn_config_version}.png')
 
 
 def stats_significance_of_zero_attn(attn_config_version):
@@ -503,8 +519,10 @@ def examine_subject_lc_and_attn_overtime(attn_config_version):
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
         
-    examine_subject_lc_and_attn_overtime('hyper0')
-    compare_across_types_V3('hyper0')
+    # examine_subject_lc_and_attn_overtime('hyper0')
+    
+    for i in range(0, 48):
+        compare_across_types_V3(f'hyper{i}')
 
     # stats_significance_of_zero_attn(attn_config_version)
     # histogram_low_attn_weights(attn_config_version)

@@ -182,20 +182,14 @@ def train_model(sub, attn_config_version):
                     all_alphas.extend(alpha_collector)
                     all_centers.extend(center_collector)
 
-                    # save trial-level (epoch,i) DCNN attn_weights (all positions)
-                    # np.save(
-                    #     os.path.join(
-                    #         results_path, 
-                    #         f'attn_weights_type{problem_type}_run{run}_epoch{epoch}_i{i}_{recon_level}.npy'
-                    #     ),
-                    #     attn_weights
-                    # )
-
                 # record item-level prob error
                 print(f'[Check] item_proberror = {item_proberror}')
                 lc[repetition] += item_proberror
+                
+            # save one sub's per repetition model weights.
+            model.save(os.path.join(results_path, f'model_type{problem_type}_sub{sub}_rp{repetition}'))
                         
-        # ===== Saving stuff at the end of each run =====
+        # ===== Saving stuff at the end of a problem type =====
         # save one sub's trained joint model.
         joint_model.save(os.path.join(results_path, f'model_type{problem_type}_sub{sub}')) 
         
@@ -287,7 +281,7 @@ def multiprocess_search(begin, end, target_func, num_processes):
     
     One process will run (one config, one sub)'s all problems
     """
-    os.environ["CUDA_VISIBLE_DEVICES"] = '0'
+    os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
     
     num_subs = 23
     subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
@@ -306,11 +300,14 @@ def multiprocess_search(begin, end, target_func, num_processes):
 
 
 if __name__ == '__main__':
-    
     start_time = time.time()
     
-    # multicuda_execute(configs=['hyper0'], target_func=train_model)
-    multiprocess_search(begin=0, end=1, target_func=train_model, num_processes=70)
+    configs = []
+    for i in range(0, 48):
+        configs.append(f'hyper{i}')
+    
+    multicuda_execute(configs=configs, target_func=train_model)
+    # multiprocess_search(begin=0, end=1, target_func=train_model, num_processes=70)
         
     duration = time.time() - start_time
     print(f'duration = {duration}s')

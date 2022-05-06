@@ -61,6 +61,7 @@ def fit(joint_model,
         global_steps,
         problem_type,
         recon_clusters_weighting,
+        dcnn_signatures,
     ):
     """
     A single train step given a stimulus.
@@ -178,7 +179,9 @@ def fit(joint_model,
             sub=sub,
             item_proberror=item_proberror,
             problem_type=problem_type,
-            recon_clusters_weighting=recon_clusters_weighting)
+            recon_clusters_weighting=recon_clusters_weighting,
+            dcnn_signatures=dcnn_signatures
+        )
         return joint_model, attn_weights, item_proberror, \
             recon_loss_collector, recon_loss_ideal_collector, \
             reg_loss_collector, percent_zero_attn_collector, \
@@ -204,7 +207,8 @@ def learn_low_attn(
         sub,
         item_proberror,
         problem_type,
-        recon_clusters_weighting):
+        recon_clusters_weighting,
+        dcnn_signatures):
     """
     Learning routine for low-level attn.
     This learning happens after the 
@@ -221,12 +225,29 @@ def learn_low_attn(
         model=joint_model
     )
         
-    # a batch of raw images(+ fake ones)
+    # Due to dataset is human order, stimuli 
+    # is not in default order but based on subject `signatures`.
+    # That is, the raw image files are not in default order hence
+    # cannot be directly eval against `batch_x_binary_true` which
+    # is in default order. Therefore, we need to rearrange the batch
+    # such that the raw images are in consistent order. 
+    # Since we keep track of the DCNN signatures of the raw stimuli 
+    # when compiling the dataset, we can use DCNN signatures to 
+    # rearrange the batch.
+    # e.g.
+    # dcnn_signatures = [7, 6, 5, 4, 3, 2, 1, 0]
+    # conversion_ordering = argsort(dcnn_signatures)
     batch_x = load_X_only(
         dataset=dataset, 
-        attn_config_version=attn_config_version,
-    )
-    
+        attn_config_version=attn_config_version)
+    conversion_ordering = np.argsort(dcnn_signatures)
+    # remember batch_x is ([images], [fake_ones])
+
+    print(f'dcnn_signatures = {dcnn_signatures}')
+    print(f'conversion_ordering = {conversion_ordering}')
+    print('reordering....')
+    batch_x[0] = batch_x[0][conversion_ordering]
+
     # true cluster actv
     _, batch_y_true, _, _ = joint_model(batch_x)
     print(f'[Check] batch_y_true.shape={batch_y_true.shape}')

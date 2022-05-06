@@ -24,9 +24,7 @@ def train_model(sub, attn_config_version):
     # load top-level config
     attn_config = load_config(
         component=None, 
-        config_version=attn_config_version
-    )
-
+        config_version=attn_config_version)
     # Low attn training things
     num_subs = attn_config['num_subs']
     num_repetitions = attn_config['num_repetitions']
@@ -87,13 +85,10 @@ def train_model(sub, attn_config_version):
         if recon_level == 'cluster':
             loss_fn_attn = tf.keras.losses.MeanSquaredError()
         
-        # whether there is carryover effect 
-        # where attn and clusters in clustering module gets
+        # when carryover 
+        # attn and clusters in clustering module are
         # carried over from one problem type to the next
-        
-        # TODO: test no carryover first
-        # if 'nocarryover' not in attn_config_version:
-        if 'nocarryover' in attn_config_version:
+        if 'nocarryover' not in attn_config_version:
             # carryover from type6
             if (int(sub) % 2 == 0 and problem_type == 1) \
                 or (int(sub) % 2 !=0 and problem_type == 2):
@@ -123,7 +118,7 @@ def train_model(sub, attn_config_version):
                 )
         else:
             print(f'[Check] No carryover is applied.')
-            
+            pass
         # --------------------------------------------------------------------------
         # train multiple epochs
         # model keeps improving at this level.
@@ -260,15 +255,12 @@ def multicuda_execute(configs, target_func):
     Train a bunch of models at once
     by launching them to all available GPUs.
     """
-    # cuda_id_list = [0, 1, 2, 3, 4, 6]
-    cuda_id_list = [0]
-    
+    cuda_id_list = [0, 1, 2, 3, 4, 6]
     args_list = []
     single_entry = {}
     
-    num_subs = 1
+    num_subs = 23
     subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
-    
     for attn_config_version in configs:
         for sub in subs:
             single_entry['sub'] = sub
@@ -278,9 +270,7 @@ def multicuda_execute(configs, target_func):
 
     print(args_list)
     print(len(args_list))
-    cuda_manager(
-        target_func, args_list, cuda_id_list
-    )
+    cuda_manager(target_func, args_list, cuda_id_list)
     
 
 def multiprocess_search(begin, end, target_func, num_processes):

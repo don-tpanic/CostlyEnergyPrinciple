@@ -16,7 +16,51 @@ from models import JointModel
 from train import fit
 from data import data_loader_human_order, dict_layer2attn_size
 from losses import binary_crossentropy
-from clustering import main as clustering_main
+
+
+def carryover(trained_model_path, new_model, num_clusters, attn_position):
+    """
+    Transfer trained joint_model's low-attn weights into
+    an initialised joint_model.
+    """
+    trained_model = tf.keras.models.load_model(trained_model_path, compile=False)
+    
+    # # carryover low_attn weights
+    # new_model.get_layer(
+    #     'dcnn_model').get_layer(
+    #         f'attn_factory_{attn_position}'
+    # ).set_weights(
+    #     trained_model.get_layer(
+    #         'dcnn_model').get_layer(
+    #             f'attn_factory_{attn_position}').get_weights()
+    # )
+    
+    # carryover cluster centers
+    for i in range(num_clusters):
+        new_model.get_layer(
+            f'd{i}'
+        ).set_weights(
+            trained_model.get_layer(
+                f'd{i}').get_weights()
+        )
+
+    # carryover attn weights
+    new_model.get_layer(
+        f'dimensionwise_attn_layer'
+    ).set_weights(
+        trained_model.get_layer(
+            f'dimensionwise_attn_layer').get_weights()
+    )
+    
+    # carryover cluster recruitment
+    new_model.get_layer(
+        'mask_non_recruit').set_weights(
+            trained_model.get_layer(
+                'mask_non_recruit').get_weights()
+    )
+    
+    del trained_model
+    return new_model
 
 
 def train_model(sub, attn_config_version):
@@ -62,7 +106,9 @@ def train_model(sub, attn_config_version):
         problem_types = [6, 1, 2]
     else:
         problem_types = [6, 2, 1]
-            
+        
+    # carryover Adam.
+    # optimizer_attn = tf.keras.optimizers.Adam(learning_rate=lr_attn)
     for problem_type in problem_types:
         lc = np.zeros(num_repetitions)
         
@@ -78,7 +124,6 @@ def train_model(sub, attn_config_version):
         joint_model.build(input_shape=[(1,)+image_shape, (1, layer2attn_size)])
         
         # TODO: should Adam also get carryover?
-        # TODO: should DCNN(low-attn) get carryover?
         optimizer_clus = tf.keras.optimizers.SGD(learning_rate=lr)
         optimizer_attn = tf.keras.optimizers.Adam(learning_rate=lr_attn)
         loss_fn_clus = tf.keras.losses.BinaryCrossentropy(from_logits=from_logits)
@@ -87,36 +132,39 @@ def train_model(sub, attn_config_version):
         if recon_level == 'cluster':
             loss_fn_attn = tf.keras.losses.MeanSquaredError()
         
-        # when carryover 
+        # when carryover
         # attn and clusters in clustering module are
         # carried over from one problem type to the next
         if 'nocarryover' not in attn_config_version:
             # carryover from type6
             if (int(sub) % 2 == 0 and problem_type == 1) \
                 or (int(sub) % 2 !=0 and problem_type == 2):
-                model_path = os.path.join(results_path, f'model_type6_sub{sub}')
-                joint_model = clustering_main.carryover(
+                model_path = os.path.join(results_path, f'model_type6_sub{sub}')        
+                joint_model = carryover(
                     trained_model_path=model_path, 
                     new_model=joint_model, 
-                    num_clusters=num_clusters
+                    num_clusters=num_clusters,
+                    attn_position=attn_position
                 )
         
             # carryover from 1 if 2 (for even sub)
             elif (int(sub) % 2 == 0 and problem_type == 2):
                 model_path = os.path.join(results_path, f'model_type1_sub{sub}')
-                joint_model = clustering_main.carryover(
+                joint_model = carryover(
                     trained_model_path=model_path, 
                     new_model=joint_model, 
-                    num_clusters=num_clusters
+                    num_clusters=num_clusters,
+                    attn_position=attn_position
                 )
             
             # carryover from 2 if 1 (for odd sub)
             elif (int(sub) % 2 != 0 and problem_type == 1):
                 model_path = os.path.join(results_path, f'model_type2_sub{sub}')
-                joint_model = clustering_main.carryover(
+                joint_model = carryover(
                     trained_model_path=model_path, 
                     new_model=joint_model, 
-                    num_clusters=num_clusters
+                    num_clusters=num_clusters,
+                    attn_position=attn_position
                 )
         else:
             print(f'[Check] No carryover is applied.')

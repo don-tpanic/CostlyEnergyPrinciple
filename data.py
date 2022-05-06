@@ -305,12 +305,27 @@ def data_loader_human_order(
     which are the exact 8 stimuli in a random order. The data-points 
     include stimuli images (+fake ones), labels and signatures.
     
-    What makes things a bit complicated is that within each fMRI run,
-    there are 32 trials which need to be further divided into 4 repetitions.
+    Impl:
+    -----
+    DCNN coding (fixed) can be different from the subject coding (random) 
+    of the stimuli. To ensure consistency, we always use DCNN coding as 
+    reference as it is fixed and has one-to-one correspondence to 
+    the raw images (and file names). `subject2dcnn_mapper` 
+    will convert a stimulus in subject coding to its DCNN coding.
+    
+    One extra tricky thing is to do with `signatures`. signature determines 
+    the recruited clusters hence should be consistent with subject coding
+    rather than DCNN coding. However, dcnn-specific signatures are also needed
+    in that we need to rearrange image ordering when evaluating binary recon 
+    against ground true binary stimuli.
     
     return:
     -------
-        An array of data-points of all trials within a repetition.
+        dataset: An array of data-points of all trials within a repetition.
+        dcnn_signatures: DCNN signatures of the subject stimuli (in human order)
+            This can be used when eval binary_recon to rearrange the stimuli in
+            default order (i.e. 0.jpg, 1.jpg, ..) which corresponds to (000, 001, ..)
+            from the eyes of DCNN as its finetuned.
     """
     # attn stuff
     attn_config = load_config(
@@ -337,17 +352,28 @@ def data_loader_human_order(
     )
     
     dataset = []
+    dcnn_signatures = []
     for i in range(len(behaviour)):
         behaviour_i = behaviour[i][0].split('\t')
+        # sub_stimulus is subject coding of stimulus
         sub_stimulus = ''.join(behaviour_i[3:6])  # '001'
-        signature = human.binary_to_signature[sub_stimulus]
+        # sub_signature is sub_stimulus corresponding signature 
+        # which does not correspond to default signature 
+        # i.e. file names of the raw images.
+        # e.g. signature=2, may not be the image `2.jpg`
+        sub_signature = human.binary_to_signature[sub_stimulus]
         
-        # convert to DCNN coding so we can load 
-        # the raw images accordingly
+        # convert subject coding to DCNN coding so we can load 
+        # the raw images because DCNN signatures are consistent
+        # with the image file names.
+        # e.g. dcnn_signature=2, fname=`2.jpg`
         dcnn_stimulus = subject2dcnn_mapper[sub_stimulus]
-        # '000' -> 0
         fname = human.binary_to_signature[dcnn_stimulus]
+        dcnn_signatures.append(fname)
+        
+        # load and preprocess one image
         img_fpath = f'{data_dir}/{fname}.jpg'
+        print(img_fpath)
         img = image.load_img(
             img_fpath,
             color_mode=color_mode,
@@ -365,7 +391,7 @@ def data_loader_human_order(
         if preprocess_func:
             x = preprocess_func(x)
         
-        # get y
+        # get y and convert to one-hot format.
         label = behaviour_i[6]                    # 6 - ground true answer
         label = human.label_to_oneHot[label]
         
@@ -381,9 +407,9 @@ def data_loader_human_order(
             inputs.extend([fake_input])
 
         # TODO: double check to use which signature (subject or DCNN?)
-        dataset.append([inputs, y, signature])
+        dataset.append([inputs, y, sub_signature])
             
-    return np.array(dataset, dtype=object)
+    return np.array(dataset, dtype=object), dcnn_signatures
 
 
 

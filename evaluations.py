@@ -119,7 +119,7 @@ def compare_across_types_V3(attn_config_version, threshold=[0, 0, 0]):
                     color=colors[z],
                     label=f'single strategy, type {problem_type}')
 
-                np.save(f'{results_path}/{comparison}_type{problem_type}_allStrategies.npy', temp_collector)
+                np.save(f'{results_path}/{comparison}_type{problem_type}_allStrategies_{attn_config_version}.npy', temp_collector)
                 average_metrics.append(np.mean(temp_collector))
                 std_metrics.append(np.std(temp_collector))
 
@@ -218,10 +218,10 @@ def stats_significance_of_zero_attn(attn_config_version):
     of the difference in percentage of zero low attn
     weights over runs & strategies.
     """
-    results_path = f'results/{attn_config_version}'
-    type1 = np.load(f'{results_path}/zero_attn_type1_allStrategies.npy')
-    type2 = np.load(f'{results_path}/zero_attn_type2_allStrategies.npy')
-    type6 = np.load(f'{results_path}/zero_attn_type6_allStrategies.npy')
+    results_path = 'results'
+    type1 = np.load(f'{results_path}/zero_attn_type1_allStrategies_{attn_config_version}.npy')
+    type2 = np.load(f'{results_path}/zero_attn_type2_allStrategies_{attn_config_version}.npy')
+    type6 = np.load(f'{results_path}/zero_attn_type6_allStrategies_{attn_config_version}.npy')
     print(len(type1), len(type2), len(type6))
 
     print('Type 1 vs 2: ', stats.ttest_ind(type1, type2, equal_var=False))
@@ -518,11 +518,9 @@ def examine_subject_lc_and_attn_overtime(attn_config_version):
                 
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
-        
-    # examine_subject_lc_and_attn_overtime('hyper0')
     
-    for i in range(0, 48):
+    for i in range(4, 5):
+        examine_subject_lc_and_attn_overtime(f'hyper{i}')
         compare_across_types_V3(f'hyper{i}')
-
-    # stats_significance_of_zero_attn(attn_config_version)
-    # histogram_low_attn_weights(attn_config_version)
+        stats_significance_of_zero_attn(f'hyper{i}')
+        # histogram_low_attn_weights(attn_config_version)

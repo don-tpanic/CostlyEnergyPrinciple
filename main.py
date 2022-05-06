@@ -14,7 +14,7 @@ from tensorflow.keras import backend as K
 from utils import load_config, cuda_manager
 from models import JointModel
 from train import fit
-from data import data_loader_human_order
+from data import data_loader_human_order, dict_layer2attn_size
 from losses import binary_crossentropy
 from clustering import main as clustering_main
 
@@ -44,6 +44,7 @@ def train_model(sub, attn_config_version):
     recon_clusters_weighting = attn_config['recon_clusters_weighting']
     # ClusterModel things
     num_clusters = attn_config['num_clusters']
+    image_shape = (224, 224, 3)
     
     # stimulus_set is in dcnn_config
     dcnn_config_version = attn_config['dcnn_config_version']
@@ -71,9 +72,10 @@ def train_model(sub, attn_config_version):
             attn_config_version=attn_config_version, 
             dcnn_config_version=dcnn_config_version)
         preprocess_func = joint_model.preprocess_func
-        
-        # TODO: avoid hard coding shape
-        joint_model.build(input_shape=[(1,224,224,3), (1, 512)])
+        attn_position = attn_positions[0]
+        layer2attn_size = \
+            dict_layer2attn_size(model_name=dcnn_config['model_name'])[attn_position]    
+        joint_model.build(input_shape=[(1,)+image_shape, (1, layer2attn_size)])
         
         # TODO: should Adam also get carryover?
         # TODO: should DCNN(low-attn) get carryover?
@@ -88,7 +90,10 @@ def train_model(sub, attn_config_version):
         # whether there is carryover effect 
         # where attn and clusters in clustering module gets
         # carried over from one problem type to the next
-        if 'nocarryover' not in attn_config_version:
+        
+        # TODO: test no carryover first
+        # if 'nocarryover' not in attn_config_version:
+        if 'nocarryover' in attn_config_version:
             # carryover from type6
             if (int(sub) % 2 == 0 and problem_type == 1) \
                 or (int(sub) % 2 !=0 and problem_type == 2):
@@ -133,12 +138,12 @@ def train_model(sub, attn_config_version):
         for repetition in range(num_repetitions):
             
             # load data of per repetition (determined order)
-            dataset = data_loader_human_order(
+            dataset, dcnn_signatures = data_loader_human_order(
                 attn_config_version=attn_config_version, 
                 problem_type=problem_type, 
                 sub=sub, repetition=repetition,
                 preprocess_func=preprocess_func,
-            ) 
+            )
                 
             for i in range(len(dataset)):
                 dp = dataset[i]
@@ -171,6 +176,7 @@ def train_model(sub, attn_config_version):
                     global_steps=global_steps,
                     problem_type=problem_type,
                     recon_clusters_weighting=recon_clusters_weighting,
+                    dcnn_signatures=dcnn_signatures
                 )
 
                 # record losses related to attn.
@@ -187,7 +193,8 @@ def train_model(sub, attn_config_version):
                 lc[repetition] += item_proberror
                 
             # save one sub's per repetition model weights.
-            model.save(os.path.join(results_path, f'model_type{problem_type}_sub{sub}_rp{repetition}'))
+            # TODO: revive when RSA/compression
+            # joint_model.save(os.path.join(results_path, f'model_type{problem_type}_sub{sub}_rp{repetition}'))
                         
         # ===== Saving stuff at the end of a problem type =====
         # save one sub's trained joint model.
@@ -253,11 +260,13 @@ def multicuda_execute(configs, target_func):
     Train a bunch of models at once
     by launching them to all available GPUs.
     """
-    cuda_id_list = [0, 1, 2, 3, 4, 6]
+    # cuda_id_list = [0, 1, 2, 3, 4, 6]
+    cuda_id_list = [0]
+    
     args_list = []
     single_entry = {}
     
-    num_subs = 23
+    num_subs = 1
     subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
     
     for attn_config_version in configs:
@@ -303,11 +312,9 @@ if __name__ == '__main__':
     start_time = time.time()
     
     configs = []
-    for i in range(0, 48):
+    for i in range(4, 5):
         configs.append(f'hyper{i}')
-    
     multicuda_execute(configs=configs, target_func=train_model)
-    # multiprocess_search(begin=0, end=1, target_func=train_model, num_processes=70)
-        
+
     duration = time.time() - start_time
     print(f'duration = {duration}s')

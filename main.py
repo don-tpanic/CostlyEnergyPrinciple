@@ -54,7 +54,7 @@ def train_model(sub, attn_config_version):
     results_path = f'results/{attn_config_version}'
     if not os.path.exists(results_path):
         os.makedirs(results_path)
-    np.random.seed(random_seed)
+    # np.random.seed(random_seed)
     # --------------------------------------------------------------------------
     # --- initialize models, optimizers, losses, training loops ----
     print(f'[Check] Beginning sub {sub}')
@@ -66,9 +66,11 @@ def train_model(sub, attn_config_version):
     for problem_type in problem_types:
         lc = np.zeros(num_repetitions)
         
+        # init new model
         joint_model = JointModel(
             attn_config_version=attn_config_version, 
             dcnn_config_version=dcnn_config_version)
+        
         preprocess_func = joint_model.preprocess_func
         attn_position = attn_positions[0]
         layer2attn_size = \
@@ -187,9 +189,19 @@ def train_model(sub, attn_config_version):
                 print(f'[Check] item_proberror = {item_proberror}')
                 lc[repetition] += item_proberror
                 
-            # save one sub's per repetition model weights.
-            # TODO: revive when RSA/compression
-            # joint_model.save(os.path.join(results_path, f'model_type{problem_type}_sub{sub}_rp{repetition}'))
+            # save one sub's per repetition low_attn weights.
+            np.save(
+                os.path.join(
+                    results_path, f'attn_weights_type{problem_type}_sub{sub}_{recon_level}_rp{repetition}.npy'),
+                    attn_weights  # NOTE: [[aw_position1], [aw_position2], [aw_position3], ...]
+            )
+            
+            # save one sub's per repetition high_attn weights
+            np.save(
+                os.path.join(
+                    results_path, f'all_alphas_type{problem_type}_sub{sub}_{recon_level}_rp{repetition}.npy'),
+                    all_alphas
+            )
                         
         # ===== Saving stuff at the end of a problem type =====
         # save one sub's trained joint model.
@@ -305,6 +317,9 @@ if __name__ == '__main__':
     for i in range(4, 5):
         configs.append(f'hyper{i}')
     multicuda_execute(configs=configs, target_func=train_model)
+    
+    # os.environ["CUDA_VISIBLE_DEVICES"] = '0'
+    # train_model(sub='22', attn_config_version='hyper4_sub22_fit-human')
 
     duration = time.time() - start_time
     print(f'duration = {duration}s')

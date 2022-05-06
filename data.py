@@ -373,7 +373,6 @@ def data_loader_human_order(
         
         # load and preprocess one image
         img_fpath = f'{data_dir}/{fname}.jpg'
-        print(img_fpath)
         img = image.load_img(
             img_fpath,
             color_mode=color_mode,

@@ -25,15 +25,15 @@ def carryover(trained_model_path, new_model, num_clusters, attn_position):
     """
     trained_model = tf.keras.models.load_model(trained_model_path, compile=False)
     
-    # # carryover low_attn weights
-    # new_model.get_layer(
-    #     'dcnn_model').get_layer(
-    #         f'attn_factory_{attn_position}'
-    # ).set_weights(
-    #     trained_model.get_layer(
-    #         'dcnn_model').get_layer(
-    #             f'attn_factory_{attn_position}').get_weights()
-    # )
+    # carryover low_attn weights
+    new_model.get_layer(
+        'dcnn_model').get_layer(
+            f'attn_factory_{attn_position}'
+    ).set_weights(
+        trained_model.get_layer(
+            'dcnn_model').get_layer(
+                f'attn_factory_{attn_position}').get_weights()
+    )
     
     # carryover cluster centers
     for i in range(num_clusters):
@@ -108,7 +108,7 @@ def train_model(sub, attn_config_version):
         problem_types = [6, 2, 1]
         
     # carryover Adam.
-    # optimizer_attn = tf.keras.optimizers.Adam(learning_rate=lr_attn)
+    optimizer_attn = tf.keras.optimizers.Adam(learning_rate=lr_attn)
     for problem_type in problem_types:
         lc = np.zeros(num_repetitions)
         
@@ -125,7 +125,7 @@ def train_model(sub, attn_config_version):
         
         # TODO: should Adam also get carryover?
         optimizer_clus = tf.keras.optimizers.SGD(learning_rate=lr)
-        optimizer_attn = tf.keras.optimizers.Adam(learning_rate=lr_attn)
+        # optimizer_attn = tf.keras.optimizers.Adam(learning_rate=lr_attn)
         loss_fn_clus = tf.keras.losses.BinaryCrossentropy(from_logits=from_logits)
         
         # different level of recon uses different loss func
@@ -362,7 +362,7 @@ if __name__ == '__main__':
     start_time = time.time()
     
     configs = []
-    for i in range(4, 5):
+    for i in range(0, 72):
         configs.append(f'hyper{i}')
     multicuda_execute(configs=configs, target_func=train_model)
     

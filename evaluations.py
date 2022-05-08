@@ -133,17 +133,7 @@ def compare_across_types_V3(attn_config_version, threshold=[0, 0, 0]):
             ax.set_ylim([-0.05, 1.05])
             ax.set_ylabel('percentage of zero attention weights')
             plt.tight_layout()
-            plt.legend()
-            
-            # text hypers
-            x_coord = 1
-            y_coor = 0.95
-            margin = 0.08
-            ax.text(x_coord, y_coor, f'lr_attn={lr_attn}')
-            ax.text(x_coord, y_coor-margin*1, f'inner_loop_epochs={inner_loop_epochs}')
-            ax.text(x_coord, y_coor-margin*2, f'recon_clusters_weighting={recon_clusters_weighting}')
-            ax.text(x_coord, y_coor-margin*3, f'noise_level={noise_level}')
-            
+            plt.legend()            
             plt.savefig(f'{results_path}/compare_types_percent_zero_{attn_config_version}.png')
             plt.close()
 
@@ -328,12 +318,14 @@ def visualize_attn_overtime(config_version, sub, ax):
     for z in range(len(problem_types)):
         problem_type = problem_types[z]
         for rp in range(num_repetitions):
-            attn_weights = np.load(
+            all_alphas = np.load(
                 f'results/{config_version}/' \
                 f'all_alphas_type{problem_type}_sub{sub}_cluster_rp{rp}.npy'
             )
-            print(attn_weights)
-            exit()
+            # all_alphas is a collector that extends every repeptition
+            # but we only need the last 3 values from the latest rp.
+            per_repetition_alphas = all_alphas[-num_dims:]
+            attn_weights_overtime.append(per_repetition_alphas)
 
     # (16*3, 3)
     attn_weights_overtime = np.array(attn_weights_overtime)
@@ -418,16 +410,16 @@ def examine_subject_lc_and_attn_overtime(attn_config_version):
         
         best_diff_recorder[sub] = per_config_mse
         
-        # # plot attn weights overtime
-        # visualize_attn_overtime(
-        #     config_version=config_version,
-        #     sub=sub,
-        #     ax=ax3
-        # )
+        # plot attn weights overtime
+        visualize_attn_overtime(
+            config_version=config_version,
+            sub=sub,
+            ax=ax3
+        )
         
         # plot hyper-params of this config on figure
-        x_coord = 9
-        y_coor = 0.6
+        x_coord = 3
+        y_coord = 0.25
         margin = 0.08        
         lr_attn = config['lr_attn']
         inner_loop_epochs = config['inner_loop_epochs']

@@ -451,9 +451,3 @@ def examine_subject_lc_and_attn_overtime(attn_config_version):
                 
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
-
-    # TODO: the following should use best_config_sub{}
-    # TODO: not the same hyper for all sub.
-    # compare_across_types_V3
-    # stats_significance_of_zero_attn
-    # histogram_low_attn_weights

@@ -36,13 +36,7 @@ def compare_across_types_V3(attn_config_version, threshold=[0, 0, 0]):
     num_dims = 3
     comparisons = ['zero_attn', 'binary_recon']
     results_path = 'results'
-    config = load_config(
-        component=None, 
-        config_version=f'{attn_config_version}_sub02_fit-human'   # TODO: not ideal when hyper is sub-specific ok for now
-    )
-    lr_attn = config['lr_attn']
-    inner_loop_epochs = config['inner_loop_epochs']
-    recon_clusters_weighting = config['recon_clusters_weighting']
+    
     
     for c in range(len(comparisons)):
         comparison = comparisons[c]
@@ -144,10 +138,11 @@ def compare_across_types_V3(attn_config_version, threshold=[0, 0, 0]):
             # text hypers
             x_coord = 1
             y_coor = 0.95
-            margin = 0.1
+            margin = 0.08
             ax.text(x_coord, y_coor, f'lr_attn={lr_attn}')
             ax.text(x_coord, y_coor-margin*1, f'inner_loop_epochs={inner_loop_epochs}')
             ax.text(x_coord, y_coor-margin*2, f'recon_clusters_weighting={recon_clusters_weighting}')
+            ax.text(x_coord, y_coor-margin*3, f'noise_level={noise_level}')
             
             plt.savefig(f'{results_path}/compare_types_percent_zero_{attn_config_version}.png')
             plt.close()
@@ -313,104 +308,54 @@ def histogram_low_attn_weights(attn_config_version, threshold=[0., 0., 0.]):
     plt.savefig(f'{results_path}/attn_weights_histogram.png')
                             
 
-def post_attn_actv_thru_time(attn_config_version):
+def visualize_attn_overtime(config_version, sub, ax):
     """
-    Capture and analyze each Type's post-attn activations
-    over the course of learning for each position of attn.
-
-    Results from this eval will be compared to brain data.
-    Notice only Type 1 & 2 are needed due to brain data availability.
-
-    Impl:
-    -----
-        Given a `Type`, given a `attn_position`, we plug in 
-        (epoch,i) level `attn_weights` to get post-attn actv 
-        for all stimuli.
+    Visualize the change of attn weights through learning.
+    Through time we need to consider even subjects did 
+    6-1-2 and odd subjects did 6-2-1.
     """
-    attn_config = load_config(
-        component=None,
-        config_version=attn_config_version)
-    dcnn_config_version = attn_config['dcnn_config_version']
-    attn_positions = attn_config['attn_positions'].split(',')
-    num_runs = attn_config['num_runs']
-    num_blocks = attn_config['num_blocks']
-    num_positions = len(attn_positions)
-    num_types = 2
-    num_stimuli = 8
-    results_path = f'results/{attn_config_version}'
+    config = load_config(
+        component=None, config_version=config_version)
+    num_dims = 3
+    num_repetitions = config['num_repetitions']
+    if int(sub) % 2 == 0:
+        problem_types = [6, 1, 2]
+    else:
+        problem_types = [6, 2, 1]
+    task_change_timepoint = [15, 31]
     
-    # entire DCNN model with all attn layers
-    model, preprocess_func = load_dcnn_model_V2(
-        attn_config_version=attn_config_version, 
-        dcnn_config_version=dcnn_config_version, 
-        intermediate_input=False)
-
-    for z in range(num_types):
-        problem_type = z + 1
-
-        for run in range(num_runs):
-            
-            dataset, _ = data_loader_V2(
-                attn_config_version=attn_config_version,
-                dcnn_config_version=dcnn_config_version,
-                preprocess_func=preprocess_func,
-                problem_type=problem_type,
-                random_seed=run
+    attn_weights_overtime = []
+    for z in range(len(problem_types)):
+        problem_type = problem_types[z]
+        for rp in range(num_repetitions):
+            attn_weights = np.load(
+                f'results/{config_version}/' \
+                f'all_alphas_type{problem_type}_sub{sub}_cluster_rp{rp}.npy'
             )
-            
-            batch_x = load_X_only(
-                dataset=dataset, 
-                attn_config_version=attn_config_version
-            )
+            print(attn_weights)
+            exit()
 
-            # remember we do not have attn saved for epoch=0
-            # tho easy to get as its just init.
-            for epoch in range(1, num_blocks):
-                
-                for i in range(num_stimuli):
-                                            
-                    # set (epoch,i) level attn_weights 
-                    fpath = f'{results_path}/' \
-                            f'attn_weights_type{problem_type}_' \
-                            f'run{run}_epoch{epoch}_i{i}_cluster.npy'
-                    # attn_weights = {'layer': [weights], }
-                    attn_weights = np.load(fpath, allow_pickle=True).item()
-                    
-                    for position_idx in range(num_positions):
-                        attn_position = attn_positions[position_idx]
-                        
-                        print(f'\nType={problem_type}, run={run}, {attn_position}, epoch={epoch}, i={i}')
-                        
-                        # intercept DCNN at an attn position.
-                        # and use this partial model to get 
-                        # post-attn actv across learning course.
-                        outputs = model.get_layer(f'post_attn_actv_{attn_position}').output
-                        partial_model = Model(inputs=model.inputs, outputs=outputs)
-                    
-                        # NOTE: when eval involve multiple attn layers,
-                        # we must also load all previous attn layer weights.
-                        positions_require_loading = attn_positions[ : position_idx+1]
-                        print(f'positions_require_loading = {positions_require_loading}')
-                        
-                        for position in positions_require_loading:
-                            
-                            layer_attn_weights = attn_weights[position]
-                            partial_model.get_layer(
-                                f'attn_factory_{position}').set_weights(
-                                [layer_attn_weights]
-                            )
-                            
-                        # get post-attn actv at this (epoch, i)
-                        # shape -> (8, H, W, C)
-                        post_attn_actv = partial_model(batch_x, training=False)
-                        
-                        
-                        
-                        print(
-                            post_attn_actv.numpy().flatten()[
-                                np.argsort(
-                                    post_attn_actv.numpy().flatten()
-                                    )[::-1][:5]])
+    # (16*3, 3)
+    attn_weights_overtime = np.array(attn_weights_overtime)
+    
+    # plot 
+    for dim in range(num_dims):
+        dim_overtime = attn_weights_overtime[:, dim]
+        ax.plot(dim_overtime, label=f'dim{dim+1}')
+    
+    # partition regions into Type 6, 1, 2
+    ax.axvline(
+        x=task_change_timepoint[0], 
+        color='purple', 
+        label=f'Type 6->{problem_types[1]}', 
+        ls='dashed'
+    )
+    ax.axvline(
+        x=task_change_timepoint[1], 
+        color='pink', 
+        label=f'Type {problem_types[1]}->{problem_types[2]}',
+        ls='dashed'
+    )
                         
                         
 def examine_subject_lc_and_attn_overtime(attn_config_version):
@@ -432,9 +377,7 @@ def examine_subject_lc_and_attn_overtime(attn_config_version):
         ax3 = fig.add_subplot(gs[1, :])
         colors = ['blue', 'orange', 'cyan']
         
-        # TODO.
         config_version = f'{attn_config_version}_sub{sub}_fit-human'
-        
         config = load_config(
             component=None, 
             config_version=config_version)
@@ -485,25 +428,15 @@ def examine_subject_lc_and_attn_overtime(attn_config_version):
         # plot hyper-params of this config on figure
         x_coord = 9
         y_coor = 0.6
-        margin = 0.07
-        lr = config['lr']
-        ax2.text(x_coord, y_coor, f'lr={lr:.3f}')
-        center_lr_multiplier = config['center_lr_multiplier']
-        ax2.text(x_coord, y_coor-margin*1, f'center_lr={center_lr_multiplier * lr:.3f}')
-        attn_lr_multiplier = config['attn_lr_multiplier']
-        ax2.text(x_coord, y_coor-margin*2, f'attn_lr={attn_lr_multiplier * lr:.3f}')
-        asso_lr_multiplier = config['asso_lr_multiplier']
-        ax2.text(x_coord, y_coor-margin*3, f'asso_lr={asso_lr_multiplier * lr:.3f}')
-        specificity = config['specificity']
-        ax2.text(x_coord, y_coor-margin*4, f'specificity={specificity:.3f}')
-        Phi = config['Phi']
-        ax2.text(x_coord, y_coor-margin*5, f'Phi={Phi:.3f}')
-        beta = config['beta']
-        ax2.text(x_coord, y_coor-margin*6, f'beta={beta:.3f}')
-        thr = config['thr']
-        ax2.text(x_coord, y_coor-margin*8, f'thr={thr:.3f}')
-        temp2 = config['temp2']
-        ax2.text(x_coord, y_coor-margin*7, f'temp2={temp2:.3f}')
+        margin = 0.08        
+        lr_attn = config['lr_attn']
+        inner_loop_epochs = config['inner_loop_epochs']
+        recon_clusters_weighting = config['recon_clusters_weighting']
+        noise_level = config['noise_level']
+        ax2.text(x_coord, y_coord, f'lr_attn={lr_attn}')
+        ax2.text(x_coord, y_coord-margin*1, f'inner_loop_epochs={inner_loop_epochs}')
+        ax2.text(x_coord, y_coord-margin*2, f'recon_clusters_weighting={recon_clusters_weighting}')
+        ax2.text(x_coord, y_coord-margin*3, f'noise_level={noise_level}')
         
         plt.legend()
         plt.suptitle(f'sub{sub}, diff={per_config_mse:.3f}')
@@ -518,9 +451,9 @@ def examine_subject_lc_and_attn_overtime(attn_config_version):
                 
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
-    
-    for i in range(4, 5):
-        examine_subject_lc_and_attn_overtime(f'hyper{i}')
-        compare_across_types_V3(f'hyper{i}')
-        stats_significance_of_zero_attn(f'hyper{i}')
-        # histogram_low_attn_weights(attn_config_version)
+
+    # TODO: the following should use best_config_sub{}
+    # TODO: not the same hyper for all sub.
+    # compare_across_types_V3
+    # stats_significance_of_zero_attn
+    # histogram_low_attn_weights

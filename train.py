@@ -190,7 +190,9 @@ def fit(joint_model,
     
     # Only when epoch=0
     return joint_model, [], item_proberror, \
-        [], [], [], [], [], [], global_steps, optimizer_clus, optimizer_attn
+            [], [], [], [], \
+            alpha_collector, center_collector, global_steps, \
+            optimizer_clus, optimizer_attn
 
 
 def learn_low_attn(

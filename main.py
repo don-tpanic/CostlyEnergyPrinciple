@@ -225,13 +225,12 @@ def train_model(sub, attn_config_version):
                 )
 
                 # record losses related to attn.
-                if repetition > 0:
-                    all_recon_loss.extend(recon_loss_collector)
-                    all_recon_loss_ideal.extend(recon_loss_ideal_collector)
-                    all_reg_loss.extend(reg_loss_collector)
-                    all_percent_zero_attn.extend(percent_zero_attn_collector)
-                    all_alphas.extend(alpha_collector)
-                    all_centers.extend(center_collector)
+                all_recon_loss.extend(recon_loss_collector)
+                all_recon_loss_ideal.extend(recon_loss_ideal_collector)
+                all_reg_loss.extend(reg_loss_collector)
+                all_percent_zero_attn.extend(percent_zero_attn_collector)
+                all_alphas.extend(alpha_collector)
+                all_centers.extend(center_collector)
 
                 # record item-level prob error
                 print(f'[Check] item_proberror = {item_proberror}')

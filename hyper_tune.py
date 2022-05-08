@@ -22,9 +22,10 @@ def per_subject_compare_human_to_model(sub, hyper_begin, hyper_end):
     a range of hyper-params combo.
     """
     problem_types = [1, 2, 6]
-    best_config = f'best_config_sub{sub}'
-    best_diff_recorder = np.load('best_diff_recorder.npy', allow_pickle=True)
-    best_diff = best_diff_recorder.ravel()[0][sub]
+    best_config = f'best_config_sub{sub}_fit-human'
+    # best_diff_recorder = np.load('best_diff_recorder.npy', allow_pickle=True)
+    # best_diff = best_diff_recorder.ravel()[0][sub]
+    best_diff = 999
     for i in range(hyper_begin, hyper_end):
         config_version = f'hyper{i}_sub{sub}_fit-human'
 

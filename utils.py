@@ -21,7 +21,7 @@ def load_config(component, config_version):
     with open(path_config) as f:
         config = yaml.safe_load(f)
 
-    print(f'[Check] Loading [{config_version}]')
+    # print(f'[Check] Loading [{config_version}]')
     return config
 
 

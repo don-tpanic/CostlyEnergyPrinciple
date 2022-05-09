@@ -71,6 +71,19 @@ def compare_across_types_V3(attn_config_version, threshold=[0, 0, 0]):
                 # use tuple instead of list because tuple is not mutable.
                 strategy = tuple(alphas > 1.0e-6)
                 type2strategy2metric[problem_type][strategy].append(metric)
+                
+                # if problem_type in [1]:
+                #     if np.sum(strategy) >= 2:
+                #         pass
+                #     else:
+                #         type2strategy2metric[problem_type][strategy].append(metric)
+                # elif problem_type in [2]:
+                #     if np.sum(strategy) == 3:
+                #         pass
+                #     else:
+                #         type2strategy2metric[problem_type][strategy].append(metric)
+                # else:
+                #     type2strategy2metric[problem_type][strategy].append(metric)
 
         # plotting both %attn and binary recon.
         if comparison == 'zero_attn':
@@ -443,3 +456,4 @@ def examine_subject_lc_and_attn_overtime(attn_config_version):
                 
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
+    compare_across_types_V3('best_config')

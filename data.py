@@ -322,6 +322,14 @@ def data_loader_human_order(
     return:
     -------
         dataset: An array of data-points of all trials within a repetition.
+        
+        subj_signatures: subject-specific signatures of the stimuli (in human order)
+            This can be used in `rsa.py` where we need to rearrange RDM based on 
+            category structure which is determined in terms of subject-specific coding
+            in `reorder_RDM_entries_into_chunks`. This is a good reason that the rearrangement
+            is based on subject coding rather than DCNN coding is because 
+            GLM determines the order of conditions which are subject specific.
+            
         dcnn_signatures: DCNN signatures of the subject stimuli (in human order)
             This can be used when eval binary_recon to rearrange the stimuli in
             default order (i.e. 0.jpg, 1.jpg, ..) which corresponds to (000, 001, ..)
@@ -352,6 +360,7 @@ def data_loader_human_order(
     )
     
     dataset = []
+    subj_signatures = []
     dcnn_signatures = []
     for i in range(len(behaviour)):
         behaviour_i = behaviour[i][0].split('\t')
@@ -362,6 +371,7 @@ def data_loader_human_order(
         # i.e. file names of the raw images.
         # e.g. signature=2, may not be the image `2.jpg`
         sub_signature = human.binary_to_signature[sub_stimulus]
+        subj_signatures.append(sub_signature)
         
         # convert subject coding to DCNN coding so we can load 
         # the raw images because DCNN signatures are consistent
@@ -408,7 +418,8 @@ def data_loader_human_order(
         # TODO: double check to use which signature (subject or DCNN?)
         dataset.append([inputs, y, sub_signature])
             
-    return np.array(dataset, dtype=object), dcnn_signatures
+    return np.array(dataset, dtype=object), \
+        subj_signatures, dcnn_signatures
 
 
 

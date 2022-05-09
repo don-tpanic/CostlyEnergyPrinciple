@@ -183,7 +183,7 @@ def train_model(sub, attn_config_version):
         for repetition in range(num_repetitions):
             
             # load data of per repetition (determined order)
-            dataset, dcnn_signatures = data_loader_human_order(
+            dataset, _, dcnn_signatures = data_loader_human_order(
                 attn_config_version=attn_config_version, 
                 problem_type=problem_type, 
                 sub=sub, repetition=repetition,

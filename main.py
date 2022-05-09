@@ -249,6 +249,9 @@ def train_model(sub, attn_config_version):
                     results_path, f'all_alphas_type{problem_type}_sub{sub}_{recon_level}_rp{repetition}.npy'),
                     all_alphas
             )
+            
+            # save one sub's per repetition model
+            joint_model.save(os.path.join(results_path, f'model_type{problem_type}_sub{sub}_rp{repetition}')) 
                         
         # ===== Saving stuff at the end of a problem type =====
         # save one sub's trained joint model.
@@ -263,30 +266,30 @@ def train_model(sub, attn_config_version):
                 results_path, f'attn_weights_type{problem_type}_sub{sub}_{recon_level}.npy'),
                 attn_weights  # NOTE: [[aw_position1], [aw_position2], [aw_position3], ...]
         )
-        np.save(
-            os.path.join(
-                results_path, f'mask_non_recruit_type{problem_type}_sub{sub}_{recon_level}.npy'),
-                mask_non_recruit
-        )
+        # np.save(
+        #     os.path.join(
+        #         results_path, f'mask_non_recruit_type{problem_type}_sub{sub}_{recon_level}.npy'),
+        #         mask_non_recruit
+        # )
         K.clear_session()
         del joint_model
 
         # Save one sub's, all steps' losses, % zero attn weights, alphas, centers..
-        np.save(
-            os.path.join(
-                results_path, f'all_recon_loss_type{problem_type}_sub{sub}_{recon_level}.npy'),
-                all_recon_loss
-        )
+        # np.save(
+        #     os.path.join(
+        #         results_path, f'all_recon_loss_type{problem_type}_sub{sub}_{recon_level}.npy'),
+        #         all_recon_loss
+        # )
         np.save(
             os.path.join(
                 results_path, f'all_recon_loss_ideal_type{problem_type}_sub{sub}_{recon_level}.npy'),
                 all_recon_loss_ideal
         )
-        np.save(
-            os.path.join(
-                results_path, f'all_reg_loss_type{problem_type}_sub{sub}_{recon_level}.npy'), 
-                all_reg_loss
-        )
+        # np.save(
+        #     os.path.join(
+        #         results_path, f'all_reg_loss_type{problem_type}_sub{sub}_{recon_level}.npy'), 
+        #         all_reg_loss
+        # )
         np.save(
             os.path.join(
                 results_path, f'all_percent_zero_attn_type{problem_type}_sub{sub}_{recon_level}.npy'),
@@ -297,11 +300,11 @@ def train_model(sub, attn_config_version):
                 results_path, f'all_alphas_type{problem_type}_sub{sub}_{recon_level}.npy'),
                 all_alphas
         )
-        np.save(
-            os.path.join(
-                results_path, f'all_centers_type{problem_type}_sub{sub}_{recon_level}.npy'),
-                all_centers
-        )
+        # np.save(
+        #     os.path.join(
+        #         results_path, f'all_centers_type{problem_type}_sub{sub}_{recon_level}.npy'),
+        #         all_centers
+        # )
     
         # Save per (sub, problem_type) lc.
         # per repetition need averaging over unique stimuli.
@@ -310,4 +313,11 @@ def train_model(sub, attn_config_version):
 
 
 if __name__ == '__main__':
-    pass
+    num_subs = 23
+    subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
+    from hyper_tune import multicuda_train
+    multicuda_train(
+        subs=subs,
+        configs=['best_config'],
+        target_func=train_model
+    )

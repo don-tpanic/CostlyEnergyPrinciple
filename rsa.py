@@ -2,6 +2,7 @@ import os
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
+import multiprocessing
 import numpy as np
 import scipy.stats as stats
 import matplotlib.pyplot as plt
@@ -21,9 +22,6 @@ plt.rcParams.update({'font.size': 4})
 
 """Producing model RDMs from specified layer and
 correlate with brain RDMs from ROIs.
-
-# TODO:
-1. load trained models of each repetition not final.
 """
 
 def load_trained_model(
@@ -48,10 +46,8 @@ def load_trained_model(
         os.makedirs(results_path)
     
     # load trained joint_model
-    # TODO: use repetition-level once tuning finish.
-    # model_path = os.path.join(results_path, f'model_type{problem_type}_sub{sub}_rp{repetition}')
-    model_path = os.path.join(results_path, f'model_type{problem_type}_sub{sub}')
-    trained_model = tf.keras.models.load_model(model_path, compile=False)   
+    model_path = os.path.join(results_path, f'model_type{problem_type}_sub{sub}_rp{repetition}')
+    trained_model = tf.keras.models.load_model(model_path, compile=False)
     
     # load empty joint_model
     model = JointModel(
@@ -61,18 +57,19 @@ def load_trained_model(
     layer2attn_size = \
         dict_layer2attn_size(model_name=dcnn_config['model_name'])[attn_position]    
     model.build(input_shape=[(1,)+image_shape, (1, layer2attn_size)])
-        
-    # sub in trained DCNN attn weights
-    # This is always needed regardless of `repr_level`
-    model.get_layer(
-        'dcnn_model').get_layer(
-            f'attn_factory_{attn_position}').set_weights(
-                trained_model.get_layer(
-                    'dcnn_model').get_layer(
-                        f'attn_factory_{attn_position}').get_weights())
+    
+    if 'no_attn' not in repr_level:
+        print('[Check] sub in trained DCNN attn weights')
+        # This is always needed regardless of `repr_level`
+        model.get_layer(
+            'dcnn_model').get_layer(
+                f'attn_factory_{attn_position}').set_weights(
+                    trained_model.get_layer(
+                        'dcnn_model').get_layer(
+                            f'attn_factory_{attn_position}').get_weights())
     
     # return joint_model until post-attn activation
-    if repr_level == 'LOC':
+    if 'LOC' in repr_level:
         inputs = model.get_layer('dcnn_model').input
         layer_reprs = model.get_layer(
             'dcnn_model').get_layer(
@@ -82,7 +79,7 @@ def load_trained_model(
     # sub in trained weights from clustering module.
     # no need to intercept at cluster becuz the joint 
     # model has output for it.
-    elif repr_level == 'cluster':                
+    elif 'cluster' in repr_level:                
         # carryover cluster centers
         for i in range(num_clusters):
             model.get_layer(
@@ -107,12 +104,20 @@ def load_trained_model(
                 trained_model.get_layer(
                     'classification').get_weights())
     
+    del trained_model
     return model, preprocess_func
 
 
-def return_RDM(config_version, problem_type, sub, distance, repetition, repr_level):
+def return_n_visualize_RDM(
+        config_version, 
+        problem_type, 
+        sub, 
+        distance, 
+        repetition, 
+        repr_level, 
+    ):
     """
-    Produce RDM of a (sub, problem_type)
+    Produce RDM of a (sub, problem_type) & Visualize it.
     """        
     if int(sub) % 2 == 0:
         if problem_type == 1:
@@ -131,35 +136,42 @@ def return_RDM(config_version, problem_type, sub, distance, repetition, repr_lev
             task = 1
         
     RDM_fpath = f'model_RDMs/sub-{sub}_task-{task}_rp-{repetition}_{distance}_{repr_level}.npy'
-        
+    
     # load a trained model at a repetition
     model, preprocess_func = \
         load_trained_model(
             attn_config_version=config_version, 
             problem_type=problem_type, 
             sub=sub, repetition=repetition, 
-            repr_level=repr_level
+            repr_level=repr_level,
         )
     
-    # stimuli loaded using the original order
-    # i.e. 000, 001, ..., 111, this provides 
-    # convenience to rearrange by category structure.
-    dataset = data_loader_human_order(
+    dataset, subj_signatures, _ = data_loader_human_order(
         attn_config_version=config_version, 
         problem_type=problem_type, sub=sub, 
         repetition=repetition,
         preprocess_func=preprocess_func)
     
-    # compile a batch of X (inc. fake inputs)
-    batch_x = load_X_only(dataset=dataset, attn_config_version=config_version)
+    # We convert the images into order 000, 001, ...
+    # in terms of SUBJECT coding. We do this because 
+    # later when we rearrange RDM based on categorical 
+    # structure, the ordering was based on subject coding
+    # rather than dcnn coding (video note available)
+    batch_x = load_X_only(
+        dataset=dataset, 
+        attn_config_version=config_version)
+    conversion_ordering = np.argsort(subj_signatures)
+    batch_x[0] = batch_x[0][conversion_ordering]
     
     # compute target layer output reprs
-    if repr_level == 'LOC':
+    if 'LOC' in repr_level:
+        # TODO: is categorical structure we are looking for in LOC?
+        # TODO: if not, what order should we rearrange the RDM?
         layer_reprs = model(batch_x)
         layer_reprs = tf.reshape(layer_reprs, [layer_reprs.shape[0], -1])
         assert layer_reprs.shape == (8, 100352)
         
-    elif repr_level == 'cluster':
+    elif 'cluster' in repr_level:
         _, layer_reprs, _, _ = model(batch_x)
         assert layer_reprs.shape == (8, 8)
         
@@ -175,30 +187,85 @@ def return_RDM(config_version, problem_type, sub, distance, repetition, repr_lev
     RDM = RDM[conversion_ordering, :][:, conversion_ordering]
     np.save(RDM_fpath, RDM)
     print(f'[Check] Saved: {RDM_fpath}')
+    
+    visualize_RDM(sub, problem_type, distance, repetition, repr_level)
 
 
-def create_mdoel_RDMs(
+def visualize_RDM(sub, problem_type, distance, repetition, repr_level):
+    """
+    Visualize subject's RDM given a problem_type
+    """
+    if int(sub) % 2 == 0:
+        if problem_type == 1:
+            task = 2
+        elif problem_type == 2:
+            task = 3
+        else:
+            task = 1
+            
+    # odd sub: Type1 is task3, Type2 is task2
+    else:
+        if problem_type == 1:
+            task = 3
+        elif problem_type == 2:
+            task = 2
+        else:
+            task = 1
+
+    RDM = np.load(
+        f'model_RDMs/sub-{sub}_task-{task}_rp-{repetition}_{distance}_{repr_level}.npy'
+    )
+    
+    fig, ax = plt.subplots()
+    for i in range(RDM.shape[0]):
+        for j in range(RDM.shape[0]):
+            text = ax.text(
+                j, i, np.round(RDM[i, j], 1),
+                ha="center", va="center", color="w"
+            )
+    
+    ax.set_title(f'sub: {sub}, distance: {distance}, Type {problem_type}, repr: {repr_level}')
+    plt.imshow(RDM)
+    plt.savefig(f'model_RDMs/sub-{sub}_task-{task}_rp-{repetition}_{distance}_{repr_level}.png')
+    plt.close()
+    print(f'[Check] plotted.')
+
+
+def create_model_RDMs(
         config_version, 
-        repr_levels, 
         problem_types,
         subs, distance,
-        num_repetitions):
+        num_repetitions,
+        repr_levels, 
+        num_processes):
     """
     Create (save and visualize) per (problem_type, sub)
     RDMs.
     `return_RDM`: loads a trained model for a type, and produces
     some representations and then RDMs using the stimulus set.
     `visualize_RDM`: heatmaps the saved RDMs.
-    """
-    for repr_level in repr_levels:
-        for problem_type in problem_types:
-            for sub in subs:
-                config_version = f'{config_version}_sub{sub}_fit-human'
-                for repetition in range(num_repetitions):
-                    print(f'repetition = {repetition}')
-                    return_RDM(config_version, problem_type, sub, distance, repetition, repr_level)
-                    visualize_RDM(sub, problem_type, distance, repetition, repr_level)
-                    
+    """            
+    with multiprocessing.Pool(num_processes) as pool:
+        for repr_level in repr_levels:
+            for problem_type in problem_types:
+                for sub in subs:
+                    for repetition in range(num_repetitions):
+                        print(f'repetition = {repetition}')
+                        results = pool.apply_async(
+                            return_n_visualize_RDM, 
+                            args=[
+                                f'{config_version}_sub{sub}_fit-human', 
+                                problem_type, 
+                                sub, 
+                                distance, 
+                                repetition, 
+                                repr_level, 
+                            ]
+                        )
+        print(results.get())                
+        pool.close()
+        pool.join()
+
 
 def compute_RSA(RDM_1, RDM_2, method):
     """
@@ -217,9 +284,14 @@ def compute_RSA(RDM_1, RDM_2, method):
 
 
 def run_level_RSA(
-        rois, distance, 
-        problem_type, num_shuffles, 
-        method='spearman', dataType='beta', seed=999):
+        repr_level,
+        rois, 
+        distance, 
+        problem_type, 
+        num_shuffles, 
+        method='spearman', 
+        dataType='beta', 
+        seed=999):
     """
     Doing subject-model RSA at the run level. Subject RDMs are computed using 
     run-level GLM estimates and model RDMs are computed using 
@@ -288,26 +360,38 @@ def run_level_RSA(
         
         
 if __name__ == '__main__':
-    os.environ["CUDA_VISIBLE_DEVICES"] = '5'
+    os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
     
-    config_version = 'hyper0'
-    repr_levels = ['LOC']
+    config_version = 'best_config'
+    repr_levels = ['LOC_no_attn']
     problem_types = [1, 2, 6]
+    runs = [1, 2, 3, 4]
     num_subs = 23
     subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
+    num_repetitions_per_run = 4
     num_repetitions = 16
     distance = 'pearson'
     
-    create_mdoel_RDMs(
-        config_version=config_version, 
-        repr_levels=repr_levels, 
-        problem_types=problem_types,
-        subs=subs, distance=distance,
-        num_repetitions=num_repetitions)
+    # create_model_RDMs(
+    #     config_version=config_version, 
+    #     problem_types=problem_types,
+    #     subs=subs, 
+    #     distance=distance,
+    #     num_repetitions=num_repetitions,
+    #     repr_levels=repr_levels, 
+    #     num_processes=72
+    # )
 
-    # rois = ['LOC']
-    # problem_type = 1
-    # run_level_RSA(
-    #     rois=rois, distance=distance, 
-    #     problem_type=problem_type, num_shuffles=1, 
-    #     method='spearman', dataType='beta', seed=999)
+    repr_level = 'LOC_no_attn'
+    rois = ['LOC']
+    problem_type = 1
+    run_level_RSA(
+        repr_level=repr_level,
+        rois=rois, 
+        distance=distance, 
+        problem_type=problem_type, 
+        num_shuffles=1, 
+        method='spearman', 
+        dataType='beta', 
+        seed=999
+    )

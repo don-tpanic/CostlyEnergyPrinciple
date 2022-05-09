@@ -22,16 +22,23 @@ from utils import load_config
 
 def attn_compression(attn_weights):
     """
-    Compute attn compressio rate according to
+    Compute attn compression rate according to
     Mack 2020; attn_weights can be either 
     attn in DCNN or attn in clustering module.
+    
+    The more selective the higher compression.
     """
     attn_weights = softmax(attn_weights)   # sum to one.
-    print(attn_weights)
     ent = - np.sum( attn_weights * np.log2(attn_weights) )
     compression = 1 + ent / ( np.log2( 1/len(attn_weights) ) )
-    print(compression)
     return compression
+
+
+def attn_sparsity(attn_weights):
+    zero_percent = (
+        len(attn_weights) - len(np.nonzero(attn_weights)[0])
+    ) / len(attn_weights)
+    return zero_percent
 
 
 def per_subj_compression(repr_level, sub, problem_type, run, config_version):
@@ -44,31 +51,30 @@ def per_subj_compression(repr_level, sub, problem_type, run, config_version):
     config_version = f'{config_version}_sub{sub}_fit-human'
     results_path = f'results/{config_version}'
     compression_scores = []
-    for repetition in range(num_repetitions):
-        # load trained joint_model at this repetition
-        # TODO: replace after tuning finishes.
-        model_path = os.path.join(results_path, f'model_type{problem_type}_sub{sub}')
-        # model_path = os.path.join(results_path, f'model_type{problem_type}_sub{sub}_rp{repetition}')
-        trained_model = tf.keras.models.load_model(model_path, compile=False)
+    for rp in range(1, num_repetitions_per_run+1):
+
+        # convert per run rp to global repetition 
+        repetition = (run-1) * num_repetitions_per_run + rp - 1
         
         if repr_level == 'LOC':
             config = load_config(component=None, config_version=config_version)
             attn_position = config['attn_positions'].split(',')[0]
-            attn_weights = trained_model.get_layer(
-                'dcnn_model').get_layer(
-                    f'attn_factory_{attn_position}').get_weights()[0]
+            attn_weights = np.load(
+                f'{results_path}/' \
+                f'attn_weights_type{problem_type}_sub{sub}_cluster_rp{repetition}.npy',
+                allow_pickle=True).ravel()[0][attn_position]
+            # score = attn_compression(attn_weights)
+            score = attn_sparsity(attn_weights)
         
         elif repr_level == 'cluster':
-            attn_weights = trained_model.get_layer(
-                'dimensionwise_attn_layer').get_weights()[0]
+            attn_weights = np.load(
+                f'{results_path}/' \
+                f'all_alphas_type{problem_type}_sub{sub}_cluster_rp{repetition}.npy')[-3:]
         
-        K.clear_session()
-        del trained_model
-        
-        compression_scores.append(
-            attn_compression(attn_weights)
-        )
-            
+            score = attn_compression(attn_weights)
+        # print(f'[{sub}], rp={repetition}, type={problem_type}, score={score:.3f}')
+        compression_scores.append(score)
+    
     return np.mean(compression_scores)
 
 
@@ -115,7 +121,6 @@ def compression_execute(config_version, repr_level, subs, runs, tasks, num_proce
                                 run, config_version
                             ]
                         )
-                        print(res_obj.get())
                         # Notice res_obj.get() = compression
                         # To enable multiproc, we extract the actual
                         # compression score when plotting later.
@@ -135,8 +140,6 @@ def compression_execute(config_version, repr_level, subs, runs, tasks, num_proce
             type2metric = run2type2metric[run]
             num_types = len(type2metric.keys())
             problem_types = sorted(list(type2metric.keys()))
-            print(f'num_types={num_types}')
-            
             for z in range(num_types):
                 problem_type = problem_types[z]
                 # here we extract a list of res_obj and 
@@ -149,7 +152,7 @@ def compression_execute(config_version, repr_level, subs, runs, tasks, num_proce
                 x.extend([f'{run}'] * num_subs)
                 y.extend(metrics)
                 hue.extend([f'Type {problem_type}'] * num_subs)
-
+                
         compression_results = {}
         compression_results['x'] = x
         compression_results['y'] = y
@@ -198,11 +201,10 @@ def compression_execute(config_version, repr_level, subs, runs, tasks, num_proce
         q1, md, q3 = np.percentile(per_type_data, [25,50,75])
         mean = np.mean(per_type_data)
         std = np.std(per_type_data)
-        median_obj = ax.scatter(position, md, marker='s', color='red', s=33, zorder=3)
         mean_obj = ax.scatter(position, mean, marker='^', color='k', s=33, zorder=3)
         
         # print out stats
-        print(f'Type=[{problem_type}], run=[{run}], mean=[{mean:.3f}], std=[{std:.3f}], centerBy=[{centering_by}]')
+        print(f'Type=[{problem_type}], run=[{run}], mean=[{mean:.3f}], std=[{std:.3f}]')
         if within_run_index == 2:
             print('-'*60)
         
@@ -211,7 +213,6 @@ def compression_execute(config_version, repr_level, subs, runs, tasks, num_proce
             final_run_data.append(per_type_data)
         
     # hacky way getting legend
-    ax.scatter(position, md, marker='s', color='red', s=33, zorder=3, label='median')
     ax.scatter(position, mean, marker='^', color='k', s=33, zorder=3, label='mean')
     plt.legend()
     ax.set_xlabel('Learning Blocks')
@@ -222,14 +223,16 @@ def compression_execute(config_version, repr_level, subs, runs, tasks, num_proce
 
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
-    config_version = 'hyper0'
+    config_version = 'best_config'
     repr_level = 'LOC'
     num_subs = 23
     subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
+    num_subs = len(subs)
     runs = [1, 2, 3, 4]
     tasks = [1, 2, 3]
-    num_processes = 1
-    num_repetitions = 16 
+    num_processes = 72
+    num_repetitions_per_run = 4
+    num_repetitions = 16
     
     compression_execute(
         config_version=config_version, 

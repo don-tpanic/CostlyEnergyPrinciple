@@ -456,4 +456,5 @@ def examine_subject_lc_and_attn_overtime(attn_config_version):
                 
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
+    examine_subject_lc_and_attn_overtime('best_config')
     compare_across_types_V3('best_config')

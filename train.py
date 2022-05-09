@@ -145,6 +145,17 @@ def fit(joint_model,
         lr_multipliers=lr_multipliers
     )
 
+    # track low-attn weights after every trial 
+    # (though after the first trial, there is no update)
+    attn_weights = {}
+    for attn_position in attn_positions:
+        layer_attn_weights = \
+            joint_model.get_layer(
+                'dcnn_model').get_layer(
+                    f'attn_factory_{attn_position}').get_weights()[0]
+        print(f'[Check] min attn weight = {np.min(layer_attn_weights)}')
+        attn_weights[attn_position] = layer_attn_weights
+    
     # track cluster_model's attn & centers 
     # after every trial update.
     alpha_collector = joint_model.get_layer('dimensionwise_attn_layer').get_weights()[0]
@@ -189,7 +200,7 @@ def fit(joint_model,
             optimizer_clus, optimizer_attn
     
     # Only when epoch=0
-    return joint_model, [], item_proberror, \
+    return joint_model, attn_weights, item_proberror, \
             [], [], [], [], \
             alpha_collector, center_collector, global_steps, \
             optimizer_clus, optimizer_attn

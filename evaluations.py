@@ -241,49 +241,45 @@ def histogram_low_attn_weights(attn_config_version, threshold=[0., 0., 0.]):
     Plot the histogram of learned low-level attn weights
     across types.
     """
-    attn_config = load_config(
-        component=None,
-        config_version=attn_config_version
-    )
-    num_runs = attn_config['num_runs']
-    num_types = 6
+    num_subs = 23
+    subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
+    num_subs = len(subs)
+    problem_types = [1, 2, 6]
     num_dims = 3
-    attn_position = attn_config['attn_positions'].split(',')[0]
-    results_path = f'results/{attn_config_version}'
-    type2runs = find_canonical_runs(
-        attn_config_version, canonical_runs_only=True)
     
     type1 = []
     type2 = []
     type6 = []
-    for z in range(num_types):
-        if z in [0, 1, 5]:
-            problem_type = z + 1
-            for run in type2runs[z]:
+    for z in range(len(problem_types)):
+        problem_type = problem_types[z]
+        for sub in subs:
+            results_path = f'results/{attn_config_version}_sub{sub}_fit-human'
+            attn_config = load_config(
+                component=None, 
+                config_version=f'{attn_config_version}_sub{sub}_fit-human')
+            attn_position = attn_config['attn_positions'].split(',')[0]
 
-                # TODO: do this filtering or not?
-                alphas_fpath = f'{results_path}/all_alphas_type{problem_type}_run{run}_cluster.npy'
-                alphas = np.load(alphas_fpath)[-3:]
-                alphas = alphas - np.array(threshold)
-                strategy = tuple(alphas > 1.0e-6)
-                if problem_type in [1]:
-                    if np.sum(strategy) >= 2:
-                        continue
-                elif problem_type in [2]:
-                    if np.sum(strategy) == 3:
-                        continue
+            # alphas_fpath = f'{results_path}/all_alphas_type{problem_type}_sub{sub}_cluster.npy'
+            # alphas = np.load(alphas_fpath)[-3:]
+            # alphas = alphas - np.array(threshold)
+            # strategy = tuple(alphas > 1.0e-6)
+            # if problem_type in [1]:
+            #     if np.sum(strategy) >= 2:
+            #         continue
+            # elif problem_type in [2]:
+            #     if np.sum(strategy) == 3:
+            #         continue
+            
+            attn_weights = np.load(
+                f'{results_path}/attn_weights_type{problem_type}_sub{sub}_cluster.npy',
+                allow_pickle=True).ravel()[0][attn_position]
 
-                attn_weights = np.load(
-                    f'{results_path}/attn_weights_type{problem_type}_run{run}_cluster.npy',
-                    allow_pickle=True
-                ).ravel()[0][attn_position]
-
-                if problem_type == 1:
-                    type1.extend(attn_weights)
-                elif problem_type == 2:
-                    type2.extend(attn_weights)
-                elif problem_type == 6:
-                    type6.extend(attn_weights)
+            if problem_type == 1:
+                type1.extend(attn_weights)
+            elif problem_type == 2:
+                type2.extend(attn_weights)
+            elif problem_type == 6:
+                type6.extend(attn_weights)
 
     fig, ax = plt.subplots()
     colors = {'type1': 'y', 'type2': 'g', 'type6': 'r'}
@@ -291,9 +287,6 @@ def histogram_low_attn_weights(attn_config_version, threshold=[0., 0., 0.]):
     print('max type2 = ', np.max(type2))
     print('max type6 = ', np.max(type6))
 
-    # ax.axvline(np.max(type1), color=colors['type1'], linestyle='dashed')
-    # ax.axvline(np.max(type2), color=colors['type2'], linestyle='dashed')
-    # ax.axvline(np.max(type6), color=colors['type6'], linestyle='dashed')
     sns.kdeplot(type1, label='Type 1', ax=ax, color=colors['type1'])
     sns.kdeplot(type2, label='Type 2', ax=ax, color=colors['type2'])
     sns.kdeplot(type6, label='Type 6', ax=ax, color=colors['type6'])
@@ -302,13 +295,10 @@ def histogram_low_attn_weights(attn_config_version, threshold=[0., 0., 0.]):
     # plot t-test results
     t_type1v2, p_type1v2, \
     t_type2v6, p_type2v6 = stats_significance_of_zero_attn(attn_config_version)
-
-    plt.text(0.2, 10, f'Type 1 v Type 2: t={t_type1v2:.3f}, p-value < 1e-4')
-    plt.text(0.2, 8, f'Type 2 v Type 6: t={t_type2v6:.3f}, p-value < 1e-4')
-
-
+    # plt.text(0.2, 10, f'Type 1 v Type 2: t={t_type1v2:.3f}, p-value={p_type1v2:.3f}')
+    # plt.text(0.2, 8, f'Type 2 v Type 6: t={t_type2v6:.3f}, p-value={p_type2v6:.3f}')
     plt.legend()
-    plt.savefig(f'{results_path}/attn_weights_histogram.png')
+    plt.savefig('attn_weights_histogram.png')
                             
 
 def visualize_attn_overtime(config_version, sub, ax):
@@ -456,5 +446,6 @@ def examine_subject_lc_and_attn_overtime(attn_config_version):
                 
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
-    examine_subject_lc_and_attn_overtime('best_config')
-    compare_across_types_V3('best_config')
+    # examine_subject_lc_and_attn_overtime('best_config')
+    # compare_across_types_V3('best_config')
+    histogram_low_attn_weights('best_config')

@@ -443,9 +443,47 @@ def examine_subject_lc_and_attn_overtime(attn_config_version):
     # this will be used as benchmark for further search and eval.
     np.save('best_diff_recorder.npy', best_diff_recorder)
     
-                
+    
+def examine_recruited_clusters_n_attn(attn_config_version):
+    """
+    Record the runs that produce canonical solutions
+    for each problem type. 
+    Specificially, we check the saved `mask_non_recruit`
+    """
+    problem_types = [1, 2, 6]
+    num_subs = 23
+    subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
+    num_subs = len(subs)
+    num_dims = 3
+
+    attn_weights = []
+    for z in range(len(problem_types)):
+        problem_type = problem_types[z]
+        print(f'------- problem_type = {problem_type} -------')
+        all_runs_attn = np.empty((num_subs, num_dims))
+        for i in range(num_subs):
+            sub = subs[i]
+            model_path = \
+                f'results/' \
+                f'{attn_config_version}_sub{sub}_fit-human/model_type{problem_type}_sub{sub}'
+            model = tf.keras.models.load_model(model_path, compile=False)
+            dim_wise_attn_weights = model.get_layer('dimensionwise_attn_layer').get_weights()[0]
+            all_runs_attn[i, :] = dim_wise_attn_weights
+            del model
+            print(f'sub{sub}, attn={np.round(dim_wise_attn_weights, 3)}')
+
+        per_type_attn_weights = np.round(
+            np.mean(all_runs_attn, axis=0), 1
+        )
+        attn_weights.append(per_type_attn_weights)
+    
+    print(attn_weights)
+    return attn_weights
+
+           
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
     # examine_subject_lc_and_attn_overtime('best_config')
     # compare_across_types_V3('best_config')
-    histogram_low_attn_weights('best_config')
+    # histogram_low_attn_weights('best_config')
+    examine_recruited_clusters_n_attn('best_config')

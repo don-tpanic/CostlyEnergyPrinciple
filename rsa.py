@@ -80,7 +80,7 @@ def load_trained_model(
         model = Model(inputs=inputs, outputs=layer_reprs)
     
     # sub in trained weights from clustering module.
-    # no need to intercept at cluster becuz the joint 
+    # no need to intercept at cluster becuz the joint
     # model has output for it.
     elif 'cluster' in repr_level:                
         # carryover cluster centers
@@ -106,6 +106,13 @@ def load_trained_model(
             'classification').set_weights(
                 trained_model.get_layer(
                     'classification').get_weights())
+    
+    # TODO: temp - test early layers of DCNN
+    elif '_no_attn' in repr_level:
+        inputs = model.get_layer('dcnn_model').input
+        layer_reprs = model.get_layer(
+            'dcnn_model').get_layer(f'{repr_level[:-8]}').output
+        model = Model(inputs=inputs, outputs=layer_reprs)
     
     del trained_model
     return model, preprocess_func
@@ -172,8 +179,6 @@ def return_n_visualize_RDM(
     
     # compute target layer output reprs
     if 'LOC' in repr_level:
-        # TODO: is categorical structure we are looking for in LOC?
-        # TODO: if not, what order should we rearrange the RDM?
         layer_reprs = model(batch_x)
         layer_reprs = tf.reshape(layer_reprs, [layer_reprs.shape[0], -1])
         assert layer_reprs.shape == (8, 100352)
@@ -181,6 +186,11 @@ def return_n_visualize_RDM(
     elif 'cluster' in repr_level:
         _, layer_reprs, _, _ = model(batch_x)
         assert layer_reprs.shape == (8, 8)
+    
+    # TODO: temp - testing early layers of DCNN
+    elif 'block' in repr_level:
+        layer_reprs = model(batch_x)
+        layer_reprs = tf.reshape(layer_reprs, [layer_reprs.shape[0], -1])
         
     # produce RDM given distance metric
     if distance == 'euclidean':
@@ -234,7 +244,7 @@ def visualize_RDM(sub, problem_type, distance, repetition, repr_level):
     
     ax.set_title(f'sub: {sub}, distance: {distance}, Type {problem_type}, repr: {repr_level}')
     plt.imshow(RDM)
-    plt.savefig(f'model_RDMs/sub-{sub}_task-{task}_rp-{repetition}_{distance}_{repr_level}.png')
+    plt.savefig(f'model_RDMs/sub-{sub}_task-{task}_rp-{repetition}_{distance}_{repr_level}.pdf')
     plt.close()
     print(f'[Check] plotted.')
 
@@ -291,7 +301,7 @@ def run_level_RSA(
         rois, 
         distance, 
         problem_type, 
-        num_shuffles, 
+        num_shuffles=1, 
         method='spearman', 
         dataType='beta', 
         seed=999):
@@ -373,7 +383,7 @@ if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
     
     config_version = 'best_config'
-    repr_levels = ['LOC_no_attn']
+    repr_levels = ['LOC']
     problem_types = [1, 2, 6]
     runs = [1, 2, 3, 4]
     num_subs = 23
@@ -381,16 +391,16 @@ if __name__ == '__main__':
     num_repetitions_per_run = 4
     num_repetitions = 16
     distance = 'pearson'
+    num_processes = 72
     
-    # create_model_RDMs(
-    #     config_version=config_version, 
-    #     problem_types=problem_types,
-    #     subs=subs, 
-    #     distance=distance,
-    #     num_repetitions=num_repetitions,
-    #     repr_levels=repr_levels, 
-    #     num_processes=72
-    # )
+    create_model_RDMs(
+        config_version=config_version, 
+        problem_types=problem_types,
+        subs=subs, 
+        distance=distance,
+        num_repetitions=num_repetitions,
+        repr_levels=repr_levels, 
+        num_processes=num_processes)
 
     repr_level = 'LOC'
     rois = ['LOC']
@@ -399,9 +409,5 @@ if __name__ == '__main__':
         repr_level=repr_level,
         rois=rois, 
         distance=distance, 
-        problem_type=problem_type, 
-        num_shuffles=1, 
-        method='spearman', 
-        dataType='beta', 
-        seed=999
-    )
+        problem_type=problem_type,
+        num_shuffles=1)

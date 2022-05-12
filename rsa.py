@@ -378,7 +378,46 @@ def run_level_RSA(
             )    
         print('------------------------------------------------------------------------')
         
-        
+
+def compare_pre_and_post_attn_actv_RSA(problem_type, distance='pearson'):
+    """
+    Check how correlated pre and post-attn
+    activations are.
+    """
+    for problem_type in problem_types:
+        for sub in subs:
+            for repetition in range(num_repetitions):
+                if int(sub) % 2 == 0:
+                    if problem_type == 1:
+                        task = 2
+                    elif problem_type == 2:
+                        task = 3
+                    else:
+                        task = 1
+                            
+                # odd sub: Type1 is task3, Type2 is task2
+                else:
+                    if problem_type == 1:
+                        task = 3
+                    elif problem_type == 2:
+                        task = 2
+                    else:
+                        task = 1
+                            
+                RDM_pre_fpath = \
+                    f'model_RDMs/' \
+                    f'sub-{sub}_task-{task}_rp-{repetition}_{distance}_LOC_no_attn.npy'
+                RDM_pre = np.load(RDM_pre_fpath)
+                
+                RDM_post_fpath = \
+                    f'model_RDMs/' \
+                    f'sub-{sub}_task-{task}_rp-{repetition}_{distance}_LOC.npy'
+                RDM_post = np.load(RDM_post_fpath)
+                
+                rho = compute_RSA(RDM_pre, RDM_post, method='spearman')
+                print(f'sub{sub}, repetition={repetition}, rho={rho}')
+
+
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
     
@@ -393,21 +432,23 @@ if __name__ == '__main__':
     distance = 'pearson'
     num_processes = 72
     
-    create_model_RDMs(
-        config_version=config_version, 
-        problem_types=problem_types,
-        subs=subs, 
-        distance=distance,
-        num_repetitions=num_repetitions,
-        repr_levels=repr_levels, 
-        num_processes=num_processes)
+    # create_model_RDMs(
+    #     config_version=config_version, 
+    #     problem_types=problem_types,
+    #     subs=subs, 
+    #     distance=distance,
+    #     num_repetitions=num_repetitions,
+    #     repr_levels=repr_levels, 
+    #     num_processes=num_processes)
 
-    repr_level = 'LOC'
-    rois = ['LOC']
-    problem_type = 1
-    run_level_RSA(
-        repr_level=repr_level,
-        rois=rois, 
-        distance=distance, 
-        problem_type=problem_type,
-        num_shuffles=1)
+    # repr_level = 'LOC'
+    # rois = ['LOC']
+    # problem_type = 1
+    # run_level_RSA(
+    #     repr_level=repr_level,
+    #     rois=rois, 
+    #     distance=distance, 
+    #     problem_type=problem_type,
+    #     num_shuffles=1)
+    
+    compare_pre_and_post_attn_actv_RSA(problem_type=1)

@@ -480,10 +480,91 @@ def examine_recruited_clusters_n_attn(attn_config_version):
     print(attn_weights)
     return attn_weights
 
-           
+
+def binary_recon_by_problem_type(attn_config_version, threshold=[0, 0, 0]):
+    problem_types = [1, 2, 6]
+    num_subs = 23
+    subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
+    num_subs = len(subs)
+    num_dims = 3
+    comparisons = ['binary_recon']
+    results_path = 'results'
+    
+    for c in range(len(comparisons)):
+        comparison = comparisons[c]
+        # e.g. { problem_type: {(True, False, False): [metric1, metric2, ... ]} }
+        type2strategy2metric = defaultdict(lambda: defaultdict(list))
+
+        for z in range(len(problem_types)):
+            problem_type = problem_types[z]
+            print(f'------------ problem_type = {problem_type} ------------')
+
+            for sub in subs:
+                if comparison == 'binary_recon':
+                    # For binary recon, we grab the last 3 entries (each for a dim)
+                    metric_fpath = f'{results_path}/{attn_config_version}_sub{sub}_fit-human/' \
+                                   f'all_recon_loss_ideal_type{problem_type}_sub{sub}_cluster.npy'
+                    metric = np.load(metric_fpath)[-num_dims : ]
+
+                # Second group metric based on attn strategy
+                alphas_fpath = f'{results_path}/{attn_config_version}_sub{sub}_fit-human/' \
+                               f'all_alphas_type{problem_type}_sub{sub}_cluster.npy'
+                # get the final 3 alphas
+                alphas = np.load(alphas_fpath)[-3:]
+                alphas = alphas - np.array(threshold)
+
+                # 1e-6 is the lower bound of alpha constraint.
+                # use tuple instead of list because tuple is not mutable.
+                strategy = tuple(alphas > 1.0e-6)
+                type2strategy2metric[problem_type][strategy].append(np.mean(metric))
+                print(f'[Check] sub{sub}, {np.mean(metric):.3f}')
+            
+        if comparison == 'binary_recon':
+            x_axis = np.linspace(1, len(problem_types), len(problem_types))
+            fig, ax = plt.subplots()
+
+            for z in range(len(problem_types)):
+                problem_type = problem_types[z]
+
+                # e.g. {(True, False, False): [avg_metric1, avg_metric2, .. ]}
+                strategy2metric = type2strategy2metric[problem_type]
+                strategies = list(strategy2metric.keys())
+                num_strategies = len(strategies)
+
+                all_strategies_collector = []
+                for i in range(num_strategies):
+                    strategy = strategies[i]
+                    metrics = np.array(
+                        strategy2metric[strategy])
+                    all_strategies_collector.extend(metrics)
+
+                average_metric = np.mean(np.array(all_strategies_collector))
+                print(f'average_metric={average_metric}')
+                std_metric = np.std(np.array(all_strategies_collector))
+                ax.errorbar(
+                    x=x_axis[z],
+                    y=average_metric,
+                    yerr=std_metric,
+                    fmt='*',
+                    color='k',
+                )
+                ax.text(x_axis[z]-0.05, 2, f'Type{problem_type}\nloss={average_metric:.3f}')
+
+            ax.set_xticks(x_axis)
+            ax.set_xticklabels(
+                [f'Type {problem_type}' for problem_type in problem_types])
+            ax.set_ylim([-0.5, 8])
+            ax.set_ylabel('binary recon loss')
+            
+            # plt.legend(fontsize=7)
+            plt.tight_layout()
+            plt.savefig(f'{results_path}/compare_types_binary_recon_{attn_config_version}.png')
+
+        
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
     # examine_subject_lc_and_attn_overtime('best_config')
     # compare_across_types_V3('best_config')
     # histogram_low_attn_weights('best_config')
-    examine_recruited_clusters_n_attn('best_config')
+    # examine_recruited_clusters_n_attn('best_config')
+    binary_recon_by_problem_type('best_config')

@@ -493,22 +493,17 @@ def recon_loss_by_type(attn_config_version):
     num_dims = 3
     results_path = 'results'
     
-    if not os.path.exists(f'{results_path}/recon_loss.npy'):
-        # e.g. {problem_type: [sub02_loss, sub03_loss, ... ]}
-        recon_loss_collector = defaultdict(list)
-        for problem_type in problem_types:
-            for sub in subs:
-                # For binary recon, we grab the last 3 entries (each for a dim)
-                fpath = f'{results_path}/{attn_config_version}_sub{sub}_fit-human/' \
-                                f'all_recon_loss_ideal_type{problem_type}_sub{sub}_cluster.npy'
-                per_type_results = np.load(fpath)[-num_dims : ]
-                recon_loss_collector[problem_type].append(np.mean(per_type_results))
-        np.save(f'{results_path}/recon_loss.npy', recon_loss_collector)
-        
-    else:
-        recon_loss_collector = np.load(
-            f'{results_path}/recon_loss.npy', allow_pickle=True).ravel()[0]
-    
+    # e.g. {problem_type: [sub02_loss, sub03_loss, ... ]}
+    recon_loss_collector = defaultdict(list)
+    for problem_type in problem_types:
+        for sub in subs:
+            # For binary recon, we grab the last 3 entries (each for a dim)
+            fpath = f'{results_path}/{attn_config_version}_sub{sub}_fit-human/' \
+                            f'all_recon_loss_ideal_type{problem_type}_sub{sub}_cluster.npy'
+            per_type_results = np.load(fpath)[-num_dims : ]
+            recon_loss_collector[problem_type].append(np.mean(per_type_results))
+    np.save(f'{results_path}/recon_loss.npy', recon_loss_collector)
+            
     print(
         f'Type 1 recon={np.mean(recon_loss_collector[1]):.3f}, '\
         f'sem={stats.sem(recon_loss_collector[1]):.3f}'
@@ -573,8 +568,54 @@ def recon_loss_by_type_regression(recon_loss_collector, num_subs, problem_types)
     t, p = stats.ttest_1samp(all_coefs, popmean=0)
     print(f't={t:.3f}, one-tailed p={p/2:.3f}')
     return average_coef, t, p/2
-            
         
+
+def relate_recon_loss_to_decoding_error(num_runs, roi):
+    """Relate binary reconstruction loss at the final layer
+    of DCNN to the decoding error of the problem types 
+    in the brain given ROI. For brain decoding, see `brain_data/`
+    
+    Impl:
+    -----
+        For brain decoding, we have produced results which are 
+        in `brain_data/decoding.py` and `brain_data/decoding_results/`.
+
+        For model recon, we obtain results in `recon_loss_by_type`
+        following conventions of how we save decoding results.
+    """
+    problem_types = [1, 2, 6]
+    recon_loss_collector = np.load(
+        f'results/recon_loss.npy', 
+        allow_pickle=True).ravel()[0]
+    decoding_accuracy_collector = np.load(
+        f'brain_data/decoding_results/decoding_accuracy_{num_runs}runs_{roi}.npy', 
+        allow_pickle=True).ravel()[0]
+    
+    fig, ax = plt.subplots(1, 2)
+    results_collectors = [recon_loss_collector, decoding_accuracy_collector]
+    for i in range(len(results_collectors)):
+        results_collector = results_collectors[i]
+        data = []
+        for problem_type in problem_types:
+            per_type_data = np.array(results_collector[problem_type])
+            print(per_type_data)
+            if i == 1:  # convert acc to err
+                per_type_data = 1-per_type_data
+            data.append(per_type_data)
+        
+        sns.violinplot(data=data, ax=ax[i], estimator=np.mean)
+        ax[i].set_xlabel('Problem Types')
+        ax[i].set_xticks(range(len(problem_types)))
+        ax[i].set_xticklabels(problem_types)
+        if i == 0:
+            ax[i].set_ylabel('Reconstruction Loss')
+        else:
+            ax[i].set_ylabel('Decoding Error')
+        
+        plt.tight_layout()
+        plt.savefig(f'relate_recon_loss_to_decoding_error.png')
+    
+    
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
     # examine_subject_lc_and_attn_overtime('best_config')
@@ -582,3 +623,4 @@ if __name__ == '__main__':
     # histogram_low_attn_weights('best_config')
     # examine_recruited_clusters_n_attn('best_config')
     recon_loss_by_type('best_config')
+    relate_recon_loss_to_decoding_error(num_runs=3, roi='LOC')

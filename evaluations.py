@@ -487,8 +487,9 @@ def recon_loss_by_type(attn_config_version):
     `brain_data/decoding.py`
     """
     problem_types = [1, 2, 6]
-    num_subs = 23
-    subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
+    # num_subs = 23
+    # subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
+    subs = range(500)
     num_subs = len(subs)
     num_dims = 3
     results_path = 'results'
@@ -498,8 +499,10 @@ def recon_loss_by_type(attn_config_version):
     for problem_type in problem_types:
         for sub in subs:
             # For binary recon, we grab the last 3 entries (each for a dim)
-            fpath = f'{results_path}/{attn_config_version}_sub{sub}_fit-human/' \
-                            f'all_recon_loss_ideal_type{problem_type}_sub{sub}_cluster.npy'
+            # fpath = f'{results_path}/{attn_config_version}_sub{sub}_fit-human/' \
+            #         f'all_recon_loss_ideal_type{problem_type}_sub{sub}_cluster.npy'
+            fpath = f'{results_path}/v4_naive-withNoise/' \
+                    f'all_recon_loss_ideal_type{problem_type}_run{sub}_cluster.npy'
             per_type_results = np.load(fpath)[-num_dims : ]
             recon_loss_collector[problem_type].append(np.mean(per_type_results))
     np.save(f'{results_path}/recon_loss.npy', recon_loss_collector)
@@ -598,7 +601,7 @@ def relate_recon_loss_to_decoding_error(num_runs, roi):
         data = []
         for problem_type in problem_types:
             per_type_data = np.array(results_collector[problem_type])
-            print(per_type_data)
+            # print(per_type_data)
             if i == 1:  # convert acc to err
                 per_type_data = 1-per_type_data
             data.append(per_type_data)
@@ -608,9 +611,9 @@ def relate_recon_loss_to_decoding_error(num_runs, roi):
         ax[i].set_xticks(range(len(problem_types)))
         ax[i].set_xticklabels(problem_types)
         if i == 0:
-            ax[i].set_ylabel('Reconstruction Loss')
+            ax[i].set_ylabel('Model Stimulus Reconstruction Loss')
         else:
-            ax[i].set_ylabel('Decoding Error')
+            ax[i].set_ylabel('LOC Neural Stimulus Reconstruction Loss\n(1 - decoding accuracy)')
         
         plt.tight_layout()
         plt.savefig(f'relate_recon_loss_to_decoding_error.png')

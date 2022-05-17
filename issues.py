@@ -25,16 +25,15 @@ def per_channel_percent_of_nonzero(x):
 
 def compute_RSA(layer1_reprs, layer2_reprs):
     RDM_1 = pairwise_distances(layer1_reprs, metric='correlation')
-    
     print(f'RDM_1, \n{RDM_1}')
     
     RDM_2= pairwise_distances(layer2_reprs, metric='correlation')
-    
     print(f'\nRDM_2, \n{RDM_2}')
     
     RDM_1_triu = RDM_1[np.triu_indices(RDM_1.shape[0])]
     RDM_2_triu = RDM_2[np.triu_indices(RDM_2.shape[0])]
     rho, _ = stats.spearmanr(RDM_1_triu, RDM_2_triu)
+    print(f'rho={rho}')
     return rho
 
 
@@ -47,12 +46,45 @@ def manual_attn_weights(LOC_no_attn_actv):
     LOC_no_attn_actv = LOC_no_attn_actv.reshape((8, 14, 14, 512))
     post_attn_actv = (attn_weights * LOC_no_attn_actv).reshape((8, -1))
     return post_attn_actv
-
-
-def how_different_are_stimuli_reprs(x):
-    x0 = x[0]
-    x1 = x[1]
     
+
+def how_similar_are_random_pre_n_post(percent_zero_actv, percent_zero_attn):
+    """
+    Randomly create pre-attn activation (with percent_zero)
+    to immitate DCNN activation.
+    
+    Attn weights are randomly created too.
+    """
+    np.random.seed(999)
+    
+    # randomly masking pre-attn actv
+    pre_attn_actv = np.random.random((8, 14, 14, 512))
+    mask = np.ones(pre_attn_actv.size)
+    random_indices = np.random.choice(
+        np.arange(len(mask)),
+        size=int(len(mask)*percent_zero_actv),
+        replace=False)
+    mask[random_indices] = 0
+    mask = mask.reshape((8, 14, 14, 512))
+    pre_attn_actv = pre_attn_actv * mask
+    
+    # randomly masking attn weights
+    attn_weights = np.random.random((1, 1, 1, 512))
+    mask = np.ones(attn_weights.size)
+    random_indices = np.random.choice(
+        np.arange(len(mask)),
+        size=int(len(mask)*percent_zero_attn),
+        replace=False)
+    mask[random_indices] = 0
+    mask.reshape((1, 1, 1, 512))
+    attn_weights = attn_weights * mask
+    
+    # element-wise multiply and compute RSA
+    post_attn_actv = pre_attn_actv * attn_weights
+    compute_RSA(
+        pre_attn_actv.reshape((8, -1)), 
+        post_attn_actv.reshape((8, -1)))
+
 
 if __name__ == '__main__':
     problem_type = 1
@@ -79,13 +111,16 @@ if __name__ == '__main__':
     # print(f'pre-attn: {per_channel_percent_of_nonzero(LOC_no_attn_actv)[1]}')
     # print('-'*37)
     
-    print('*** between layers RSA ***')
-    print(f'post-attn vs pre-attn: {compute_RSA(LOC_actv, LOC_no_attn_actv):.5f}')
-    print(f'pre-attn vs block1_pool: {compute_RSA(LOC_no_attn_actv, b1p_no_attn_actv):.5f}')
-    print('-'*37)
+    # print('*** between layers RSA ***')
+    # print(f'post-attn vs pre-attn: {compute_RSA(LOC_actv, LOC_no_attn_actv):.5f}')
+    # print(f'pre-attn vs block1_pool: {compute_RSA(LOC_no_attn_actv, b1p_no_attn_actv):.5f}')
+    # print('-'*37)
     
     # print('*** RSA using random attn-weights  ***')
     # post_attn_actv = manual_attn_weights(LOC_no_attn_actv)
     # print(f'post-attn vs pre-attn: {compute_RSA(post_attn_actv, LOC_no_attn_actv):.5f}')
-    
-    how_different_are_stimuli_reprs(LOC_actv)
+        
+    how_similar_are_random_pre_n_post(
+        percent_zero_actv=0.8, 
+        percent_zero_attn=0
+    )

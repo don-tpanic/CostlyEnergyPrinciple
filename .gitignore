@@ -1,3 +1,6 @@
+# temp ignore, later for other control model need to differentiate.
+model_RDMs
+
 # Ignore big files
 dcnn_models*/
 results

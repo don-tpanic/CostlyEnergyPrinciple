@@ -3,12 +3,12 @@ actv_func: softmax
 asso_lr_multiplier: 1.0
 attn_constraint: sumtoone
 attn_initializer: ones-withNoise
-attn_lr_multiplier: 0.5
+attn_lr_multiplier: 0.1
 attn_positions: block4_pool
 attn_regularizer: l1
-beta: 6.278604637378268
+beta: 8.278604637378269
 center_lr_multiplier: 1.0
-clustering_config_version: hyper2248_sub05_fit-human
+clustering_config_version: hyper10583_sub05_fit-human
 config_version: config_v4_naive-withNoise
 dcnn_config_version: t1.vgg16.block4_pool.None.run1
 dcnn_end_actv: null
@@ -32,7 +32,7 @@ random_seed: 999
 recon_clusters_weighting: 1000000
 recon_level: cluster
 reg_strength: 0.001
-specificity: 1.661693118112836
+specificity: 1.561693118112836
 temp1: equivalent
 temp2: 0.012582808671506776
 thr: 0.5593500651093561

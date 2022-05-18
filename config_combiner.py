@@ -28,20 +28,21 @@ def merge():
     num_subs = len(subs)
 
     for sub in subs:
-        config_version = f'best_config_sub{sub}'
+        clustering_config_version = f'best_config_sub{sub}'
+        joint_config_version = f'{clustering_config_version}_fit-human'
         
         # get the current joint_model best config
         # subject-specific
         joint_config = load_config(
             component=None, 
-            config_version=config_version)
+            config_version=joint_config_version)
         joint_config['clustering_config_version'] = ''
         
         # load the current best clustering model config
         # (clustering params not update-to-date)
         config = load_config(
             component='clustering',
-            config_version=config_version)
+            config_version=clustering_config_version)
         config_keys = config.keys()
         
         # sub clustering model params into
@@ -53,7 +54,7 @@ def merge():
                 joint_config[key] = config[key]
         
         # save the best config overall.
-        filepath = os.path.join(f'configs', f'config_{config_version}.yaml')
+        filepath = os.path.join(f'configs', f'config_{joint_config_version}.yaml')
         with open(filepath, 'w') as yaml_file:
             yaml.dump(joint_config, yaml_file, default_flow_style=False)
 

@@ -1,4 +1,4 @@
-Phi: 20.026801699317364
+Phi: 26.026801699317364
 actv_func: softmax
 asso_lr_multiplier: 1.0
 attn_constraint: sumtoone
@@ -8,7 +8,7 @@ attn_positions: block4_pool
 attn_regularizer: l1
 beta: 5.001925623365295
 center_lr_multiplier: 1.0
-clustering_config_version: hyper3585_sub11_fit-human
+clustering_config_version: hyper10913_sub11_fit-human
 config_version: config_v4_naive-withNoise
 dcnn_config_version: t1.vgg16.block4_pool.None.run1
 dcnn_end_actv: null
@@ -16,7 +16,7 @@ from_logits: true
 high_attn_constraint: sumtoone
 inner_loop_epochs: 20
 low_attn_constraint: nonneg
-lr: 0.6058099918795437
+lr: 0.7058099918795436
 lr_attn: 0.00092
 noise_const: null
 noise_distribution: uniform
@@ -34,7 +34,7 @@ recon_level: cluster
 reg_strength: 0.001
 specificity: 0.2070344432118353
 temp1: equivalent
-temp2: 0.5074028475597699
+temp2: 0.8074028475597699
 thr: 0.31102263525078405
 trainable_specificity: false
 unsup_rule: threshold

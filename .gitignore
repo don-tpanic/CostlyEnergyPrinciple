@@ -1,3 +1,7 @@
+# Ignore symlinks
+brain_data
+clustering
+
 # temp ignore, later for other control model need to differentiate.
 model_RDMs
 
@@ -6,11 +10,6 @@ dcnn_models*/
 results
 finetune/results/
 finetune/configs/
-
-# Ignore content from clustering/
-clustering/configs/*hyper*
-clustering/.git*
-clustering/*_RDMs
 
 # Ignore hyper configs in chunk
 configs/*hyper*

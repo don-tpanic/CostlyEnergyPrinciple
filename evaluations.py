@@ -590,7 +590,7 @@ def relate_recon_loss_to_decoding_error(num_runs, roi):
     recon_loss_collector = np.load(
         f'results/recon_loss.npy', 
         allow_pickle=True).ravel()[0]
-    decoding_accuracy_collector = np.load(
+    decoding_error_collector = np.load(
         f'brain_data/decoding_results/decoding_error_{num_runs}runs_{roi}.npy', 
         allow_pickle=True).ravel()[0]
     

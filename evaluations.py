@@ -2175,7 +2175,35 @@ def post_attn_actv_thru_time(attn_config_version):
                                     post_attn_actv.numpy().flatten()
                                     )[::-1][:5]])
                         
+
+def examine_high_attn_per_run(attn_config_version, canonical_runs_only=True):
+    """
+    Final high-attn in clustering module across types and runs.
+    """
+    attn_config = load_config(
+        component=None,
+        config_version=attn_config_version
+    )
+    num_runs = attn_config['num_runs']
+    problem_types = [1, 2, 6]
+    num_dims = 3
+    results_path = f'results/{attn_config_version}'
+    type2runs = find_canonical_runs(
+        attn_config_version, canonical_runs_only=canonical_runs_only)
+
+    for z in range(len(problem_types)):
+        problem_type = problem_types[z]
+        print(f'------------ problem_type = {problem_type} ------------')
+
+        for run in type2runs[z]:
+            
+            # Second group metric based on attn strategy
+            alphas_fpath = f'{results_path}/all_alphas_type{problem_type}_run{run}_cluster.npy'
+            # get the final 3 alphas
+            alphas = np.round(np.load(alphas_fpath)[-3:], 3)
+            print(f'run={run}, attn={alphas}')
                     
+                        
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
     
@@ -2184,10 +2212,12 @@ if __name__ == '__main__':
     
     # examine_clustering_learning_curves(attn_config_version)
     
-    compare_across_types_V3(
-        attn_config_version,
-        canonical_runs_only=True,
-    )
+    # compare_across_types_V3(
+    #     attn_config_version,
+    #     canonical_runs_only=True,
+    # )
 
-    stats_significance_of_zero_attn(attn_config_version)
-    histogram_low_attn_weights(attn_config_version)
+    # stats_significance_of_zero_attn(attn_config_version)
+    # histogram_low_attn_weights(attn_config_version)
+    
+    examine_high_attn_per_run(attn_config_version)

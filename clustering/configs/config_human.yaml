@@ -1,4 +1,0 @@
-config_version: human
-num_repetitions: 16      # one sequence of 8 stimuli in a fMRI run
-num_clusters: 8
-num_subs: 23             # independent top-level restarts of training

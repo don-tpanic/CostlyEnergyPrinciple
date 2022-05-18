@@ -506,19 +506,13 @@ def recon_loss_by_type(attn_config_version):
             per_type_results = np.load(fpath)[-num_dims : ]
             recon_loss_collector[problem_type].append(np.mean(per_type_results))
     np.save(f'{results_path}/recon_loss.npy', recon_loss_collector)
-            
-    print(
-        f'Type 1 recon={np.mean(recon_loss_collector[1]):.3f}, '\
-        f'sem={stats.sem(recon_loss_collector[1]):.3f}'
-    )
-    print(
-        f'Type 2 recon={np.mean(recon_loss_collector[2]):.3f}, '\
-        f'sem={stats.sem(recon_loss_collector[2]):.3f}'
-    )
-    print(
-        f'Type 6 recon={np.mean(recon_loss_collector[6]):.3f}, '\
-        f'sem={stats.sem(recon_loss_collector[6]):.3f}'
-    )
+        
+    for problem_type in problem_types:   
+        print(
+            f'Type={problem_type}, '\
+            f'recon={np.mean(recon_loss_collector[problem_type]):.3f}, '\
+            f'sem={stats.sem(recon_loss_collector[problem_type]):.3f}'
+        )
     
     average_coef, t, p = recon_loss_by_type_regression(
         recon_loss_collector, 

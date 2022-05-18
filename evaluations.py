@@ -591,19 +591,16 @@ def relate_recon_loss_to_decoding_error(num_runs, roi):
         f'results/recon_loss.npy', 
         allow_pickle=True).ravel()[0]
     decoding_accuracy_collector = np.load(
-        f'brain_data/decoding_results/decoding_accuracy_{num_runs}runs_{roi}.npy', 
+        f'brain_data/decoding_results/decoding_error_{num_runs}runs_{roi}.npy', 
         allow_pickle=True).ravel()[0]
     
     fig, ax = plt.subplots(1, 2)
-    results_collectors = [recon_loss_collector, decoding_accuracy_collector]
+    results_collectors = [recon_loss_collector, decoding_error_collector]
     for i in range(len(results_collectors)):
         results_collector = results_collectors[i]
         data = []
         for problem_type in problem_types:
             per_type_data = np.array(results_collector[problem_type])
-            # print(per_type_data)
-            if i == 1:  # convert acc to err
-                per_type_data = 1-per_type_data
             data.append(per_type_data)
         
         sns.violinplot(data=data, ax=ax[i], estimator=np.mean)
@@ -613,12 +610,12 @@ def relate_recon_loss_to_decoding_error(num_runs, roi):
         if i == 0:
             ax[i].set_ylabel('Model Stimulus Reconstruction Loss')
         else:
-            ax[i].set_ylabel('LOC Neural Stimulus Reconstruction Loss\n(1 - decoding accuracy)')
-        
+            ax[i].set_ylabel(f'{roi} Neural Stimulus Reconstruction Loss\n(1 - decoding accuracy)')
+        plt.title(f'ROI: {roi}')
         plt.tight_layout()
-        plt.savefig(f'relate_recon_loss_to_decoding_error.png')
+        plt.savefig(f'relate_recon_loss_to_decoding_error_{roi}.png')
     
-    
+
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
     # examine_subject_lc_and_attn_overtime('best_config')

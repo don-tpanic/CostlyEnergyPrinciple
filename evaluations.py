@@ -487,7 +487,7 @@ def recon_loss_by_type(attn_config_version):
     `brain_data/decoding.py`
     """
     problem_types = [1, 2, 6]
-    # num_subs = 23
+    num_subs = 23
     # subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
     subs = range(500)
     num_subs = len(subs)
@@ -597,7 +597,7 @@ def relate_recon_loss_to_decoding_error(num_runs, roi):
             per_type_data = np.array(results_collector[problem_type])
             data.append(per_type_data)
         
-        sns.violinplot(data=data, ax=ax[i], estimator=np.mean)
+        sns.boxplot(data=data, ax=ax[i])
         ax[i].set_xlabel('Problem Types')
         ax[i].set_xticks(range(len(problem_types)))
         ax[i].set_xticklabels(problem_types)

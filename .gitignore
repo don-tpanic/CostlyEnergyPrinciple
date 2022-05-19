@@ -7,7 +7,8 @@ model_RDMs
 
 # Ignore big files
 dcnn_models*/
-results
+results/v*
+results/*fit-human*
 finetune/results/
 finetune/configs/
 

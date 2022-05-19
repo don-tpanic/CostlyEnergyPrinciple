@@ -6,6 +6,7 @@ import multiprocessing
 from collections import defaultdict
 
 import numpy as np
+import pandas as pd
 from scipy.special import softmax
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -225,6 +226,79 @@ def compression_execute(config_version, repr_level, subs, runs, tasks, num_proce
     plt.savefig(f'compression_results/{repr_level}.png')
 
 
+def mixed_effects_analysis(repr_level):
+    """
+    Perform a two-way ANOVA analysis as an alternative of 
+    the bayesian mixed effect analysis in Mack et al., 2020.
+    
+    Independent variable: 
+        problem_type, learning_block, interaction
+    Dependent variable:
+        compression score
+    """
+    import pingouin as pg
+    if not os.path.exists(f"compression_results/{repr_level}.csv"):
+        subjects = ['subject']
+        types = ['problem_type']
+        learning_blocks = ['learning_block']
+        compression_scores = ['compression_score']
+
+        compression_results = np.load(
+            f'compression_results/{repr_level}.npy', 
+            allow_pickle=True).ravel()[0]
+        y = compression_results['y']
+        num_bars = int(len(y) / (num_subs))
+        problem_types = [1, 2, 6]
+        
+        # global_index: 0-11
+        for global_index in range(num_bars):
+            # run: 1-4 i.e. learning block
+            run = global_index // len(problem_types) + 1
+            # within_run_index: 0-2
+            within_run_index = global_index % len(problem_types)        
+            problem_type = problem_types[within_run_index]
+            print(f'run={run}, type={problem_type}')
+            
+            # data
+            per_type_data = y[ global_index * num_subs : (global_index+1) * num_subs ]
+            
+            for s in range(num_subs):
+                sub = subs[s]
+                subjects.append(sub)
+                types.append(problem_type)
+                learning_blocks.append(run)
+                compression_scores.append(per_type_data[s])
+            
+        subjects = np.array(subjects)
+        types = np.array(types)
+        learning_blocks = np.array(learning_blocks)
+        compression_scores = np.array(compression_scores)
+        
+        df = np.vstack((
+            subjects, 
+            types, 
+            learning_blocks, 
+            compression_scores
+        )).T
+        pd.DataFrame(df).to_csv(
+            f"compression_results/{repr_level}.csv", 
+            index=False, 
+            header=False
+        )
+        
+    df = pd.read_csv(f"compression_results/{repr_level}.csv")
+        
+    # two-way ANOVA:
+    res = pg.rm_anova(
+        dv='compression_score',
+        within=['problem_type', 'learning_block'],
+        subject='subject',
+        data=df, 
+    )
+    print(res)
+
+
+##### repetition level #####
 def per_subj_compression_repetition_level(
         repr_level,
         sub, 
@@ -412,7 +486,7 @@ def compression_execute_repetition_level(
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
     config_version = 'best_config'
-    repr_level = 'low_attn'
+    repr_level = 'high_attn'
     num_subs = 23
     subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
     num_subs = len(subs)
@@ -431,11 +505,13 @@ if __name__ == '__main__':
         num_processes=num_processes
     )
     
-    compression_execute_repetition_level(
-        config_version=config_version, 
-        repr_level=repr_level, 
-        subs=subs, 
-        num_repetitions=num_repetitions,
-        tasks=tasks, 
-        num_processes=num_processes
-    )
+    mixed_effects_analysis(repr_level)
+    
+    # compression_execute_repetition_level(
+    #     config_version=config_version, 
+    #     repr_level=repr_level, 
+    #     subs=subs, 
+    #     num_repetitions=num_repetitions,
+    #     tasks=tasks, 
+    #     num_processes=num_processes
+    # )

@@ -491,8 +491,8 @@ def recon_loss_by_type(attn_config_version):
     """
     problem_types = [1, 2, 6]
     num_subs = 23
-    # subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
-    subs = range(500)
+    subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
+    # subs = range(500)
     num_subs = len(subs)
     num_dims = 3
     results_path = 'results'
@@ -502,10 +502,10 @@ def recon_loss_by_type(attn_config_version):
     for problem_type in problem_types:
         for sub in subs:
             # For binary recon, we grab the last 3 entries (each for a dim)
-            # fpath = f'{results_path}/{attn_config_version}_sub{sub}_fit-human/' \
-            #         f'all_recon_loss_ideal_type{problem_type}_sub{sub}_cluster.npy'
-            fpath = f'{results_path}/v4_naive-withNoise/' \
-                    f'all_recon_loss_ideal_type{problem_type}_run{sub}_cluster.npy'
+            fpath = f'{results_path}/{attn_config_version}_sub{sub}_fit-human/' \
+                    f'all_recon_loss_ideal_type{problem_type}_sub{sub}_cluster.npy'
+            # fpath = f'{results_path}/v4_naive-withNoise/' \
+            #         f'all_recon_loss_ideal_type{problem_type}_run{sub}_cluster.npy'
             per_type_results = np.load(fpath)[-num_dims : ]
             recon_loss_collector[problem_type].append(np.mean(per_type_results))
     np.save(f'{results_path}/recon_loss.npy', recon_loss_collector)
@@ -592,15 +592,20 @@ def relate_recon_loss_to_decoding_error(num_runs, roi):
         allow_pickle=True).ravel()[0]
     
     fig, ax = plt.subplots(1, 2)
+    palette = {'Type 1': 'pink', 'Type 2': 'green', 'Type 6': 'blue'}
     results_collectors = [recon_loss_collector, decoding_error_collector]
     for i in range(len(results_collectors)):
         results_collector = results_collectors[i]
-        data = []
+        x = []
+        y = []
         for problem_type in problem_types:
-            per_type_data = np.array(results_collector[problem_type])
-            data.append(per_type_data)
+            # per_type_data = np.array(results_collector[problem_type])
+            # data.append(per_type_data)
+            y.extend(results_collector[problem_type])
+            x.extend([f'Type {problem_type}'] * len(results_collector[problem_type]))
         
-        sns.boxplot(data=data, ax=ax[i])
+        # sns.boxplot(data=data, ax=ax[i], palette=palette)
+        sns.boxplot(x=x, y=y, ax=ax[i], palette=palette)
         ax[i].set_xlabel('Problem Types')
         ax[i].set_xticks(range(len(problem_types)))
         ax[i].set_xticklabels(problem_types)

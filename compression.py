@@ -56,7 +56,7 @@ def per_subj_compression(repr_level, sub, problem_type, run, config_version):
         # convert per run rp to global repetition 
         repetition = (run-1) * num_repetitions_per_run + rp - 1
         
-        if repr_level == 'LOC':
+        if repr_level == 'low_attn':
             config = load_config(component=None, config_version=config_version)
             attn_position = config['attn_positions'].split(',')[0]
             attn_weights = np.load(
@@ -66,7 +66,7 @@ def per_subj_compression(repr_level, sub, problem_type, run, config_version):
             # score = attn_compression(attn_weights)
             score = attn_sparsity(attn_weights)
         
-        elif repr_level == 'cluster':
+        elif repr_level == 'high_attn':
             attn_weights = np.load(
                 f'{results_path}/' \
                 f'all_alphas_type{problem_type}_sub{sub}_cluster_rp{repetition}.npy')[-3:]
@@ -217,7 +217,11 @@ def compression_execute(config_version, repr_level, subs, runs, tasks, num_proce
     plt.legend()
     ax.set_xlabel('Learning Blocks')
     ax.set_ylabel(f'Compression')
-    plt.title(f'{repr_level}')
+    if repr_level == 'low_attn':
+        title = 'Low-level attn (DCNN)'
+    elif repr_level == 'high_attn':
+        title = 'High-level attn (Clustering)'
+    plt.title(f'{title}')
     plt.savefig(f'compression_results/{repr_level}.png')
 
 
@@ -232,7 +236,7 @@ def per_subj_compression_repetition_level(
     """
     config_version = f'{config_version}_sub{sub}_fit-human'
     results_path = f'results/{config_version}'
-    if repr_level == 'LOC':
+    if repr_level == 'low_attn':
         config = load_config(component=None, config_version=config_version)
         attn_position = config['attn_positions'].split(',')[0]
         attn_weights = np.load(
@@ -242,7 +246,7 @@ def per_subj_compression_repetition_level(
         # score = attn_compression(attn_weights)
         score = attn_sparsity(attn_weights)
     
-    elif repr_level == 'cluster':
+    elif repr_level == 'high_attn':
         attn_weights = np.load(
             f'{results_path}/' \
             f'all_alphas_type{problem_type}_sub{sub}_cluster_rp{repetition}.npy')[-3:]
@@ -397,14 +401,18 @@ def compression_execute_repetition_level(
     plt.legend()
     ax.set_xlabel('Repetitions')
     ax.set_ylabel(f'Compression')
-    plt.title(f'{repr_level}')
+    if repr_level == 'low_attn':
+        title = 'Low-level attn (DCNN)'
+    elif repr_level == 'high_attn':
+        title = 'High-level attn (Clustering)'
+    plt.title(f'{title}')
     plt.savefig(f'compression_results_repetition_level/{repr_level}.png')
 
 
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
     config_version = 'best_config'
-    repr_level = 'LOC'
+    repr_level = 'low_attn'
     num_subs = 23
     subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
     num_subs = len(subs)
@@ -414,14 +422,14 @@ if __name__ == '__main__':
     num_repetitions_per_run = 4
     num_repetitions = 16
     
-    # compression_execute(
-    #     config_version=config_version, 
-    #     repr_level=repr_level, 
-    #     subs=subs, 
-    #     runs=runs, 
-    #     tasks=tasks, 
-    #     num_processes=num_processes
-    # )
+    compression_execute(
+        config_version=config_version, 
+        repr_level=repr_level, 
+        subs=subs, 
+        runs=runs, 
+        tasks=tasks, 
+        num_processes=num_processes
+    )
     
     compression_execute_repetition_level(
         config_version=config_version, 

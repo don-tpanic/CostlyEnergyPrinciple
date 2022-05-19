@@ -379,12 +379,16 @@ def run_level_RSA(
         print('------------------------------------------------------------------------')
         
 
+
+
+
 def compare_pre_and_post_attn_actv_RSA(problem_type, distance='pearson'):
     """
     Check how correlated pre and post-attn
     activations are.
     """
     for problem_type in problem_types:
+        all_rhos = []
         for sub in subs:
             for repetition in range(num_repetitions):
                 if int(sub) % 2 == 0:
@@ -416,13 +420,16 @@ def compare_pre_and_post_attn_actv_RSA(problem_type, distance='pearson'):
                 
                 rho = compute_RSA(RDM_pre, RDM_post, method='spearman')
                 print(f'sub{sub}, repetition={repetition}, rho={rho}')
+                all_rhos.append(rho)
+
+    print(f'avg_rho={np.mean(all_rhos):.3f}, std={np.std(all_rhos):.3f}')
 
 
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
     
     config_version = 'best_config'
-    repr_levels = ['LOC']
+    repr_levels = ['LOC', 'cluster']
     problem_types = [1, 2, 6]
     runs = [1, 2, 3, 4]
     num_subs = 23
@@ -441,7 +448,7 @@ if __name__ == '__main__':
     #     repr_levels=repr_levels, 
     #     num_processes=num_processes)
 
-    # repr_level = 'LOC'
+    # repr_level = 'LOC_no_attn'
     # rois = ['LOC']
     # problem_type = 1
     # run_level_RSA(

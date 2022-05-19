@@ -65,10 +65,17 @@ def compare_across_types_V3(attn_config_version, threshold=[0, 0, 0], filter_str
                                f'all_alphas_type{problem_type}_sub{sub}_cluster.npy'
                 # get the final 3 alphas
                 alphas = np.load(alphas_fpath)[-3:]
-                alphas = alphas - np.array(threshold)
-
+                
+                if comparison == 'binary_recon':
+                    # for recon only, to plot, we need to rearrange the dims
+                    # as similarly done when there is counterbalancing.
+                    conversion_order = np.argsort(alphas)[::-1]
+                    metric = metric[conversion_order]
+                    print(np.round(alphas[conversion_order], 3), np.round(metric, 3))
+                   
                 # 1e-6 is the lower bound of alpha constraint.
-                # use tuple instead of list because tuple is not mutable.
+                # use tuple instead of list because tuple is not mutable.                    
+                alphas = alphas - np.array(threshold)
                 strategy = tuple(alphas > 1.0e-6)
                 
                 if filter_strategy:
@@ -204,7 +211,7 @@ def compare_across_types_V3(attn_config_version, threshold=[0, 0, 0], filter_str
                 ax[col_idx].set_xticks([])
                 ax[col_idx].set_xticks(x_axis[:num_dims]+0.5)
                 ax[col_idx].set_xticklabels([f'dim{i+1}' for i in range(num_dims)])
-                ax[col_idx].set_ylim([-0.5, 9.5])
+                ax[col_idx].set_ylim([-0.5, 5])
                 ax[0].set_ylabel('binary recon loss')
                 ax[col_idx].set_title(f'Type {problem_type}')
             
@@ -473,7 +480,7 @@ def examine_recruited_clusters_n_attn(attn_config_version):
             dim_wise_attn_weights = model.get_layer('dimensionwise_attn_layer').get_weights()[0]
             all_runs_attn[i, :] = dim_wise_attn_weights
             del model
-            print(f'sub{sub}, attn={np.round(dim_wise_attn_weights, 3)}')
+            print(f'sub{sub}, attn={sorted(np.round(dim_wise_attn_weights, 3))}')
 
         per_type_attn_weights = np.round(
             np.mean(all_runs_attn, axis=0), 1
@@ -621,8 +628,8 @@ def relate_recon_loss_to_decoding_error(num_runs, roi):
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
     # examine_subject_lc_and_attn_overtime('best_config')
-    # compare_across_types_V3('best_config', filter_strategy=False)
+    compare_across_types_V3('best_config', filter_strategy=False)
     # histogram_low_attn_weights('best_config')
     # examine_recruited_clusters_n_attn('best_config')
-    recon_loss_by_type('best_config')
-    relate_recon_loss_to_decoding_error(num_runs=3, roi='LOC')
+    # recon_loss_by_type('best_config')
+    # relate_recon_loss_to_decoding_error(num_runs=3, roi='LOC')

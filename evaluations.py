@@ -22,7 +22,7 @@ from losses import binary_crossentropy
 Evaluation routines.
 """  
 
-def compare_across_types_V3(attn_config_version, threshold=[0, 0, 0]):
+def compare_across_types_V3(attn_config_version, threshold=[0, 0, 0], filter_strategy=True):
     """Key differences to the generic `compare_across_types_V3`:
     1. We only consider Type 1, 2 and 6. 
     2. Canonical run or not is no longer valid due to 
@@ -70,20 +70,23 @@ def compare_across_types_V3(attn_config_version, threshold=[0, 0, 0]):
                 # 1e-6 is the lower bound of alpha constraint.
                 # use tuple instead of list because tuple is not mutable.
                 strategy = tuple(alphas > 1.0e-6)
-                type2strategy2metric[problem_type][strategy].append(metric)
                 
-                # if problem_type in [1]:
-                #     if np.sum(strategy) >= 2:
-                #         pass
-                #     else:
-                #         type2strategy2metric[problem_type][strategy].append(metric)
-                # elif problem_type in [2]:
-                #     if np.sum(strategy) == 3:
-                #         pass
-                #     else:
-                #         type2strategy2metric[problem_type][strategy].append(metric)
-                # else:
-                #     type2strategy2metric[problem_type][strategy].append(metric)
+                if filter_strategy:
+                    # only consider the ideal attn strategies.
+                    if problem_type in [1]:
+                        if np.sum(strategy) >= 2:
+                            pass
+                        else:
+                            type2strategy2metric[problem_type][strategy].append(metric)
+                    elif problem_type in [2]:
+                        if np.sum(strategy) == 3:
+                            pass
+                        else:
+                            type2strategy2metric[problem_type][strategy].append(metric)
+                    else:
+                        type2strategy2metric[problem_type][strategy].append(metric)
+                else:
+                    type2strategy2metric[problem_type][strategy].append(metric)
 
         # plotting both %attn and binary recon.
         if comparison == 'zero_attn':
@@ -613,7 +616,7 @@ def relate_recon_loss_to_decoding_error(num_runs, roi):
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
     # examine_subject_lc_and_attn_overtime('best_config')
-    # compare_across_types_V3('best_config')
+    # compare_across_types_V3('best_config', filter_strategy=False)
     # histogram_low_attn_weights('best_config')
     # examine_recruited_clusters_n_attn('best_config')
     recon_loss_by_type('best_config')

@@ -615,7 +615,7 @@ def relate_recon_loss_to_decoding_error(num_runs, roi):
             ax[i].set_ylabel(f'{roi} Neural Stimulus Reconstruction Loss\n(1 - decoding accuracy)')
         plt.title(f'ROI: {roi}')
         plt.tight_layout()
-        plt.savefig(f'relate_recon_loss_to_decoding_error_{roi}.png')
+        plt.savefig(f'results/relate_recon_loss_to_decoding_error_{roi}.png')
     
 
 if __name__ == '__main__':

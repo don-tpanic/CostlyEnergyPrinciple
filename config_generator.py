@@ -16,21 +16,21 @@ def hyperparams_ranges():
     return lr_attn_, inner_loop_epochs_, recon_clusters_weighting_, noise_level_
 
 
-def per_subject_generate_candidate_configs(ct, v, sub, template_version='v4_naive-withNoise'):
+def per_subject_generate_candidate_configs(ct, v, sub):
     """
-    Given a joint_model config as template, we replace params regarding clustering model with 
+    Given a joint_model best config as template, we replace params regarding clustering model with 
     subject-specific best config. Then we iterate through hypers for training low_level attn
     in the DCNN and save the configs.
     """
     clustering_config = load_config(
         component='clustering',
-        config_version=f'best_config_sub{sub}')
+        config_version=f'best_config_sub{sub}_{v}')
     clustering_config_keys = clustering_config.keys()
     
     # use the joint_model config as template
     template = load_config(
         component=None, 
-        config_version=template_version)
+        config_version=f'best_config_sub{sub}_{v}')
     template['clustering_config_version'] = ''
     template_keys = template.keys()
     
@@ -71,6 +71,12 @@ if __name__ == '__main__':
     subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
     for sub in subs:
         per_subject_generate_candidate_configs(
-            ct=0, v='fit-human', sub=sub
+            ct=0, v='fit-human-entropy', sub=sub
         )
+        
+    # [0, 144)
+            # lr_attn_ = [0.00092, 0.0092, 0.092]
+            # inner_loop_epochs_ = [5, 10, 15, 20]
+            # recon_clusters_weighting_ = [1000, 10000, 100000, 1000000]
+            # noise_level_ = [0.3, 0.4, 0.5]
         

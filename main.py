@@ -123,9 +123,8 @@ def train_model(sub, attn_config_version):
             dict_layer2attn_size(model_name=dcnn_config['model_name'])[attn_position]    
         joint_model.build(input_shape=[(1,)+image_shape, (1, layer2attn_size)])
         
-        # TODO: should Adam also get carryover?
+        # NOTE(ken): Adam carryover
         optimizer_clus = tf.keras.optimizers.SGD(learning_rate=lr)
-        # optimizer_attn = tf.keras.optimizers.Adam(learning_rate=lr_attn)
         loss_fn_clus = tf.keras.losses.BinaryCrossentropy(from_logits=from_logits)
         
         # different level of recon uses different loss func

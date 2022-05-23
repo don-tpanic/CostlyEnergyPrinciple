@@ -137,9 +137,13 @@ if __name__ == '__main__':
     
     if mode == 'search':
         configs = []
-        for i in range(0, 72):
+        for i in range(hyper_begin, hyper_end):
             configs.append(f'hyper{i}')
-        multicuda_train(subs=subs, configs=configs, target_func=train_model)
+        multicuda_train(
+            subs=subs, 
+            configs=configs, 
+            target_func=train_model,
+            v='fit-human-entropy')
     
     elif mode == 'eval':
         multiprocess_eval(

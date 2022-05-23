@@ -22,12 +22,12 @@ def per_subject_compare_human_to_model(sub, hyper_begin, hyper_end):
     a range of hyper-params combo.
     """
     problem_types = [1, 2, 6]
-    best_config = f'best_config_sub{sub}_fit-human'
-    # best_diff_recorder = np.load('best_diff_recorder.npy', allow_pickle=True)
-    # best_diff = best_diff_recorder.ravel()[0][sub]
-    best_diff = 999
+    best_config = f'best_config_sub{sub}_{v}'
+    best_diff_recorder = np.load('best_diff_recorder.npy', allow_pickle=True)
+    best_diff = best_diff_recorder.ravel()[0][sub]
+    # best_diff = 999
     for i in range(hyper_begin, hyper_end):
-        config_version = f'hyper{i}_sub{sub}_fit-human'
+        config_version = f'hyper{i}_sub{sub}_{v}'
 
         per_config_mse = 0
         try:
@@ -52,12 +52,12 @@ def per_subject_compare_human_to_model(sub, hyper_begin, hyper_end):
     subprocess.run(
         ['cp', 
          f'configs/config_{best_config}.yaml', 
-         f'configs/config_best_config_sub{sub}_fit-human.yaml'
+         f'configs/config_best_config_sub{sub}_{v}.yaml'
         ]
     )
 
 
-def multicuda_train(subs, configs, target_func):
+def multicuda_train(subs, configs, target_func, v='fit-human-entropy'):
     """
     Train a bunch of models at once
     by launching them to all available GPUs.
@@ -68,7 +68,7 @@ def multicuda_train(subs, configs, target_func):
     for attn_config_version in configs:
         for sub in subs:
             single_entry['sub'] = sub
-            single_entry['attn_config_version'] = f'{attn_config_version}_sub{sub}_fit-human'
+            single_entry['attn_config_version'] = f'{attn_config_version}_sub{sub}_{v}'
             args_list.append(single_entry)
             single_entry = {}
 

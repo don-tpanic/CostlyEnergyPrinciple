@@ -312,6 +312,7 @@ def train_model(sub, attn_config_version):
 
 
 if __name__ == '__main__':
+    start_time = time.time()
     num_subs = 23
     subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
     from hyper_tune import multicuda_train
@@ -320,3 +321,6 @@ if __name__ == '__main__':
         configs=['best_config'],
         target_func=train_model
     )
+    
+    duration = time.time() - start_time
+    print(f'duration = {duration}s')

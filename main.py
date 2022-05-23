@@ -319,7 +319,8 @@ if __name__ == '__main__':
     multicuda_train(
         subs=subs,
         configs=['best_config'],
-        target_func=train_model
+        target_func=train_model,
+        v='fit-human-entropy'
     )
     
     duration = time.time() - start_time

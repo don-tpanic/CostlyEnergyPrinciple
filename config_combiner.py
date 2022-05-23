@@ -54,7 +54,7 @@ def merge(v='fit-human-entropy'):
                 joint_config[key] = config[key]
         
         # save the best config overall.
-        filepath = os.path.join(f'configs', f'config_{joint_config_version}_{v}.yaml')
+        filepath = os.path.join(f'configs', f'config_best_config_sub{sub}_{v}.yaml')
         with open(filepath, 'w') as yaml_file:
             yaml.dump(joint_config, yaml_file, default_flow_style=False)
 

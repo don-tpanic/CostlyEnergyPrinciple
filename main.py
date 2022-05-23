@@ -236,11 +236,11 @@ def train_model(sub, attn_config_version):
                 lc[repetition] += item_proberror
                 
             # save one sub's per repetition low_attn weights.
-            np.save(
-                os.path.join(
-                    results_path, f'attn_weights_type{problem_type}_sub{sub}_{recon_level}_rp{repetition}.npy'),
-                    attn_weights  # NOTE: [[aw_position1], [aw_position2], [aw_position3], ...]
-            )
+            # np.save(
+            #     os.path.join(
+            #         results_path, f'attn_weights_type{problem_type}_sub{sub}_{recon_level}_rp{repetition}.npy'),
+            #         attn_weights  # NOTE: [[aw_position1], [aw_position2], [aw_position3], ...]
+            # )
             
             # save one sub's per repetition high_attn weights
             np.save(
@@ -249,8 +249,8 @@ def train_model(sub, attn_config_version):
                     all_alphas
             )
             
-            # save one sub's per repetition model
-            joint_model.save(os.path.join(results_path, f'model_type{problem_type}_sub{sub}_rp{repetition}')) 
+            # # save one sub's per repetition model
+            # joint_model.save(os.path.join(results_path, f'model_type{problem_type}_sub{sub}_rp{repetition}')) 
                         
         # ===== Saving stuff at the end of a problem type =====
         # save one sub's trained joint model.

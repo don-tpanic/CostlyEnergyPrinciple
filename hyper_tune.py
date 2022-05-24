@@ -16,7 +16,7 @@ from evaluations import examine_subject_lc_and_attn_overtime, \
     compare_across_types_V3
 
 
-def per_subject_compare_human_to_model(sub, hyper_begin, hyper_end):
+def per_subject_compare_human_to_model(sub, v, hyper_begin, hyper_end):
     """
     For a given subject, find the best config over
     a range of hyper-params combo.
@@ -77,7 +77,7 @@ def multicuda_train(subs, configs, target_func, v='fit-human-entropy'):
     cuda_manager(target_func, args_list, cuda_id_list)
 
 
-def multiprocess_eval(subs, hyper_begin, hyper_end, num_processes):
+def multiprocess_eval(subs, v, hyper_begin, hyper_end, num_processes):
     """
     Eval all choices of hyper-param combo.
     After finding the best configs so far, retrain best configs.
@@ -93,7 +93,7 @@ def multiprocess_eval(subs, hyper_begin, hyper_end, num_processes):
             sub = subs[s]
             results = pool.apply_async(
                 per_subject_compare_human_to_model, 
-                args=[sub, hyper_begin, hyper_end]
+                args=[sub, v, hyper_begin, hyper_end]
             )
         print(results.get())
         pool.close()
@@ -147,7 +147,8 @@ if __name__ == '__main__':
     
     elif mode == 'eval':
         multiprocess_eval(
-            subs=subs, 
+            subs=subs,
+            v='fit-human-entropy',
             hyper_begin=hyper_begin, 
             hyper_end=hyper_end, 
             num_processes=72

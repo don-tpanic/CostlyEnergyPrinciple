@@ -91,7 +91,13 @@ def fit(joint_model,
         with tf.GradientTape() as tape:
             _, _, y_pred, _ = joint_model(x, training=True)
             loss_value = loss_fn_clus(y_true, y_pred)
-            print(f'[Check] y_pred = {y_pred}')
+            
+            # NOTE, for clustering, we minimise entropy regularizer.
+            # joint_model.losses 
+            # [<tf.Tensor: shape=(), dtype=float32, numpy=0.5184983>, 
+            # <tf.Tensor: shape=(), dtype=float32, numpy=0.15849626>]
+            reg_loss = joint_model.losses[1]
+            loss_value += reg_loss
         
         # Convert loss to proberror used in SUSTAIN.
         item_proberror = 1. - tf.reduce_max(y_pred * y_true)
@@ -105,6 +111,8 @@ def fit(joint_model,
         with tf.GradientTape() as tape:
             _, _, y_pred, totalSupport = joint_model(x, y_true=y_true, training=True)
             loss_value = loss_fn_clus(y_true, y_pred)
+            reg_loss = joint_model.losses[1]
+            loss_value += reg_loss
         
         item_proberror = 1. - tf.reduce_max(y_pred * y_true)
         print(f'[Check] item_proberror = {item_proberror}')
@@ -131,6 +139,8 @@ def fit(joint_model,
             with tf.GradientTape() as tape:
                 _, _, y_pred, _ = joint_model(x, training=True)
                 loss_value = loss_fn_clus(y_true, y_pred)
+                reg_loss = joint_model.losses[1]
+                loss_value += reg_loss
             
         # Unsuccessful recruit if higher than thr
         else:
@@ -284,8 +294,7 @@ def learn_low_attn(
             # in order to track loss.
             batch_x_binary_pred, batch_y_pred, _, _ = joint_model(batch_x, training=True)
             recon_loss = loss_fn_attn(batch_y_true, batch_y_pred) * recon_clusters_weighting
-            
-            reg_loss = joint_model.losses
+            reg_loss = joint_model.losses[0]  # [0] is L1 for low-attn, [1] is entropy for high-attn
             loss_value = recon_loss + reg_loss
 
             # current attn weights for all positions.

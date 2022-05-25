@@ -9,7 +9,7 @@ def hyperparams_ranges():
     in joint_model
     """
     lr_attn_ = [0.00092, 0.0092, 0.092]
-    inner_loop_epochs_ = [5, 10, 15, 20]
+    inner_loop_epochs_ = [2, 5, 10, 15, 20]
     recon_clusters_weighting_ = [1000, 10000, 100000, 1000000]
     noise_level_ = [0.3, 0.4, 0.5]
     
@@ -74,9 +74,9 @@ if __name__ == '__main__':
             ct=0, v='fit-human-entropy', sub=sub
         )
         
-    # [0, 144)
+    # [0, 180)
             # lr_attn_ = [0.00092, 0.0092, 0.092]
-            # inner_loop_epochs_ = [5, 10, 15, 20]
+            # inner_loop_epochs_ = [2, 5, 10, 15, 20]
             # recon_clusters_weighting_ = [1000, 10000, 100000, 1000000]
             # noise_level_ = [0.3, 0.4, 0.5]
         

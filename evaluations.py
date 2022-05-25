@@ -22,7 +22,7 @@ from losses import binary_crossentropy
 Evaluation routines.
 """  
 
-def compare_across_types_V3(attn_config_version, threshold=[0, 0, 0], filter_strategy=True):
+def compare_across_types_V3(attn_config_version, v, threshold=[0, 0, 0], filter_strategy=True):
     """Key differences to the generic `compare_across_types_V3`:
     1. We only consider Type 1, 2 and 6. 
     2. Canonical run or not is no longer valid due to 
@@ -51,17 +51,17 @@ def compare_across_types_V3(attn_config_version, threshold=[0, 0, 0], filter_str
                 # First grab the final metric
                 if comparison == 'zero_attn':
                     # For %attn, we grab the last item
-                    metric_fpath = f'{results_path}/{attn_config_version}_sub{sub}_fit-human/' \
+                    metric_fpath = f'{results_path}/{attn_config_version}_sub{sub}_{v}/' \
                                    f'all_percent_zero_attn_type{problem_type}_sub{sub}_cluster.npy'
                     metric = np.load(metric_fpath)[-1]                    
                 else:
                     # For binary recon, we grab the last 3 entries (each for a dim)
-                    metric_fpath = f'{results_path}/{attn_config_version}_sub{sub}_fit-human/' \
+                    metric_fpath = f'{results_path}/{attn_config_version}_sub{sub}_{v}/' \
                                    f'all_recon_loss_ideal_type{problem_type}_sub{sub}_cluster.npy'
                     metric = np.load(metric_fpath)[-num_dims : ]
 
                 # Second group metric based on attn strategy
-                alphas_fpath = f'{results_path}/{attn_config_version}_sub{sub}_fit-human/' \
+                alphas_fpath = f'{results_path}/{attn_config_version}_sub{sub}_{v}/' \
                                f'all_alphas_type{problem_type}_sub{sub}_cluster.npy'
                 # get the final 3 alphas
                 alphas = np.load(alphas_fpath)[-3:]
@@ -136,7 +136,7 @@ def compare_across_types_V3(attn_config_version, threshold=[0, 0, 0], filter_str
                     color=colors[z],
                     label=f'single strategy, type {problem_type}')
 
-                np.save(f'{results_path}/{comparison}_type{problem_type}_allStrategies_{attn_config_version}.npy', temp_collector)
+                np.save(f'{results_path}/{comparison}_type{problem_type}_allStrategies_{attn_config_version}_{v}.npy', temp_collector)
                 average_metrics.append(np.mean(temp_collector))
                 std_metrics.append(np.std(temp_collector))
 
@@ -157,7 +157,7 @@ def compare_across_types_V3(attn_config_version, threshold=[0, 0, 0], filter_str
             ax.set_ylabel('percentage of zero attention weights')
             plt.tight_layout()
             plt.legend()            
-            plt.savefig(f'{results_path}/compare_types_percent_zero_{attn_config_version}.png')
+            plt.savefig(f'{results_path}/compare_types_percent_zero_{attn_config_version}_{v}.png')
             plt.close()
 
         elif comparison == 'binary_recon':
@@ -217,19 +217,19 @@ def compare_across_types_V3(attn_config_version, threshold=[0, 0, 0], filter_str
             
             plt.legend(fontsize=7)
             plt.tight_layout()
-            plt.savefig(f'{results_path}/compare_types_dimension_binary_recon_{attn_config_version}.png')
+            plt.savefig(f'{results_path}/compare_types_dimension_binary_recon_{attn_config_version}_{v}.png')
 
 
-def stats_significance_of_zero_attn(attn_config_version):
+def stats_significance_of_zero_attn(attn_config_version, v):
     """
     Evaluate statistic significance across types 
     of the difference in percentage of zero low attn
     weights over runs & strategies.
     """
     results_path = 'results'
-    type1 = np.load(f'{results_path}/zero_attn_type1_allStrategies_{attn_config_version}.npy')
-    type2 = np.load(f'{results_path}/zero_attn_type2_allStrategies_{attn_config_version}.npy')
-    type6 = np.load(f'{results_path}/zero_attn_type6_allStrategies_{attn_config_version}.npy')
+    type1 = np.load(f'{results_path}/zero_attn_type1_allStrategies_{attn_config_version}_{v}.npy')
+    type2 = np.load(f'{results_path}/zero_attn_type2_allStrategies_{attn_config_version}_{v}.npy')
+    type6 = np.load(f'{results_path}/zero_attn_type6_allStrategies_{attn_config_version}_{v}.npy')
     print(len(type1), len(type2), len(type6))
 
     print('Type 1 vs 2: ', stats.ttest_ind(type1, type2, equal_var=False))
@@ -246,7 +246,7 @@ def stats_significance_of_zero_attn(attn_config_version):
     return t_type1v2, p_type1v2, t_type2v6, p_type2v6
 
 
-def histogram_low_attn_weights(attn_config_version, threshold=[0., 0., 0.]):
+def histogram_low_attn_weights(attn_config_version, v, threshold=[0., 0., 0.],):
     """
     Plot the histogram of learned low-level attn weights
     across types.
@@ -263,10 +263,10 @@ def histogram_low_attn_weights(attn_config_version, threshold=[0., 0., 0.]):
     for z in range(len(problem_types)):
         problem_type = problem_types[z]
         for sub in subs:
-            results_path = f'results/{attn_config_version}_sub{sub}_fit-human'
+            results_path = f'results/{attn_config_version}_sub{sub}_{v}'
             attn_config = load_config(
                 component=None, 
-                config_version=f'{attn_config_version}_sub{sub}_fit-human')
+                config_version=f'{attn_config_version}_sub{sub}_{v}')
             attn_position = attn_config['attn_positions'].split(',')[0]
 
             # alphas_fpath = f'{results_path}/all_alphas_type{problem_type}_sub{sub}_cluster.npy'
@@ -308,7 +308,7 @@ def histogram_low_attn_weights(attn_config_version, threshold=[0., 0., 0.]):
     # plt.text(0.2, 10, f'Type 1 v Type 2: t={t_type1v2:.3f}, p-value={p_type1v2:.3f}')
     # plt.text(0.2, 8, f'Type 2 v Type 6: t={t_type2v6:.3f}, p-value={p_type2v6:.3f}')
     plt.legend()
-    plt.savefig('attn_weights_histogram.png')
+    plt.savefig(f'attn_weights_histogram_{v}.png')
                             
 
 def visualize_attn_overtime(config_version, sub, ax):
@@ -363,7 +363,7 @@ def visualize_attn_overtime(config_version, sub, ax):
     )
                         
                         
-def examine_subject_lc_and_attn_overtime(attn_config_version):
+def examine_subject_lc_and_attn_overtime(attn_config_version, v):
     """
     Plotting per subject (either human or model) lc using
     the best config and plot the attn weights overtime.
@@ -382,7 +382,7 @@ def examine_subject_lc_and_attn_overtime(attn_config_version):
         ax3 = fig.add_subplot(gs[1, :])
         colors = ['blue', 'orange', 'cyan']
         
-        config_version = f'{attn_config_version}_sub{sub}_fit-human'
+        config_version = f'{attn_config_version}_sub{sub}_{v}'
         config = load_config(
             component=None, 
             config_version=config_version)
@@ -446,7 +446,7 @@ def examine_subject_lc_and_attn_overtime(attn_config_version):
         plt.legend()
         plt.suptitle(f'sub{sub}, diff={per_config_mse:.3f}')
         plt.tight_layout()
-        plt.savefig(f'results/lc_sub{sub}.png')
+        plt.savefig(f'results/lc_sub{sub}_{v}.png')
         plt.close()
     
     # save current best configs' best diff to human lc.
@@ -454,7 +454,7 @@ def examine_subject_lc_and_attn_overtime(attn_config_version):
     np.save('best_diff_recorder.npy', best_diff_recorder)
     
     
-def examine_recruited_clusters_n_attn(attn_config_version):
+def examine_recruited_clusters_n_attn(attn_config_version, v):
     """
     Record the runs that produce canonical solutions
     for each problem type. 
@@ -475,7 +475,7 @@ def examine_recruited_clusters_n_attn(attn_config_version):
             sub = subs[i]
             model_path = \
                 f'results/' \
-                f'{attn_config_version}_sub{sub}_fit-human/model_type{problem_type}_sub{sub}'
+                f'{attn_config_version}_sub{sub}_{v}/model_type{problem_type}_sub{sub}'
             model = tf.keras.models.load_model(model_path, compile=False)
             dim_wise_attn_weights = model.get_layer('dimensionwise_attn_layer').get_weights()[0]
             all_runs_attn[i, :] = dim_wise_attn_weights
@@ -491,7 +491,7 @@ def examine_recruited_clusters_n_attn(attn_config_version):
     return attn_weights
 
 
-def recon_loss_by_type(attn_config_version):
+def recon_loss_by_type(attn_config_version, v):
     """
     Group recon loss by type, following conventions of 
     `brain_data/decoding.py`
@@ -509,13 +509,13 @@ def recon_loss_by_type(attn_config_version):
     for problem_type in problem_types:
         for sub in subs:
             # For binary recon, we grab the last 3 entries (each for a dim)
-            fpath = f'{results_path}/{attn_config_version}_sub{sub}_fit-human/' \
+            fpath = f'{results_path}/{attn_config_version}_sub{sub}_{v}/' \
                     f'all_recon_loss_ideal_type{problem_type}_sub{sub}_cluster.npy'
             # fpath = f'{results_path}/v4_naive-withNoise/' \
             #         f'all_recon_loss_ideal_type{problem_type}_run{sub}_cluster.npy'
             per_type_results = np.load(fpath)[-num_dims : ]
             recon_loss_collector[problem_type].append(np.mean(per_type_results))
-    np.save(f'{results_path}/recon_loss.npy', recon_loss_collector)
+    np.save(f'{results_path}/recon_loss_{v}.npy', recon_loss_collector)
         
     for problem_type in problem_types:   
         print(
@@ -577,7 +577,7 @@ def recon_loss_by_type_regression(recon_loss_collector, num_subs, problem_types)
     return average_coef, t, p/2
         
 
-def relate_recon_loss_to_decoding_error(num_runs, roi):
+def relate_recon_loss_to_decoding_error(num_runs, roi, v):
     """Relate binary reconstruction loss at the final layer
     of DCNN to the decoding error of the problem types 
     in the brain given ROI. For brain decoding, see `brain_data/`
@@ -592,7 +592,7 @@ def relate_recon_loss_to_decoding_error(num_runs, roi):
     """
     problem_types = [1, 2, 6]
     recon_loss_collector = np.load(
-        f'results/recon_loss.npy', 
+        f'results/recon_loss_{v}.npy', 
         allow_pickle=True).ravel()[0]
     decoding_error_collector = np.load(
         f'brain_data/decoding_results/decoding_error_{num_runs}runs_{roi}.npy', 
@@ -622,14 +622,15 @@ def relate_recon_loss_to_decoding_error(num_runs, roi):
             ax[i].set_ylabel(f'{roi} Neural Stimulus Reconstruction Loss\n(1 - decoding accuracy)')
         plt.title(f'ROI: {roi}')
         plt.tight_layout()
-        plt.savefig(f'results/relate_recon_loss_to_decoding_error_{roi}.png')
+        plt.savefig(f'results/relate_recon_loss_to_decoding_error_{roi}_{v}.png')
     
 
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
-    # examine_subject_lc_and_attn_overtime('best_config')
-    compare_across_types_V3('best_config', filter_strategy=False)
+    v = 'fit-human-entropy'
+    examine_subject_lc_and_attn_overtime('best_config', v=v)
+    # compare_across_types_V3('best_config', v=v, filter_strategy=False)
     # histogram_low_attn_weights('best_config')
     # examine_recruited_clusters_n_attn('best_config')
-    # recon_loss_by_type('best_config')
-    # relate_recon_loss_to_decoding_error(num_runs=3, roi='LOC')
+    # recon_loss_by_type('best_config', v=v)
+    # relate_recon_loss_to_decoding_error(num_runs=3, roi='LOC', v=v)

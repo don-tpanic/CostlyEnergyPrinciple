@@ -109,8 +109,8 @@ def multiprocess_eval(subs, v, hyper_begin, hyper_end, num_processes):
     
     # evaluate the lc of each sub's best config.
     print(f'[Check] evaluating best config lc...')
-    examine_subject_lc_and_attn_overtime('best_config')
-    compare_across_types_V3('best_config')
+    examine_subject_lc_and_attn_overtime('best_config', v=v)
+    compare_across_types_V3('best_config', v=v)
     
     
 if __name__ == '__main__':

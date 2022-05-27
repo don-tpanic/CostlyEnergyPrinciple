@@ -62,7 +62,7 @@ def multicuda_train(subs, configs, target_func, v='fit-human-entropy'):
     Train a bunch of models at once
     by launching them to all available GPUs.
     """
-    cuda_id_list = [0, 1, 2, 3, 4, 6]
+    cuda_id_list = [0, 1, 2, 3, 4, 5, 6, 7]
     args_list = []
     single_entry = {}
     for attn_config_version in configs:

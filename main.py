@@ -86,7 +86,7 @@ def train_model(sub, attn_config_version):
     recon_clusters_weighting = attn_config['recon_clusters_weighting']
     # ClusterModel things
     num_clusters = attn_config['num_clusters']
-    image_shape = (224, 224, 3)
+    image_shape = (14, 14, 512)
     
     # stimulus_set is in dcnn_config
     dcnn_config_version = attn_config['dcnn_config_version']
@@ -117,7 +117,6 @@ def train_model(sub, attn_config_version):
             attn_config_version=attn_config_version, 
             dcnn_config_version=dcnn_config_version)
         
-        preprocess_func = joint_model.preprocess_func
         attn_position = attn_positions[0]
         layer2attn_size = \
             dict_layer2attn_size(model_name=dcnn_config['model_name'])[attn_position]    
@@ -186,7 +185,6 @@ def train_model(sub, attn_config_version):
                 attn_config_version=attn_config_version, 
                 problem_type=problem_type, 
                 sub=sub, repetition=repetition,
-                preprocess_func=preprocess_func,
             )
                 
             for i in range(len(dataset)):
@@ -315,13 +313,21 @@ if __name__ == '__main__':
     start_time = time.time()
     num_subs = 23
     subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
-    from hyper_tune import multicuda_train
-    multicuda_train(
-        subs=subs,
-        configs=['best_config'],
-        target_func=train_model,
-        v='fit-human-entropy'
-    )
+    num_processes = 70
+    
+    os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+    with multiprocessing.Pool(num_processes) as pool:
+        for s in range(len(subs)):
+            sub = subs[s]
+            attn_config_version = \
+                f'best_config_sub{sub}_fit-human-entropy-fast'
+            results = pool.apply_async(
+                train_model, 
+                args=[sub, attn_config_version]
+            )
+        print(results.get())
+        pool.close()
+        pool.join()
     
     duration = time.time() - start_time
     print(f'duration = {duration}s')

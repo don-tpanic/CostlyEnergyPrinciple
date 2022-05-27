@@ -268,7 +268,7 @@ def load_X_only(dataset, attn_config_version):
         model_name=dcnn_model_name
     )
     
-    # image -> [(N, 224, 224, 3)]
+    # intermediate image -> [(N, 14, 14, 512)]
     image_batch = np.empty( (len(dataset), ) + dataset[0][0][0].shape[1:])
     for i in range(len(dataset)):
         dp = dataset[i]
@@ -294,16 +294,12 @@ def load_X_only(dataset, attn_config_version):
 def data_loader_human_order(
         attn_config_version, 
         problem_type, sub, repetition,
-        preprocess_func,
-        color_mode='rgb',
-        interpolation='nearest',
-        target_size=(224, 224),
-        data_format='channels_last'):
+    ):
     """
     Given a problem type, a subject and a repetition (16 total),
     return a dataset that contains data-points of that repetition,
     which are the exact 8 stimuli in a random order. The data-points 
-    include stimuli images (+fake ones), labels and signatures.
+    include stimuli intermediate images (+fake ones), labels and signatures.
     
     Impl:
     -----
@@ -368,44 +364,29 @@ def data_loader_human_order(
         sub_stimulus = ''.join(behaviour_i[3:6])  # '001'
         # sub_signature is sub_stimulus corresponding signature 
         # which does not correspond to default signature 
-        # i.e. file names of the raw images.
-        # e.g. signature=2, may not be the image `2.jpg`
+        # i.e. file names of the intermediate images.
+        # e.g. signature=2, may not be the image `2.npy`
         sub_signature = human.binary_to_signature[sub_stimulus]
         subj_signatures.append(sub_signature)
         
         # convert subject coding to DCNN coding so we can load 
         # the raw images because DCNN signatures are consistent
         # with the image file names.
-        # e.g. dcnn_signature=2, fname=`2.jpg`
+        # e.g. dcnn_signature=2, fname=`2.npy`
         dcnn_stimulus = subject2dcnn_mapper[sub_stimulus]
         fname = human.binary_to_signature[dcnn_stimulus]
         dcnn_signatures.append(fname)
         
-        # load and preprocess one image
-        img_fpath = f'{data_dir}/{fname}.jpg'
-        img = image.load_img(
-            img_fpath,
-            color_mode=color_mode,
-            target_size=target_size,
-            interpolation=interpolation
-        )
-        x = image.img_to_array(
-            img,
-            data_format=data_format
-        )
-        # Pillow images should be closed after `load_img`,
-        # but not PIL images.
-        if hasattr(img, 'close'):
-            img.close()
-        if preprocess_func:
-            x = preprocess_func(x)
+        # load one intermediate image.
+        img_fpath = f'{data_dir}/{fname}.npy'
+        x = np.load(img_fpath)
         
         # get y and convert to one-hot format.
         label = behaviour_i[6]                    # 6 - ground true answer
         label = human.label_to_oneHot[label]
         
         # preserve dim=0 (i.e. batch_size dim)
-        x = np.expand_dims(x, axis=0)
+        # x = np.expand_dims(x, axis=0)
         y = np.expand_dims(label, axis=0)
 
         # add fake inputs.
@@ -414,32 +395,17 @@ def data_loader_human_order(
             attn_size = layer2attn_size[attn_position]
             fake_input = np.ones((1, attn_size))
             inputs.extend([fake_input])
-
-        # TODO: double check to use which signature (subject or DCNN?)
         dataset.append([inputs, y, sub_signature])
             
     return np.array(dataset, dtype=object), \
         subj_signatures, dcnn_signatures
 
 
-
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
-    # data_loader_V2(
-    #     dcnn_config_version='t1.block4_pool.None.run1', 
-    #     problem_type=1,
-    #     preprocess_func=None
-    # )
-
-    # data_loader_V2(
-    #     attn_config_version='attn_v3b_cb_multi_test',
-    #     dcnn_config_version='t1.block4_pool.None.run1', 
-    #     problem_type=1,
-    #     preprocess_func=None
-    # )
     
     dataset = data_loader_human_order(
-        attn_config_version='v4_naive-withNoise', 
+        attn_config_version='best_config_sub02_fit-human-entropy', 
         problem_type=1, sub='02', repetition=1,
         preprocess_func=None
     )

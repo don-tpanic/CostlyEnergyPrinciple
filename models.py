@@ -17,17 +17,35 @@ from layers import AttnFactory
 from keras_custom import initializers
 
 
-def presave_dcnn(dcnn_config_version, path_model):
-    """
-    Load & save a finetuned dcnn.
+def presave_dcnn(
+        attn_config_version, 
+        dcnn_config_version, 
+        path_model,
+        intermediate_input=True):
+    """Load & save a finetuned dcnn (without attn).
+    
+    1. Load the entire empty DCNN and we load in the fine-tuned
+    final layer weights.
+    
+    2. Based on the first attn position, intercept the DCNN model 
+    such that the resulting model uses the pre-attn output as input.
     """
     # load two configs
     dcnn_config = load_config(
         component='finetune', 
         config_version=dcnn_config_version)
 
+    attn_config = load_config(
+            component=None,
+            config_version=attn_config_version)
+
+    # the first attention position.
+    attn_position_begin = attn_config['attn_positions'].split(',')[0]
+
     # load dcnn model.
-    model_dcnn, input_shape, preprocess_func = model_base(
+    # note, the input will be one layer before 
+    # the first attention layer.
+    model_dcnn, _, _ = model_base(
         model_name=dcnn_config['model_name'], 
         actv_func=dcnn_config['actv_func'],
         kernel_constraint=dcnn_config['kernel_constraint'],
@@ -36,21 +54,56 @@ def presave_dcnn(dcnn_config_version, path_model):
         lr=dcnn_config['lr'],
         train=dcnn_config['train'],
         stimulus_set=dcnn_config['stimulus_set'],
-        layer=dcnn_config['layer'],
-        intermediate_input=False)
+        layer=attn_position_begin,
+        intermediate_input=False
+    )
+    
+    # load finetuned final layer.
     model_name = dcnn_config['model_name']
     dcnn_save_path = f'finetune/results/{model_name}/config_{dcnn_config_version}/trained_weights'
     with open(os.path.join(dcnn_save_path, 'pred_weights.pkl'), 'rb') as f:
         pred_weights = pickle.load(f)
     model_dcnn.get_layer('pred').set_weights(pred_weights)
+    model_dcnn.summary()
+    
+    # intercept to use intermediate input.
+    if intermediate_input is True:
+        # the output shape of the pre-attn layer.
+        original_intermediate_input_layer_shape = \
+            model_dcnn.get_layer(f'{attn_position_begin}').output.shape[1:]
+        
+        # new input layer has shape same as pre-attn output.
+        intermediate_input = layers.Input(
+            shape=original_intermediate_input_layer_shape,
+            name=f'{attn_position_begin}')
+        
+        # HACK: reshape does nothing but enabled functional API.
+        x = layers.Reshape(
+                target_shape=original_intermediate_input_layer_shape
+            )(intermediate_input)
+
+        # attach the rest of the layers after attn.
+        # ignore all layer until pre-attn layer.
+        ignore = True
+        for layer in model_dcnn.layers:
+            if not ignore:
+                x = layer(x)
+            elif layer.name == attn_position_begin:
+                # notice we also ignore the pre-attn layer
+                # as we are using its output as intermediate input.
+                ignore = False
+        
+        intermediate_dcnn_model = Model(
+            inputs=intermediate_input, outputs=x)      
+        
     # save model for loading later.
-    model_dcnn.save(path_model)
+    intermediate_dcnn_model.save(path_model)
     print(f'dcnn model saved as {path_model}.')
 
 
 def DCNN(attn_config_version, 
          dcnn_config_version, 
-         intermediate_input=False):
+         intermediate_input=True):
     """
     Load trained dcnn model with option to add 
     a single or multiple layers of attn.
@@ -67,7 +120,7 @@ def DCNN(attn_config_version,
         preprocess_func: preprocessing for this dcnn
     """
     attn_config = load_config(
-            component=None, 
+            component=None,
             config_version=attn_config_version)
     dcnn_config = load_config(
         component='finetune', 
@@ -78,11 +131,16 @@ def DCNN(attn_config_version,
         preprocess_func = tf.keras.applications.vgg16.preprocess_input
 
     # load dcnn model.
-    path_model = f'dcnn_models/{dcnn_config_version}'
+    path_model = f'dcnn_models/{dcnn_config_version}_intermediate_input'
     if not os.path.exists(path_model):
-        presave_dcnn(dcnn_config_version, path_model)
-    model_dcnn = tf.keras.models.load_model(path_model)
-
+        presave_dcnn(
+            attn_config_version=attn_config_version, 
+            dcnn_config_version=dcnn_config_version, 
+            path_model=path_model,
+            intermediate_input=intermediate_input
+        )
+    model_dcnn = tf.keras.models.load_model(path_model, compile=False)
+    
     # ------ attn stuff ------ #
     # attn layer positions
     attn_positions = attn_config['attn_positions'].split(',')
@@ -112,17 +170,14 @@ def DCNN(attn_config_version,
 
     # loop thru all layers and apply attn at multiple positions.
     else:
-        dcnn_layers = model_dcnn.layers[1:]
+        dcnn_layers = model_dcnn.layers
         x = model_dcnn.input
         fake_inputs = []
         for layer in dcnn_layers:
-
-            # regardless of attn
-            # apply one layer at a time from DCNN.
-            layer.trainable = False
-            x = layer(x)
-
+            
             # apply attn at the output of the above layer output
+            # notice, it is guaranteed that the layer after the input
+            # is an attn layer (the first attn layer in case there are multiple).
             if layer.name in attn_positions:
                 attn_size = x.shape[-1]
 
@@ -148,6 +203,11 @@ def DCNN(attn_config_version,
 
                 # apply attn to prev layer output
                 x = layers.Multiply(name=f'post_attn_actv_{layer.name}')([x, attn_weights])
+            
+            # attach the rest of the layers of the dcnn.
+            else:
+                layer.trainable = False
+                x = layer(x)
 
         inputs = [model_dcnn.inputs]
         inputs.extend(fake_inputs)
@@ -399,9 +459,17 @@ class JointModel(Model):
 
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
-    model = JointModel(
+    
+    model_dcnn, _ = DCNN(
         attn_config_version='v4_naive-withNoise',
-        dcnn_config_version='t1.vgg16.block4_pool.None.run1'
+        dcnn_config_version='t1.vgg16.block4_pool.None.run1',
+        intermediate_input=True
     )
-    model.build(input_shape=[(1, 224, 224, 3), (1, 512)])
-    model.summary()
+    plot_model(model_dcnn, to_file='model_dcnn.png')
+    
+    # model = JointModel(
+    #     attn_config_version='best_config_sub02_fit-human-entropy',
+    #     dcnn_config_version='t1.vgg16.block4_pool.None.run1'
+    # )
+    # model.build(input_shape=[(1, 14, 14, 512), (1, 512)])
+    # model.summary()

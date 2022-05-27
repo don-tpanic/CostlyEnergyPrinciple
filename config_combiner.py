@@ -22,14 +22,14 @@ the joint_model configs will have best configs from clustering and could
 continue to search hyper-params for DCNN.
 """
 
-def merge(v='fit-human-entropy'):
+def merge(v='fit-human-entropy-fast'):
     num_subs = 23 
     subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
     num_subs = len(subs)
 
     for sub in subs:
-        clustering_config_version = f'best_config_sub{sub}_{v}'    # best config from fit-human-entropy for clustering
-        joint_config_version = f'best_config_sub{sub}_fit-human'   # best config from fit-human for joint model
+        clustering_config_version = f'best_config_sub{sub}_fit-human-entropy'            # best config from fit-human-entropy for clustering
+        joint_config_version = f'best_config_sub{sub}_fit-human-entropy'   # best config from fit-human-entropy for joint model
         
         # get the current joint_model best config
         # subject-specific

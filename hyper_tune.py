@@ -57,24 +57,24 @@ def per_subject_compare_human_to_model(sub, v, hyper_begin, hyper_end):
     )
 
 
-def multicuda_train(subs, configs, target_func, v='fit-human-entropy'):
+def multiprocess_train(target_func, subs, v, hyper_begin, hyper_end, num_processes):
     """
-    Train a bunch of models at once
-    by launching them to all available GPUs.
+    Train a bunch of models at once 
+    by launching them to all avaialble CPU cores.
     """
-    cuda_id_list = [0, 1, 2, 3, 4, 5, 6, 7]
-    args_list = []
-    single_entry = {}
-    for attn_config_version in configs:
-        for sub in subs:
-            single_entry['sub'] = sub
-            single_entry['attn_config_version'] = f'{attn_config_version}_sub{sub}_{v}'
-            args_list.append(single_entry)
-            single_entry = {}
-
-    print(args_list)
-    print(len(args_list))
-    cuda_manager(target_func, args_list, cuda_id_list)
+    with multiprocessing.Pool(num_processes) as pool:
+        for i in range(hyper_begin, hyper_end):
+            for sub in subs:
+                # the same hyper_i with different sub 
+                # is a different set of params.                
+                config_version = f'hyper{i}_sub{sub}_{v}'
+                results = pool.apply_async(
+                    target_func, 
+                    args=[sub, config_version]
+                )
+        print(results.get())
+        pool.close()
+        pool.join()
 
 
 def multiprocess_eval(subs, v, hyper_begin, hyper_end, num_processes):
@@ -99,13 +99,19 @@ def multiprocess_eval(subs, v, hyper_begin, hyper_end, num_processes):
         pool.close()
         pool.join()
     
-    # retrain just the best configs of all subs
-    print(f'[Check] retraining best configs...')
-    multicuda_train(
-        subs=subs,
-        configs=['best_config'],
-        target_func=train_model
-    )
+    # retrain to get best config named files.
+    with multiprocessing.Pool(num_processes) as pool:
+        for s in range(len(subs)):
+            sub = subs[s]
+            attn_config_version = \
+                f'best_config_sub{sub}_{v}'
+            results = pool.apply_async(
+                train_model, 
+                args=[sub, attn_config_version]
+            )
+        print(results.get())
+        pool.close()
+        pool.join()
     
     # evaluate the lc of each sub's best config.
     print(f'[Check] evaluating best config lc...')
@@ -134,24 +140,26 @@ if __name__ == '__main__':
     
     num_subs = 23
     subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
+    v = 'fit-human-entropy-fast'
+    num_processes = 72
     
     if mode == 'search':
-        configs = []
-        for i in range(hyper_begin, hyper_end):
-            configs.append(f'hyper{i}')
-        multicuda_train(
-            subs=subs, 
-            configs=configs, 
-            target_func=train_model,
-            v='fit-human-entropy')
+        multiprocess_train(
+            target_func=train_model, 
+            subs=subs,
+            v=v, 
+            hyper_begin=hyper_begin, 
+            hyper_end=hyper_end, 
+            num_processes=num_processes
+        )
     
     elif mode == 'eval':
         multiprocess_eval(
             subs=subs,
-            v='fit-human-entropy',
+            v=v,
             hyper_begin=hyper_begin, 
             hyper_end=hyper_end, 
-            num_processes=72
+            num_processes=num_processes
         )
     
     duration = time.time() - start_time

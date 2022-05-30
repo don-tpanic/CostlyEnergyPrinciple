@@ -77,8 +77,8 @@ def fit(joint_model,
     )
                 
     if repetition == 0 and i == 0:
-        print(f'[Check] Load the first item.')
-        print(f'--------------------------------------------------------')
+        # print(f'[Check] Load the first item.')
+        # print(f'--------------------------------------------------------')
         
         # recruit the first item by centering on it.
         recruit_cluster(
@@ -101,11 +101,11 @@ def fit(joint_model,
         
         # Convert loss to proberror used in SUSTAIN.
         item_proberror = 1. - tf.reduce_max(y_pred * y_true)
-        print(f'[Check] item_proberror = {item_proberror}')
+        # print(f'[Check] item_proberror = {item_proberror}')
     
     else:
-        print(f'[Check] Load non-first item.')
-        print(f'--------------------------------------------------------')
+        # print(f'[Check] Load non-first item.')
+        # print(f'--------------------------------------------------------')
         
         # First eval loss using existing.
         with tf.GradientTape() as tape:
@@ -115,7 +115,7 @@ def fit(joint_model,
             loss_value += reg_loss
         
         item_proberror = 1. - tf.reduce_max(y_pred * y_true)
-        print(f'[Check] item_proberror = {item_proberror}')
+        # print(f'[Check] item_proberror = {item_proberror}')
 
         # Apply the unsupervised thresholding rule.
         attn_config = load_config(
@@ -124,11 +124,11 @@ def fit(joint_model,
         )
         unsup_rule = attn_config['unsup_rule']
         thr = attn_config['thr']
-        print(f'[Check] totalSupport={totalSupport} vs thr={thr}')
+        # print(f'[Check] totalSupport={totalSupport} vs thr={thr}')
         
         # Successful recruit if lower than thr
         if totalSupport < thr:
-            print(f'[Check] lower than thr, recruit.')
+            # print(f'[Check] lower than thr, recruit.')
             recruit_cluster(
                 center=x_binary, 
                 signature=signature, 
@@ -144,7 +144,8 @@ def fit(joint_model,
             
         # Unsuccessful recruit if higher than thr
         else:
-            print(f'[Check] exceeding thr, do not recruit.')
+            pass
+            # print(f'[Check] exceeding thr, do not recruit.')
                 
     # Update trainable parameters.
     joint_model = update_params(
@@ -163,7 +164,7 @@ def fit(joint_model,
             joint_model.get_layer(
                 'dcnn_model').get_layer(
                     f'attn_factory_{attn_position}').get_weights()[0]
-        print(f'[Check] min attn weight = {np.min(layer_attn_weights)}')
+        # print(f'[Check] min attn weight = {np.min(layer_attn_weights)}')
         attn_weights[attn_position] = layer_attn_weights
     
     # track cluster_model's attn & centers 
@@ -174,14 +175,14 @@ def fit(joint_model,
     for d in range(num_centers):
         centers = joint_model.get_layer(f'd{d}').get_weights()[0]
         center_collector.extend(centers)
-        print(f'[Check] center {d} after trial update {centers}')
+        # print(f'[Check] center {d} after trial update {centers}')
 
     ################################
     # inner-loop low_attn learning.
     # 1. call after every trial (exc repetition 0)
     # 2. batch update
     ################################    
-    print('[Check] *** Beginning inner-loop ***')
+    # print('[Check] *** Beginning inner-loop ***')
     if repetition > 0:
         joint_model, attn_weights, \
         recon_loss_collector, recon_loss_ideal_collector, \
@@ -266,15 +267,15 @@ def learn_low_attn(
     conversion_ordering = np.argsort(dcnn_signatures)
     # remember batch_x is ([images], [fake_ones])
 
-    print(f'dcnn_signatures = {dcnn_signatures}')
-    print(f'conversion_ordering = {conversion_ordering}')
-    print('reordering....')
+    # print(f'dcnn_signatures = {dcnn_signatures}')
+    # print(f'conversion_ordering = {conversion_ordering}')
+    # print('reordering....')
     batch_x[0] = batch_x[0][conversion_ordering]
 
     # true cluster actv
     _, batch_y_true, _, _ = joint_model(batch_x)
-    print(f'[Check] batch_y_true.shape={batch_y_true.shape}')
-    print(f'[Check] batch_y_true={batch_y_true}')
+    # print(f'[Check] batch_y_true.shape={batch_y_true.shape}')
+    # print(f'[Check] batch_y_true={batch_y_true}')
     
     # # Save trial-level cluster targets
     # fname = f'results/{attn_config_version}/cluster_targets_{problem_type}_{global_steps}_{sub}.npy'
@@ -286,8 +287,8 @@ def learn_low_attn(
     percent_zero_attn_collector = []
     
     for i in range(inner_loop_epochs):
-        print(f' \n------- inner loop epoch = {i} -------')
-        print(f'global step = {global_steps}')
+        # print(f' \n------- inner loop epoch = {i} -------')
+        # print(f'global step = {global_steps}')
         
         with tf.GradientTape() as tape:
             # use the separate trainable dcnn 
@@ -333,18 +334,18 @@ def learn_low_attn(
         reg_loss_collector.append(reg_loss)
         percent_zero_attn_collector.append(percent_zero)
         
-        print(f'------------------------')
-        print(f'# Before Update Metrics:')
-        print(f'[Check] batch_x_binary_pred = {batch_x_binary_pred}')
-        print(f'[Check] batch_y_pred = {batch_y_pred}')
-        print(f'[Check] batch_y_true = {batch_y_true}')
-        print(f'[Check] recon_loss = {recon_loss}, recon_clusters_weighting={recon_clusters_weighting}')
-        print(f'[Check] recon_loss = {recon_loss}')
-        print(f'[Check] recon_loss_binary = {recon_loss_ideal}, avg = {np.mean(recon_loss_ideal)}')
-        print(f'[Check] reg_loss = {reg_loss}')
-        print(f'[Check] loss_value = {loss_value}')
-        print(f'[Check] percent_zero = {percent_zero}')
-        print(f'[Check] item_proberror = {item_proberror}')
+        # print(f'------------------------')
+        # print(f'# Before Update Metrics:')
+        # print(f'[Check] batch_x_binary_pred = {batch_x_binary_pred}')
+        # print(f'[Check] batch_y_pred = {batch_y_pred}')
+        # print(f'[Check] batch_y_true = {batch_y_true}')
+        # print(f'[Check] recon_loss = {recon_loss}, recon_clusters_weighting={recon_clusters_weighting}')
+        # print(f'[Check] recon_loss = {recon_loss}')
+        # print(f'[Check] recon_loss_binary = {recon_loss_ideal}, avg = {np.mean(recon_loss_ideal)}')
+        # print(f'[Check] reg_loss = {reg_loss}')
+        # print(f'[Check] loss_value = {loss_value}')
+        # print(f'[Check] percent_zero = {percent_zero}')
+        # print(f'[Check] item_proberror = {item_proberror}')
         global_steps += 1
 
     # log the latest attn weights at the end of this inner-loop.
@@ -354,7 +355,7 @@ def learn_low_attn(
             joint_model.get_layer(
                 'dcnn_model').get_layer(
                     f'attn_factory_{attn_position}').get_weights()[0]
-        print(f'[Check] min attn weight = {np.min(layer_attn_weights)}')
+        # print(f'[Check] min attn weight = {np.min(layer_attn_weights)}')
         attn_weights[attn_position] = layer_attn_weights
         
     return joint_model, attn_weights, \

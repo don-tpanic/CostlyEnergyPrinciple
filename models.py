@@ -98,7 +98,7 @@ def presave_dcnn(
         
     # save model for loading later.
     intermediate_dcnn_model.save(path_model)
-    print(f'dcnn model saved as {path_model}.')
+    # print(f'dcnn model saved as {path_model}.')
 
 
 def DCNN(attn_config_version, 
@@ -322,10 +322,10 @@ class JointModel(Model):
             w_correct = cluster_assoc_weights[0, 0]
             w_incorrect = cluster_assoc_weights[0, 1]
 
-        support = (w_correct - w_incorrect) / (
-            np.abs(w_correct) + np.abs(w_incorrect)
-        )
         # print(f'[Check] w_correct={w_correct}, w_incorrect={w_incorrect}')
+        support = (w_correct - w_incorrect) / (
+            np.abs(w_correct) + np.abs(w_incorrect) + 1e-6
+        )
         # print(f'[Check] cluster{cluster_index} support = {support}')
         return support
     

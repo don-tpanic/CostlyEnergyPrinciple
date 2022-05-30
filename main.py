@@ -94,14 +94,14 @@ def train_model(sub, attn_config_version):
         component='finetune',
         config_version=dcnn_config_version)
     stimulus_set = dcnn_config['stimulus_set']
-    print(f'[Check] {attn_config_version}')
+    # print(f'[Check] {attn_config_version}')
     results_path = f'results/{attn_config_version}'
     if not os.path.exists(results_path):
         os.makedirs(results_path)
     # np.random.seed(random_seed)
     # --------------------------------------------------------------------------
     # --- initialize models, optimizers, losses, training loops ----
-    print(f'[Check] Beginning sub {sub}')
+    # print(f'[Check] Beginning sub {sub}')
     if int(sub) % 2 == 0:
         problem_types = [6, 1, 2]
     else:
@@ -165,7 +165,7 @@ def train_model(sub, attn_config_version):
                     attn_position=attn_position
                 )
         else:
-            print(f'[Check] No carryover is applied.')
+            # print(f'[Check] No carryover is applied.')
             pass
         # --------------------------------------------------------------------------
         # train multiple epochs
@@ -230,7 +230,7 @@ def train_model(sub, attn_config_version):
                 all_centers.extend(center_collector)
 
                 # record item-level prob error
-                print(f'[Check] item_proberror = {item_proberror}')
+                # print(f'[Check] item_proberror = {item_proberror}')
                 lc[repetition] += item_proberror
                 
             # save one sub's per repetition low_attn weights.

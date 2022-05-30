@@ -17,7 +17,7 @@ class NoisyOnes(tf.keras.initializers.Initializer):
         )
         
         if self.noise_distribution == 'uniform':
-            
+            tf.random.set_seed(self.random_seed)
             noise = tf.random.uniform(
                 shape=shape, 
                 minval=-self.noise_level, 

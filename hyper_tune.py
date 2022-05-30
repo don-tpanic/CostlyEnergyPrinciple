@@ -2,6 +2,10 @@ import os
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
+# https://stackoverflow.com/questions/63336300/tensorflow-2-0-utilize-all-cpu-cores-100
+os.environ["TF_NUM_INTRAOP_THREADS"] = "1"
+os.environ["TF_NUM_INTEROP_THREADS"] = "1"
+
 import time
 import yaml
 import argparse

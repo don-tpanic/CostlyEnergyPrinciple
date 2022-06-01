@@ -500,6 +500,87 @@ def examine_subject_lc_and_attn_overtime(attn_config_version, v):
     np.save('best_diff_recorder.npy', best_diff_recorder)
     
 
+def consistency_alphas_vs_recon_naive_withNoise():
+    """
+    Same analysis as below but on v4_naive-withNoise (500runs)
+    """
+    problem_types=[1, 2, 6]
+    num_runs = 500
+    runs = range(num_runs)
+    attn_config_version = 'v4_naive-withNoise'
+    
+    all_rhos = []
+    for run in runs:
+        all_types_alphas = []
+        all_types_recon = []
+        for idx in range(len(problem_types)):
+            problem_type = problem_types[idx]
+
+            alphas = np.round(
+                np.load(
+                f'results/{attn_config_version}/' \
+                f'all_alphas_type{problem_type}_run{run}_cluster.npy')[-3:], 3)
+            
+            binary_recon = np.round(
+                np.load(
+                f'results/{attn_config_version}/' \
+                f'all_recon_loss_ideal_type{problem_type}_run{run}_cluster.npy')[-3:], 3)
+            
+            all_types_alphas.extend(alphas)
+            all_types_recon.extend(binary_recon)
+
+        rho, _ = stats.spearmanr(all_types_alphas, all_types_recon)
+        if str(rho) == 'nan':
+            pass
+        else:
+            all_rhos.append(rho)
+    
+    print(np.round(all_rhos, 3))
+    t, p = stats.ttest_1samp(all_rhos, popmean=0)
+    print(f't={t:.3f}, p={p/2:.3f}')
+
+
+def consistency_alphas_vs_recon(attn_config_version, v):
+    """
+    Look at overall how consistent are alphas corresponding to recon loss.
+    Ideally, the reverse rank of alphas should be the same as the rank of recon
+    because the higher the alppha, the lower the recon for this dimension.
+    """
+    problem_types=[1, 2, 6]
+    num_subs = 23
+    subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
+    
+    all_rhos = []
+    for sub in subs:
+        all_types_alphas = []
+        all_types_recon = []
+        for idx in range(len(problem_types)):
+            problem_type = problem_types[idx]
+
+            alphas = np.round(
+                np.load(
+                f'results/{attn_config_version}_sub{sub}_{v}/' \
+                f'all_alphas_type{problem_type}_sub{sub}_cluster.npy')[-3:], 3)
+            
+            binary_recon = np.round(
+                np.load(
+                f'results/{attn_config_version}_sub{sub}_{v}/' \
+                f'all_recon_loss_ideal_type{problem_type}_sub{sub}_cluster.npy')[-3:], 3)
+            
+            all_types_alphas.extend(alphas)
+            all_types_recon.extend(binary_recon)
+
+        rho, _ = stats.spearmanr(all_types_alphas, all_types_recon)
+        if str(rho) == 'nan':
+            pass
+        else:
+            all_rhos.append(rho)
+    
+    print(np.round(all_rhos, 3))
+    t, p = stats.ttest_1samp(all_rhos, popmean=0)
+    print(f't={t:.3f}, p={p/2:.3f}')
+            
+
 def recon_loss_by_type(attn_config_version, v):
     """
     Group recon loss by type, following conventions of 
@@ -637,9 +718,12 @@ def relate_recon_loss_to_decoding_error(num_runs, roi, v):
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
     v = 'fit-human-entropy-fast'
-    examine_subject_lc_and_attn_overtime('best_config', v=v)
-    compare_across_types_V3('best_config', v=v, filter_strategy=False)
+    # examine_subject_lc_and_attn_overtime('best_config', v=v)
+    # compare_across_types_V3('best_config', v=v, filter_strategy=False)
     # histogram_low_attn_weights('best_config')
     # examine_recruited_clusters_n_attn('best_config')
-    recon_loss_by_type('best_config', v=v)
-    relate_recon_loss_to_decoding_error(num_runs=3, roi='LOC', v=v)
+    # recon_loss_by_type('best_config', v=v)
+    # relate_recon_loss_to_decoding_error(num_runs=3, roi='LOC', v=v)
+    
+    # consistency_alphas_vs_recon('best_config', v=v)
+    consistency_alphas_vs_recon_naive_withNoise()

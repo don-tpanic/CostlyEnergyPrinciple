@@ -713,7 +713,60 @@ def relate_recon_loss_to_decoding_error(num_runs, roi, v):
         plt.title(f'ROI: {roi}')
         plt.tight_layout()
         plt.savefig(f'results/relate_recon_loss_to_decoding_error_{roi}_{v}.png')
+
+
+def relate_recon_loss_to_decoding_error_errorbar(num_runs, roi, v):
+    """Relate binary reconstruction loss at the final layer
+    of DCNN to the decoding error of the problem types 
+    in the brain given ROI. For brain decoding, see `brain_data/`
     
+    Impl:
+    -----
+        For brain decoding, we have produced results which are 
+        in `brain_data/decoding.py` and `brain_data/decoding_results/`.
+
+        For model recon, we obtain results in `recon_loss_by_type`
+        following conventions of how we save decoding results.
+    """
+    problem_types = [1, 2, 6]
+    recon_loss_collector = np.load(
+        f'results/recon_loss_{v}.npy', 
+        allow_pickle=True).ravel()[0]
+    decoding_error_collector = np.load(
+        f'brain_data/decoding_results/decoding_error_{num_runs}runs_{roi}.npy', 
+        allow_pickle=True).ravel()[0]
+    
+    fig, ax = plt.subplots(1, 2)
+    palette = {'Type 1': 'pink', 'Type 2': 'green', 'Type 6': 'blue'}
+    results_collectors = [recon_loss_collector, decoding_error_collector]
+    for i in range(len(results_collectors)):
+        results_collector = results_collectors[i]
+        
+        for j in range(len(problem_types)):
+            problem_type = problem_types[j]
+            data_perType = results_collector[problem_type]
+            
+            ax[i].errorbar(
+                x=j,
+                y=np.mean(data_perType),
+                yerr=stats.sem(data_perType),
+                label=f'Type {problem_type}',
+                fmt='o',
+                capsize=3,
+            )
+
+        ax[i].set_xlabel('Problem Types')
+        ax[i].set_xticks(range(len(problem_types)))
+        ax[i].set_xticklabels(problem_types)
+        if i == 0:
+            ax[i].set_ylabel('Model Stimulus Reconstruction Loss')
+        else:
+            ax[i].set_ylabel(f'{roi} Neural Stimulus Reconstruction Loss\n(1 - decoding accuracy)')
+        plt.title(f'ROI: {roi}')
+        plt.tight_layout()
+        plt.legend()
+        plt.savefig(f'results/relate_recon_loss_to_decoding_error_{roi}_{v}_errorbar.png')
+
 
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
@@ -723,7 +776,7 @@ if __name__ == '__main__':
     # histogram_low_attn_weights('best_config')
     # examine_recruited_clusters_n_attn('best_config')
     # recon_loss_by_type('best_config', v=v)
-    # relate_recon_loss_to_decoding_error(num_runs=3, roi='LOC', v=v)
+    relate_recon_loss_to_decoding_error_errorbar(num_runs=3, roi='LOC', v=v)
     
     # consistency_alphas_vs_recon('best_config', v=v)
-    consistency_alphas_vs_recon_naive_withNoise()
+    # consistency_alphas_vs_recon_naive_withNoise()

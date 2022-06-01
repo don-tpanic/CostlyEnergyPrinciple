@@ -69,9 +69,12 @@ def compare_across_types_V3(attn_config_version, v, threshold=[0, 0, 0], filter_
                 if comparison == 'binary_recon':
                     # for recon only, to plot, we need to rearrange the dims
                     # as similarly done when there is counterbalancing.
-                    conversion_order = np.argsort(alphas)[::-1]
-                    metric = metric[conversion_order]
-                    print(np.round(alphas[conversion_order], 3), np.round(metric, 3))
+                    
+                    print('sub', sub, np.round(alphas, 3), np.round(metric, 3))
+                    
+                    # conversion_order = np.argsort(alphas)[::-1]
+                    # metric = metric[conversion_order]
+                    # print(np.round(alphas[conversion_order], 3), np.round(metric, 3))
                    
                 # 1e-6 is the lower bound of alpha constraint.
                 # use tuple instead of list because tuple is not mutable.                    
@@ -375,7 +378,7 @@ def examine_subject_lc_and_attn_overtime(attn_config_version, v):
     
     best_diff_recorder = {}
     for sub in subs:
-        fig = plt.figure()
+        fig = plt.figure(dpi=200)
         gs = fig.add_gridspec(2,2)
         ax1 = fig.add_subplot(gs[0, 0])
         ax2 = fig.add_subplot(gs[0, 1])
@@ -390,6 +393,9 @@ def examine_subject_lc_and_attn_overtime(attn_config_version, v):
         
         # plot lc - human vs model
         per_config_mse = 0
+        all_types_zero_attn = []
+        all_types_alphas = []
+        all_types_binary_recon = []
         for idx in range(len(problem_types)):
             problem_type = problem_types[idx]
             human_lc = np.load(f'clustering/results/human/lc_type{problem_type}_sub{sub}.npy')
@@ -420,7 +426,25 @@ def examine_subject_lc_and_attn_overtime(attn_config_version, v):
             ax2.set_xticklabels(range(0, num_repetitions+4, 4))
             ax2.set_xlabel('repetitions')
             ax2.set_ylim([-0.05, 1.05])
+            
+            zero_attn = np.round(
+                np.load(
+                f'results/{attn_config_version}_sub{sub}_{v}/' \
+                f'all_percent_zero_attn_type{problem_type}_sub{sub}_cluster.npy')[-1], 3)  
+            all_types_zero_attn.append(zero_attn)            
         
+            alphas = np.round(
+                np.load(
+                f'results/{attn_config_version}_sub{sub}_{v}/' \
+                f'all_alphas_type{problem_type}_sub{sub}_cluster.npy')[-3:], 3)
+            all_types_alphas.append(alphas)
+                    
+            binary_recon = np.round(
+                np.load(
+                f'results/{attn_config_version}_sub{sub}_{v}/' \
+                f'all_recon_loss_ideal_type{problem_type}_sub{sub}_cluster.npy')[-3:], 3)
+            all_types_binary_recon.append(binary_recon)
+
         best_diff_recorder[sub] = per_config_mse
         
         # plot attn weights overtime
@@ -442,9 +466,31 @@ def examine_subject_lc_and_attn_overtime(attn_config_version, v):
         ax2.text(x_coord, y_coord-margin*1, f'inner_loop_epochs={inner_loop_epochs}')
         ax2.text(x_coord, y_coord-margin*2, f'recon_clusters_weighting={recon_clusters_weighting}')
         ax2.text(x_coord, y_coord-margin*3, f'noise_level={noise_level}')
-        
+                
         plt.legend()
-        plt.suptitle(f'sub{sub}, diff={per_config_mse:.3f}')
+        
+        if int(sub) % 2 == 0:
+            i = 2  # 6
+            j = 0  # 1
+            k = 1  # 2
+            type_i = 6
+            type_j = 1
+            type_k = 2
+            
+        elif int(sub) % 2 != 0:
+            i = 2  # 6
+            j = 1  # 2
+            j = 0  # 1
+            type_i = 6
+            type_j = 2
+            type_k = 1
+            
+        plt.suptitle(
+            f'sub{sub}, diff={per_config_mse:.3f}\n' \
+            f'Type{type_i}, alpha={all_types_alphas[i]}, recon={all_types_binary_recon[i]}({np.mean(all_types_binary_recon[i]):.3f}), zero%={all_types_zero_attn[i]}\n' \
+            f'Type{type_j}, alpha={all_types_alphas[j]}, recon={all_types_binary_recon[j]}({np.mean(all_types_binary_recon[j]):.3f}), zero%={all_types_zero_attn[j]}\n' \
+            f'Type{type_k}, alpha={all_types_alphas[k]}, recon={all_types_binary_recon[k]}({np.mean(all_types_binary_recon[k]):.3f}), zero%={all_types_zero_attn[k]}\n' \
+        , horizontalalignment='center')
         plt.tight_layout()
         plt.savefig(f'results/lc_sub{sub}_{v}.png')
         plt.close()

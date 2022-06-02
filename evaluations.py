@@ -237,19 +237,18 @@ def stats_significance_of_zero_attn(attn_config_version, v):
 
     print('Type 1 vs 2: ', stats.ttest_ind(type1, type2, equal_var=False))
     t_type1v2, p_type1v2 = stats.ttest_ind(type1, type2, equal_var=False)
-
     print('Type 2 vs 6: ', stats.ttest_ind(type2, type6, equal_var=False))
     t_type2v6, p_type2v6 = stats.ttest_ind(type2, type6, equal_var=False)
 
-    # cohen_d = (np.mean(type1) - np.mean(type2)) / np.mean((np.std(type1) + np.std(type2)))
-    # print(cohen_d)
-    # cohen_d = (np.mean(type2) - np.mean(type6)) / np.mean((np.std(type2) + np.std(type6)))
-    # print(cohen_d)
+    cohen_d = (np.mean(type1) - np.mean(type2)) / np.mean((np.std(type1) + np.std(type2)))
+    print(cohen_d)
+    cohen_d = (np.mean(type2) - np.mean(type6)) / np.mean((np.std(type2) + np.std(type6)))
+    print(cohen_d)
 
     return t_type1v2, p_type1v2, t_type2v6, p_type2v6
 
 
-def histogram_low_attn_weights(attn_config_version, v, threshold=[0., 0., 0.],):
+def histogram_low_attn_weights(attn_config_version, v, threshold=[0., 0., 0.], filter_strategy=False):
     """
     Plot the histogram of learned low-level attn weights
     across types.
@@ -271,17 +270,18 @@ def histogram_low_attn_weights(attn_config_version, v, threshold=[0., 0., 0.],):
                 component=None, 
                 config_version=f'{attn_config_version}_sub{sub}_{v}')
             attn_position = attn_config['attn_positions'].split(',')[0]
-
-            # alphas_fpath = f'{results_path}/all_alphas_type{problem_type}_sub{sub}_cluster.npy'
-            # alphas = np.load(alphas_fpath)[-3:]
-            # alphas = alphas - np.array(threshold)
-            # strategy = tuple(alphas > 1.0e-6)
-            # if problem_type in [1]:
-            #     if np.sum(strategy) >= 2:
-            #         continue
-            # elif problem_type in [2]:
-            #     if np.sum(strategy) == 3:
-            #         continue
+            
+            if filter_strategy:
+                alphas_fpath = f'{results_path}/all_alphas_type{problem_type}_sub{sub}_cluster.npy'
+                alphas = np.load(alphas_fpath)[-3:]
+                alphas = alphas - np.array(threshold)
+                strategy = tuple(alphas > 1.0e-6)
+                if problem_type in [1]:
+                    if np.sum(strategy) >= 2:
+                        continue
+                elif problem_type in [2]:
+                    if np.sum(strategy) == 3:
+                        continue
             
             attn_weights = np.load(
                 f'{results_path}/attn_weights_type{problem_type}_sub{sub}_cluster.npy',
@@ -307,11 +307,14 @@ def histogram_low_attn_weights(attn_config_version, v, threshold=[0., 0., 0.],):
 
     # plot t-test results
     t_type1v2, p_type1v2, \
-    t_type2v6, p_type2v6 = stats_significance_of_zero_attn(attn_config_version)
+        t_type2v6, p_type2v6 = \
+            stats_significance_of_zero_attn(attn_config_version, v) 
+            
     # plt.text(0.2, 10, f'Type 1 v Type 2: t={t_type1v2:.3f}, p-value={p_type1v2:.3f}')
     # plt.text(0.2, 8, f'Type 2 v Type 6: t={t_type2v6:.3f}, p-value={p_type2v6:.3f}')
+    
     plt.legend()
-    plt.savefig(f'attn_weights_histogram_{v}.png')
+    plt.savefig(f'results/attn_weights_histogram_{v}.png')
                             
 
 def visualize_attn_overtime(config_version, sub, ax):
@@ -509,7 +512,11 @@ def consistency_alphas_vs_recon_naive_withNoise():
     runs = range(num_runs)
     attn_config_version = 'v4_naive-withNoise'
     
+    fig, ax = plt.subplots()
+    
     all_rhos = []
+    all_alphas = []
+    all_recon = []
     for run in runs:
         all_types_alphas = []
         all_types_recon = []
@@ -528,12 +535,19 @@ def consistency_alphas_vs_recon_naive_withNoise():
             
             all_types_alphas.extend(alphas)
             all_types_recon.extend(binary_recon)
+            all_alphas.extend(alphas)
+            all_recon.extend(binary_recon)
 
         rho, _ = stats.spearmanr(all_types_alphas, all_types_recon)
         if str(rho) == 'nan':
             pass
         else:
             all_rhos.append(rho)
+    
+    ax.set_xlabel('Attention Strength')
+    ax.set_ylabel('Reconstruction Loss')
+    ax.scatter(all_alphas, all_recon)
+    plt.savefig(f'results/correlation_highAttn_vs_reconLoss_v4.png')
     
     print(np.round(all_rhos, 3))
     t, p = stats.ttest_1samp(all_rhos, popmean=0)
@@ -550,7 +564,10 @@ def consistency_alphas_vs_recon(attn_config_version, v):
     num_subs = 23
     subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
     
+    fig, ax = plt.subplots()
     all_rhos = []
+    all_alphas = []
+    all_recon = []
     for sub in subs:
         all_types_alphas = []
         all_types_recon = []
@@ -569,12 +586,19 @@ def consistency_alphas_vs_recon(attn_config_version, v):
             
             all_types_alphas.extend(alphas)
             all_types_recon.extend(binary_recon)
+            all_alphas.extend(alphas)
+            all_recon.extend(binary_recon)
 
         rho, _ = stats.spearmanr(all_types_alphas, all_types_recon)
         if str(rho) == 'nan':
             pass
         else:
             all_rhos.append(rho)
+    
+    ax.set_xlabel('Attention Strength')
+    ax.set_ylabel('Reconstruction Loss')
+    ax.scatter(all_alphas, all_recon)
+    plt.savefig(f'results/correlation_highAttn_vs_reconLoss_{v}.png')
     
     print(np.round(all_rhos, 3))
     t, p = stats.ttest_1samp(all_rhos, popmean=0)
@@ -771,12 +795,10 @@ def relate_recon_loss_to_decoding_error_errorbar(num_runs, roi, v):
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
     v = 'fit-human-entropy-fast'
-    # examine_subject_lc_and_attn_overtime('best_config', v=v)
-    # compare_across_types_V3('best_config', v=v, filter_strategy=False)
-    # histogram_low_attn_weights('best_config')
-    # examine_recruited_clusters_n_attn('best_config')
-    # recon_loss_by_type('best_config', v=v)
+    examine_subject_lc_and_attn_overtime('best_config', v=v)
+    compare_across_types_V3('best_config', v=v, filter_strategy=False)
+    histogram_low_attn_weights('best_config', v=v, filter_strategy=False)
+    recon_loss_by_type('best_config', v=v)
     relate_recon_loss_to_decoding_error_errorbar(num_runs=3, roi='LOC', v=v)
-    
-    # consistency_alphas_vs_recon('best_config', v=v)
+    consistency_alphas_vs_recon('best_config', v=v)
     # consistency_alphas_vs_recon_naive_withNoise()

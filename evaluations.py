@@ -590,6 +590,7 @@ def consistency_alphas_vs_recon(attn_config_version, v):
             all_recon.extend(binary_recon)
 
         rho, _ = stats.spearmanr(all_types_alphas, all_types_recon)
+        # print(np.round(all_types_alphas, 3), np.round(all_types_recon, 3), f'rho={rho:.3f}')
         if str(rho) == 'nan':
             pass
         else:

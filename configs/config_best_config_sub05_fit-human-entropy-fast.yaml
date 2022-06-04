@@ -3,7 +3,7 @@ actv_func: softmax
 asso_lr_multiplier: 1.0
 attn_constraint: sumtoone
 attn_initializer: ones-withNoise
-attn_lr_multiplier: 0.5
+attn_lr_multiplier: 0.625
 attn_positions: block4_pool
 attn_regularizer: l1
 beta: 8.278604637378269
@@ -18,8 +18,8 @@ high_attn_reg_strength: 0.3
 high_attn_regularizer: entropy
 inner_loop_epochs: 30
 low_attn_constraint: nonneg
-lr: 0.08634343283907325
-lr_attn: 0.00092
+lr: 0.043171716419536627
+lr_attn: 0.0006900000000000001
 noise_const: null
 noise_distribution: uniform
 noise_level: 0.2
@@ -31,9 +31,9 @@ num_subs: 23
 q: 1
 r: 2
 random_seed: 999
-recon_clusters_weighting: 1000
+recon_clusters_weighting: 5000
 recon_level: cluster
-reg_strength: 0.001
+reg_strength: 0.00075
 specificity: 1.661693118112836
 temp1: equivalent
 temp2: 0.012582808671506776

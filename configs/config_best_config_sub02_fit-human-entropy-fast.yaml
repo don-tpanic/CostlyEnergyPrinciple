@@ -31,7 +31,7 @@ num_subs: 23
 q: 1
 r: 2
 random_seed: 999
-recon_clusters_weighting: 100000
+recon_clusters_weighting: 50000.0
 recon_level: cluster
 reg_strength: 0.001
 specificity: 0.6039086005282546

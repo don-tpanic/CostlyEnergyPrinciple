@@ -22,7 +22,7 @@ lr: 0.7016532519073109
 lr_attn: 0.00092
 noise_const: null
 noise_distribution: uniform
-noise_level: 0.3
+noise_level: 0.375
 num_blocks: 32
 num_clusters: 8
 num_repetitions: 16
@@ -33,7 +33,7 @@ r: 2
 random_seed: 999
 recon_clusters_weighting: 10000000
 recon_level: cluster
-reg_strength: 0.001
+reg_strength: 0.0015
 specificity: 0.301403310307209
 temp1: equivalent
 temp2: 0.29965178138497217

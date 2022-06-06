@@ -107,8 +107,8 @@ def train_model(sub, attn_config_version):
     else:
         problem_types = [6, 2, 1]
         
-    # carryover Adam.
-    optimizer_attn = tf.keras.optimizers.Adam(learning_rate=lr_attn)
+    # # carryover Adam.
+    # optimizer_attn = tf.keras.optimizers.Adam(learning_rate=lr_attn)
     for problem_type in problem_types:
         lc = np.zeros(num_repetitions)
         
@@ -122,7 +122,8 @@ def train_model(sub, attn_config_version):
             dict_layer2attn_size(model_name=dcnn_config['model_name'])[attn_position]    
         joint_model.build(input_shape=[(1,)+image_shape, (1, layer2attn_size)])
         
-        # NOTE(ken): Adam carryover
+        # NOTE(ken): Adam no carryover
+        optimizer_attn = tf.keras.optimizers.Adam(learning_rate=lr_attn)
         optimizer_clus = tf.keras.optimizers.SGD(learning_rate=lr)
         loss_fn_clus = tf.keras.losses.BinaryCrossentropy(from_logits=from_logits)
         

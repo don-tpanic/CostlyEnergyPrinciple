@@ -26,10 +26,16 @@ def per_subject_compare_human_to_model(sub, v, hyper_begin, hyper_end):
     a range of hyper-params combo.
     """
     problem_types = [1, 2, 6]
-    best_config = f'best_config_sub{sub}_{v}'
-    best_diff_recorder = np.load('best_diff_recorder.npy', allow_pickle=True)
-    best_diff = best_diff_recorder.ravel()[0][sub]
-    # best_diff = 999
+    # if it's the first time searching
+    # meaning we don't have best_config for this v yet.
+    # so we wouldn't have best_diff_recorder, use 999.
+    if hyper_begin == 0:
+        best_diff = 999
+    else:
+        best_config = f'best_config_sub{sub}_{v}'
+        best_diff_recorder = np.load('best_diff_recorder.npy', allow_pickle=True)
+        best_diff = best_diff_recorder.ravel()[0][sub]
+    best_diff = 999
     for i in range(hyper_begin, hyper_end):
         config_version = f'hyper{i}_sub{sub}_{v}'
 
@@ -144,7 +150,7 @@ if __name__ == '__main__':
     
     num_subs = 23
     subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
-    v = 'fit-human-entropy-fast'
+    v = 'fit-human-entropy-fast-nocarryover'
     num_processes = 72
     
     if mode == 'search':

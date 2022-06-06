@@ -321,7 +321,7 @@ if __name__ == '__main__':
         for s in range(len(subs)):
             sub = subs[s]
             attn_config_version = \
-                f'best_config_sub{sub}_fit-human-entropy-fast'
+                f'best_config_sub{sub}_fit-human-entropy-fast-nocarryover'
             results = pool.apply_async(
                 train_model, 
                 args=[sub, attn_config_version]

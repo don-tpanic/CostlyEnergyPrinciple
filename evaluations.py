@@ -795,7 +795,7 @@ def relate_recon_loss_to_decoding_error_errorbar(num_runs, roi, v):
 
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
-    v = 'fit-human-entropy-fast'
+    v = 'fit-human-entropy-fast-nocarryover'
     examine_subject_lc_and_attn_overtime('best_config', v=v)
     compare_across_types_V3('best_config', v=v, filter_strategy=False)
     histogram_low_attn_weights('best_config', v=v, filter_strategy=False)

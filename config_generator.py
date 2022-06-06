@@ -92,35 +92,64 @@ def per_subject_hyperparams_ranges(sub, v):
                     lr_attn_, inner_loop_epochs_, recon_clusters_weighting_, noise_level_
                         
 
-def hyperparams_ranges():
+def hyperparams_ranges(sub, clustering_config_version):
     """
     Return searching ranges for each hyperparameter
     in joint_model
     """
+    # best so far 
+    config = load_config(
+        component='clustering', 
+        config_version=clustering_config_version
+    )
+    lr = config['lr']
+    attn_lr_multiplier = config['attn_lr_multiplier']
+    Phi = config['Phi']
+    specificity = config['specificity']
+    thr = config['thr']
+    beta = config['beta']
+    temp2 = config['temp2']
+    high_attn_reg_strength = config['high_attn_reg_strength']
+    
+    lr_ = [lr]
+    attn_lr_multiplier_ = [attn_lr_multiplier]
+    Phi_ = [Phi]
+    specificity_ = [specificity]
+    thr_ = [thr]
+    beta_ = [beta]
+    temp2_ = [temp2]
+    high_attn_reg_strength_ = [high_attn_reg_strength]
+    
     lr_attn_ = [0.00092, 0.0092, 0.092]
-    inner_loop_epochs_ = [2, 5, 10, 15, 20, 25, 30]
+    inner_loop_epochs_ = [5, 10, 15, 20, 25, 30]
     recon_clusters_weighting_ = [1000, 10000, 100000, 1000000, 10000000]
     noise_level_ = [0.2, 0.3, 0.4, 0.5, 0.6]
     
-    return lr_attn_, inner_loop_epochs_, recon_clusters_weighting_, noise_level_
+    return lr_, attn_lr_multiplier_, \
+                Phi_, specificity_, thr_, beta_, temp2_, high_attn_reg_strength_, \
+                    lr_attn_, inner_loop_epochs_, recon_clusters_weighting_, noise_level_
 
 
-def per_subject_generate_candidate_configs(ct, v, sub):
+def per_subject_generate_candidate_configs(ct, v, sub, subj_general=False):
     """
     Given a joint_model best config as template, we replace params regarding clustering model with 
     subject-specific best config. Then we iterate through hypers for training low_level attn
     in the DCNN and save the configs.
     """
-    # load clustering best configs (indepedently optimised in `sustain_plus`)
+    # load clustering best configs (indepedently optimised in `sustain_plus` before move onto joint).
+    clustering_config_version = f'best_config_sub{sub}_fit-human-entropy-nocarryover'
     clustering_config = load_config(
-        component='clustering',
-        config_version=f'best_config_sub{sub}_fit-human-entropy')
+        component='clustering', config_version=clustering_config_version)
     clustering_config_keys = clustering_config.keys()
     
     # use the joint_model config as template
-    template = load_config(
-        component=None, 
-        config_version=f'best_config_sub{sub}_fit-human-entropy')
+    # NOTE(ken), the template is used so we have all the params names,
+    # it does not matter which version is the template as long as 
+    # it is not the same as the latest. 
+    # e.g., if we plan on searching for joint_model of `fit-human-entropy-fast-nocarryover`
+    # the template config could be anything before it.
+    template_config_version = f'best_config_sub{sub}_fit-human-entropy'
+    template = load_config(component=None, config_version=template_config_version)   
     template['clustering_config_version'] = ''
     template_keys = template.keys()
     
@@ -130,19 +159,31 @@ def per_subject_generate_candidate_configs(ct, v, sub):
             template[f'clustering_{key}'] = clustering_config[key]
         else:
             template[key] = clustering_config[key]
-        
-    # Not subject specific    
-    # lr_attn_, \
-    #     inner_loop_epochs_, \
-    #         recon_clusters_weighting_, \
-    #             noise_level_ = hyperparams_ranges()
+
+    # NOTE(ken), one complication is that subj_general should always be run 
+    # before subject specific searches. This is due to after we intergrate the 
+    # best configs from the `sustain_plus` we do not have best configs for joint_model
+    # hence we cannot go on search in a subject-specific way. This should really 
+    # be done in an automatic manner in the future. i.e.
+    # subj_general -> subj_specific under a single execute.
+    if not subj_general:
+        lr_, attn_lr_multiplier_, \
+            Phi_, specificity_, thr_, beta_, temp2_, high_attn_reg_strength_, \
+                lr_attn_, inner_loop_epochs_, recon_clusters_weighting_, noise_level_ = \
+                    per_subject_hyperparams_ranges(
+                        sub=sub, 
+                        clustering_config_version=clustering_config_version
+                    )
+    else:
+        lr_, attn_lr_multiplier_, \
+            Phi_, specificity_, thr_, beta_, temp2_, high_attn_reg_strength_, \
+                lr_attn_, inner_loop_epochs_, recon_clusters_weighting_, noise_level_ = \
+                    hyperparams_ranges(
+                        sub=sub, 
+                        clustering_config_version=clustering_config_version
+                    )
     
-    lr_, attn_lr_multiplier_, \
-        Phi_, specificity_, thr_, beta_, temp2_, high_attn_reg_strength_, \
-            lr_attn_, inner_loop_epochs_, recon_clusters_weighting_, noise_level_ = \
-                per_subject_hyperparams_ranges(sub=sub, v=v)
-    
-    # update all low_attn entries in template
+    # update all searchable entries in template
     for lr in lr_:
         for attn_lr_multiplier in attn_lr_multiplier_:
             for high_attn_reg_strength in high_attn_reg_strength_:
@@ -172,14 +213,15 @@ if __name__ == '__main__':
     subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
     for sub in subs:
         per_subject_generate_candidate_configs(
-            ct=2712, v='fit-human-entropy-fast', sub=sub
+            ct=0, 
+            v='fit-human-entropy-fast-nocarryover', 
+            sub=sub,
+            subj_general=True
         )
         
-    # [0, 525)
+    # [0, 450): subj_general=True, clustering not searched.
             # lr_attn_ = [0.00092, 0.0092, 0.092]
-            # inner_loop_epochs_ = [2, 5, 10, 15, 20, 25, 30]
+            # inner_loop_epochs_ = [5, 10, 15, 20, 25, 30]
             # recon_clusters_weighting_ = [1000, 10000, 100000, 1000000, 10000000]
             # noise_level_ = [0.2, 0.3, 0.4, 0.5, 0.6]
-    
-    # [525, 2712)
-            # high_attn_reg_strength was not searched (was searching reg_strength which is not needed)
+            

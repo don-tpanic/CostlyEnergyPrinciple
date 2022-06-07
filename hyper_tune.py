@@ -35,7 +35,7 @@ def per_subject_compare_human_to_model(sub, v, hyper_begin, hyper_end):
         best_config = f'best_config_sub{sub}_{v}'
         best_diff_recorder = np.load('best_diff_recorder.npy', allow_pickle=True)
         best_diff = best_diff_recorder.ravel()[0][sub]
-    best_diff = 999
+
     for i in range(hyper_begin, hyper_end):
         config_version = f'hyper{i}_sub{sub}_{v}'
 

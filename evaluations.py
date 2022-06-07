@@ -239,7 +239,15 @@ def overall_eval(attn_config_version, v, threshold=[0, 0, 0]):
     ax.text(-0., 0.0, f'Type2 alphas={np.round(np.mean(alphas_all_types[1], axis=0), 1)}')
     ax.text(-0., -0.2, f'Type6 alphas={np.round(np.mean(alphas_all_types[2], axis=0), 1)}')
     
-    plt.suptitle(f'{attn_config_version}_{v}')
+    # 3. Write hyper of this config.
+    # NOTE(ken): can hard code sub because for the same hyper, values are the same.
+    config = load_config(component=None, config_version=f'{attn_config_version}_sub02_{v}')
+    lr_attn = config['lr_attn']
+    loop = config['inner_loop_epochs']
+    weighting = config['recon_clusters_weighting']
+    noise = config['noise_level']
+    
+    plt.suptitle(f'{attn_config_version}_{v},\nlr_attn={lr_attn}, loop={loop}, weighting={weighting}, noise={noise}')
     plt.tight_layout()
     plt.savefig(f'{results_path}/overall_eval_{attn_config_version}_{v}.png')
     plt.close()

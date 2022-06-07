@@ -16,8 +16,7 @@ import multiprocessing
 
 from main import train_model
 from utils import cuda_manager, load_config
-from evaluations import examine_subject_lc_and_attn_overtime, \
-    compare_across_types_V3
+from evaluations import overall_eval
 
 
 def per_subject_compare_human_to_model(sub, v, hyper_begin, hyper_end):
@@ -26,18 +25,19 @@ def per_subject_compare_human_to_model(sub, v, hyper_begin, hyper_end):
     a range of hyper-params combo.
     """
     problem_types = [1, 2, 6]
+    
+    # FIXME:
     # if it's the first time searching
     # meaning we don't have best_config for this v yet.
     # so we wouldn't have best_diff_recorder, use 999.
-    if hyper_begin == 0:
-        best_diff = 999
-    else:
-        best_config = f'best_config_sub{sub}_{v}'
-        best_diff_recorder = np.load('best_diff_recorder.npy', allow_pickle=True)
-        best_diff = best_diff_recorder.ravel()[0][sub]
+    best_diff = 999
+    # best_config = f'best_config_sub{sub}_{v}'
+    # best_diff_recorder = np.load('best_diff_recorder.npy', allow_pickle=True)
+    # best_diff = best_diff_recorder.ravel()[0][sub]
 
     for i in range(hyper_begin, hyper_end):
         config_version = f'hyper{i}_sub{sub}_{v}'
+        print(f'hyper{i}_sub{sub}_{v}')
 
         per_config_mse = 0
         try:
@@ -46,25 +46,28 @@ def per_subject_compare_human_to_model(sub, v, hyper_begin, hyper_end):
                 human_lc = np.load(f'clustering/results/human/lc_type{problem_type}_sub{sub}.npy')
                 model_lc = np.load(f'results/{config_version}/lc_type{problem_type}_sub{sub}_cluster.npy')
                 per_config_mse += np.mean( (human_lc - model_lc)**2 )
+            
+            overall_eval(attn_config_version=f'hyper{i}', v=v)
+
         except FileNotFoundError:
             # catch config with missing files
+            print(f'[Warning] config {config_version} is missing files.')
             continue
         
-        # print(f'[sub{sub}], current config {config_version}, diff = {per_config_mse}')
         if per_config_mse < best_diff:
             best_config = config_version
             best_diff = per_config_mse
     
     print(f'[sub{sub}], best config {best_config}, diff = {best_diff}')
     
-    # override the current best config 
-    # by the best config we just found
-    subprocess.run(
-        ['cp', 
-         f'configs/config_{best_config}.yaml', 
-         f'configs/config_best_config_sub{sub}_{v}.yaml'
-        ]
-    )
+    # # override the current best config 
+    # # by the best config we just found
+    # subprocess.run(
+    #     ['cp', 
+    #      f'configs/config_{best_config}.yaml', 
+    #      f'configs/config_best_config_sub{sub}_{v}.yaml'
+    #     ]
+    # )
 
 
 def multiprocess_train(target_func, subs, v, hyper_begin, hyper_end, num_processes):
@@ -109,24 +112,24 @@ def multiprocess_eval(subs, v, hyper_begin, hyper_end, num_processes):
         pool.close()
         pool.join()
     
-    # retrain to get best config named files.
-    with multiprocessing.Pool(num_processes) as pool:
-        for s in range(len(subs)):
-            sub = subs[s]
-            attn_config_version = \
-                f'best_config_sub{sub}_{v}'
-            results = pool.apply_async(
-                train_model, 
-                args=[sub, attn_config_version]
-            )
-        print(results.get())
-        pool.close()
-        pool.join()
+    # # retrain to get best config named files.
+    # with multiprocessing.Pool(num_processes) as pool:
+    #     for s in range(len(subs)):
+    #         sub = subs[s]
+    #         attn_config_version = \
+    #             f'best_config_sub{sub}_{v}'
+    #         results = pool.apply_async(
+    #             train_model, 
+    #             args=[sub, attn_config_version]
+    #         )
+    #     print(results.get())
+    #     pool.close()
+    #     pool.join()
     
-    # evaluate the lc of each sub's best config.
-    print(f'[Check] evaluating best config lc...')
-    examine_subject_lc_and_attn_overtime('best_config', v=v)
-    compare_across_types_V3('best_config', v=v)
+    # # evaluate the lc of each sub's best config.
+    # print(f'[Check] evaluating best config lc...')
+    # examine_subject_lc_and_attn_overtime('best_config', v=v)
+    # compare_across_types_V3('best_config', v=v)
     
     
 if __name__ == '__main__':
@@ -151,7 +154,7 @@ if __name__ == '__main__':
     num_subs = 23
     subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
     v = 'fit-human-entropy-fast-nocarryover'
-    num_processes = 72
+    num_processes = 68
     
     if mode == 'search':
         multiprocess_train(

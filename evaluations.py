@@ -22,13 +22,7 @@ from losses import binary_crossentropy
 Evaluation routines.
 """  
 
-def compare_across_types_V3(attn_config_version, v, threshold=[0, 0, 0], filter_strategy=True):
-    """Key differences to the generic `compare_across_types_V3`:
-    1. We only consider Type 1, 2 and 6. 
-    2. Canonical run or not is no longer valid due to 
-        the carryover effect results in recruitment of all clusters.
-    3. No counterbalancing since everything is based on human data. 
-    """
+def overall_eval(attn_config_version, v, threshold=[0, 0, 0]):
     problem_types = [1, 2, 6]
     num_subs = 23
     subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
@@ -36,7 +30,7 @@ def compare_across_types_V3(attn_config_version, v, threshold=[0, 0, 0], filter_
     num_dims = 3
     comparisons = ['zero_attn', 'binary_recon']
     results_path = 'results'
-    
+    fig, axes = plt.subplots(3, 3, dpi=100)
     
     for c in range(len(comparisons)):
         comparison = comparisons[c]
@@ -45,7 +39,6 @@ def compare_across_types_V3(attn_config_version, v, threshold=[0, 0, 0], filter_
 
         for z in range(len(problem_types)):
             problem_type = problem_types[z]
-            print(f'------------ problem_type = {problem_type} ------------')
 
             for sub in subs:
                 # First grab the final metric
@@ -69,42 +62,24 @@ def compare_across_types_V3(attn_config_version, v, threshold=[0, 0, 0], filter_
                 if comparison == 'binary_recon':
                     # for recon only, to plot, we need to rearrange the dims
                     # as similarly done when there is counterbalancing.
-                    
-                    print('sub', sub, np.round(alphas, 3), np.round(metric, 3))
-                    
-                    # conversion_order = np.argsort(alphas)[::-1]
-                    # metric = metric[conversion_order]
-                    # print(np.round(alphas[conversion_order], 3), np.round(metric, 3))
-                   
+                    conversion_order = np.argsort(alphas)[::-1]
+                    metric = metric[conversion_order]
+                
                 # 1e-6 is the lower bound of alpha constraint.
                 # use tuple instead of list because tuple is not mutable.                    
                 alphas = alphas - np.array(threshold)
                 strategy = tuple(alphas > 1.0e-6)
+                type2strategy2metric[problem_type][strategy].append(metric)
                 
-                if filter_strategy:
-                    # only consider the ideal attn strategies.
-                    if problem_type in [1]:
-                        if np.sum(strategy) >= 2:
-                            pass
-                        else:
-                            type2strategy2metric[problem_type][strategy].append(metric)
-                    elif problem_type in [2]:
-                        if np.sum(strategy) == 3:
-                            pass
-                        else:
-                            type2strategy2metric[problem_type][strategy].append(metric)
-                    else:
-                        type2strategy2metric[problem_type][strategy].append(metric)
-                else:
-                    type2strategy2metric[problem_type][strategy].append(metric)
-
+        #### End of extracting results ####
+        #### Begin of plotting ####
+                
         # plotting both %attn and binary recon.
         if comparison == 'zero_attn':
-            fig, ax = plt.subplots()
+            ax = axes[0, 0]
             x_axis = np.linspace(0, 14, 7)
-            colors = ['green', 'red', 'brown', 'orange', 'cyan', 'blue']
             average_metrics = []
-            std_metrics = []
+            sem_metrics = []
             
             for z in range(len(problem_types)):
                 problem_type = problem_types[z]
@@ -122,56 +97,55 @@ def compare_across_types_V3(attn_config_version, v, threshold=[0, 0, 0], filter_
                     strategy = strategies[i]
                     metrics = strategy2metric[strategy]
                     temp_collector.extend(metrics)
-                    # plot bar of a single strategy
-                    ax.errorbar(
-                        x=x_ticks[i],
-                        y=np.mean(metrics),
-                        yerr=np.std(metrics),
-                        fmt='o',
-                        color=colors[z])
-                    
-                # NOTE: Hacky way of getting legend correct.
-                ax.errorbar(
-                    x=x_ticks[i],
-                    y=np.mean(metrics),
-                    yerr=np.std(metrics),
-                    fmt='o',
-                    color=colors[z],
-                    label=f'single strategy, type {problem_type}')
 
-                np.save(f'{results_path}/{comparison}_type{problem_type}_allStrategies_{attn_config_version}_{v}.npy', temp_collector)
+                np.save(
+                    f'{results_path}/'\
+                    f'{comparison}_type{problem_type}_allStrategies_{attn_config_version}_{v}.npy', 
+                    temp_collector
+                )
+                
                 average_metrics.append(np.mean(temp_collector))
-                std_metrics.append(np.std(temp_collector))
+                sem_metrics.append(stats.sem(temp_collector))
 
             # plot bar of averaged over strategies.
             ax.errorbar(
                 x=x_axis[:len(problem_types)]+0.5,
                 y=average_metrics,
-                yerr=std_metrics,
+                yerr=sem_metrics,
                 fmt='*',
                 color='k',
                 ls='-',
                 label='overall'
             )
 
+            ax.set_xlabel('Problem Types')
             ax.set_xticks(x_axis[:len(problem_types)]+0.5)
-            ax.set_xticklabels([f'Type {problem_type}' for problem_type in problem_types])
+            ax.set_xticklabels(problem_types)   
             ax.set_ylim([-0.05, 1.05])
-            ax.set_ylabel('percentage of zero attention weights')
-            plt.tight_layout()
-            plt.legend()            
-            plt.savefig(f'{results_path}/compare_types_percent_zero_{attn_config_version}_{v}.png')
-            plt.close()
-
+            ax.set_title('Percentage of zero attn')
+            
+            # plot the histogram on the right.
+            ax = axes[0, 1]
+            ax, \
+                t_type1v2, p_type1v2, t_type2v6, p_type2v6 = histogram_low_attn_weights(
+                    ax=ax, 
+                    attn_config_version=attn_config_version, 
+                    v=v
+                )
+            
+            # write stats on the empty space.
+            ax = axes[0, 2]
+            ax.axis('off')
+            ax.text(-1, 0.9, f'Type 1 vs 2 = \n{t_type1v2:.1f}(p={p_type1v2:.3f})')
+            ax.text(-1, 0.4, f'Type 2 vs 6 = \n{t_type2v6:.1f}(p={p_type2v6:.3f})')
+    
+            
         elif comparison == 'binary_recon':
             num_cols = 3
-            num_rows = int(len(problem_types) / num_cols)
             x_axis = np.linspace(0, 8, num_dims+1)
-            fig, ax = plt.subplots(num_rows, num_cols)
 
             for z in range(len(problem_types)):
                 problem_type = problem_types[z]
-                row_idx = z // num_cols
                 col_idx = z % num_cols
 
                 # e.g. {(True, False, False): [ [metric_dim1, dim2. dim3], [dim1, dim2, dim3], .. ]}
@@ -187,42 +161,56 @@ def compare_across_types_V3(attn_config_version, v, threshold=[0, 0, 0], filter_
                         strategy2metric[strategy])
                     all_strategies_collector.extend(metrics)
 
-                    colors = ['green', 'red', 'brown']
-                    for dim in range(num_dims):
-                        x_left = x_axis[dim] + 1
-                        x_right = x_axis[dim+1] - 1
-                        x_ticks = np.linspace(x_left, x_right, num_strategies)
-
-                        ax[col_idx].errorbar(
-                            x=x_ticks[i],
-                            y=np.mean(metrics[:, dim]),
-                            yerr=np.std(metrics[:, dim]),
-                            fmt='o',
-                            color=colors[dim],
-                            label=f'single strategy, dim{dim}')
-
                 average_metric = np.mean(np.array(all_strategies_collector), axis=0)
-                std_metric = np.std(np.array(all_strategies_collector), axis=0)
-                ax[col_idx].errorbar(
+                sem_metric = stats.sem(np.array(all_strategies_collector), axis=0)
+                axes[1, col_idx].errorbar(
                     x=x_axis[:num_dims],
                     y=average_metric,
-                    yerr=std_metric,
+                    yerr=sem_metric,
                     fmt='*',
                     color='k',
                     label='overall'
                 )
-                ax[col_idx].set_xticks([])
-                ax[col_idx].set_xticks(x_axis[:num_dims]+0.5)
-                ax[col_idx].set_xticklabels([f'dim{i+1}' for i in range(num_dims)])
-                ax[col_idx].set_ylim([-0.5, 5])
-                ax[0].set_ylabel('binary recon loss')
-                ax[col_idx].set_title(f'Type {problem_type}')
+                axes[1, col_idx].set_xticks([])
+                axes[1, col_idx].set_xticks(x_axis[:num_dims]+0.5)
+                axes[1, col_idx].set_xticklabels([f'dim{i+1}' for i in range(num_dims)])
+                axes[1, col_idx].set_ylim([-0.5, 3])
+                axes[1, col_idx].set_title(f'Type {problem_type}')
+    
+    # finally plot the third row which is the decoding results.
+    average_coef, t, p = recon_loss_by_type(
+        attn_config_version=attn_config_version, v=v)
+    
+    relate_recon_loss_to_decoding_error_errorbar(
+        axes=axes[2, :], 
+        attn_config_version=attn_config_version, 
+        num_runs=3, roi='LOC', v=v)
+    
+    # write stats on the empty space.
+    ax = axes[2, 2]
+    ax.axis('off')
+    ax.text(-1, 0.9, f'Avg coef={average_coef:.3f}\nt={t:.1f}(p={p:.3f})')
+    
+    # write behaviour fitting stats
+    # 1. Sum of fitting MSE of all subjects.
+    per_config_mse_all_subs = 0
+    for sub in subs:
+        per_config_mse = 0
+        for idx in range(len(problem_types)):
+            problem_type = problem_types[idx]
+            human_lc = np.load(f'clustering/results/human/lc_type{problem_type}_sub{sub}.npy')
+            model_lc = np.load(f'results/{attn_config_version}_sub{sub}_{v}/lc_type{problem_type}_sub{sub}_cluster.npy')
+            per_config_mse += np.mean( (human_lc - model_lc)**2 )
+            per_config_mse_all_subs += per_config_mse
+    ax.text(-1, 0.6, f'Sum all subs MSE = {per_config_mse_all_subs:.3f}')
+    
+    # 2. Final dim-averaged (counterbalanced) high-attn weights.
+
+    plt.tight_layout()
+    plt.savefig(f'{results_path}/overall_eval_{attn_config_version}_{v}.png')
+    plt.close()
             
-            plt.legend(fontsize=7)
-            plt.tight_layout()
-            plt.savefig(f'{results_path}/compare_types_dimension_binary_recon_{attn_config_version}_{v}.png')
-
-
+            
 def stats_significance_of_zero_attn(attn_config_version, v):
     """
     Evaluate statistic significance across types 
@@ -233,22 +221,14 @@ def stats_significance_of_zero_attn(attn_config_version, v):
     type1 = np.load(f'{results_path}/zero_attn_type1_allStrategies_{attn_config_version}_{v}.npy')
     type2 = np.load(f'{results_path}/zero_attn_type2_allStrategies_{attn_config_version}_{v}.npy')
     type6 = np.load(f'{results_path}/zero_attn_type6_allStrategies_{attn_config_version}_{v}.npy')
-    print(len(type1), len(type2), len(type6))
 
-    print('Type 1 vs 2: ', stats.ttest_ind(type1, type2, equal_var=False))
     t_type1v2, p_type1v2 = stats.ttest_ind(type1, type2, equal_var=False)
-    print('Type 2 vs 6: ', stats.ttest_ind(type2, type6, equal_var=False))
     t_type2v6, p_type2v6 = stats.ttest_ind(type2, type6, equal_var=False)
 
-    cohen_d = (np.mean(type1) - np.mean(type2)) / np.mean((np.std(type1) + np.std(type2)))
-    print(cohen_d)
-    cohen_d = (np.mean(type2) - np.mean(type6)) / np.mean((np.std(type2) + np.std(type6)))
-    print(cohen_d)
-
-    return t_type1v2, p_type1v2, t_type2v6, p_type2v6
+    return t_type1v2, p_type1v2/2, t_type2v6, p_type2v6/2
 
 
-def histogram_low_attn_weights(attn_config_version, v, threshold=[0., 0., 0.], filter_strategy=False):
+def histogram_low_attn_weights(ax, attn_config_version, v):
     """
     Plot the histogram of learned low-level attn weights
     across types.
@@ -266,23 +246,13 @@ def histogram_low_attn_weights(attn_config_version, v, threshold=[0., 0., 0.], f
         problem_type = problem_types[z]
         for sub in subs:
             results_path = f'results/{attn_config_version}_sub{sub}_{v}'
+            
             attn_config = load_config(
                 component=None, 
                 config_version=f'{attn_config_version}_sub{sub}_{v}')
-            attn_position = attn_config['attn_positions'].split(',')[0]
             
-            if filter_strategy:
-                alphas_fpath = f'{results_path}/all_alphas_type{problem_type}_sub{sub}_cluster.npy'
-                alphas = np.load(alphas_fpath)[-3:]
-                alphas = alphas - np.array(threshold)
-                strategy = tuple(alphas > 1.0e-6)
-                if problem_type in [1]:
-                    if np.sum(strategy) >= 2:
-                        continue
-                elif problem_type in [2]:
-                    if np.sum(strategy) == 3:
-                        continue
-            
+            attn_position = attn_config['attn_positions'].split(',')[0]   
+                     
             attn_weights = np.load(
                 f'{results_path}/attn_weights_type{problem_type}_sub{sub}_cluster.npy',
                 allow_pickle=True).ravel()[0][attn_position]
@@ -294,12 +264,7 @@ def histogram_low_attn_weights(attn_config_version, v, threshold=[0., 0., 0.], f
             elif problem_type == 6:
                 type6.extend(attn_weights)
 
-    fig, ax = plt.subplots()
     colors = {'type1': 'y', 'type2': 'g', 'type6': 'r'}
-    print('max type1 = ', np.max(type1))
-    print('max type2 = ', np.max(type2))
-    print('max type6 = ', np.max(type6))
-
     sns.kdeplot(type1, label='Type 1', ax=ax, color=colors['type1'])
     sns.kdeplot(type2, label='Type 2', ax=ax, color=colors['type2'])
     sns.kdeplot(type6, label='Type 6', ax=ax, color=colors['type6'])
@@ -310,11 +275,7 @@ def histogram_low_attn_weights(attn_config_version, v, threshold=[0., 0., 0.], f
         t_type2v6, p_type2v6 = \
             stats_significance_of_zero_attn(attn_config_version, v) 
             
-    # plt.text(0.2, 10, f'Type 1 v Type 2: t={t_type1v2:.3f}, p-value={p_type1v2:.3f}')
-    # plt.text(0.2, 8, f'Type 2 v Type 6: t={t_type2v6:.3f}, p-value={p_type2v6:.3f}')
-    
-    plt.legend()
-    plt.savefig(f'results/attn_weights_histogram_{v}.png')
+    return ax, t_type1v2, p_type1v2, t_type2v6, p_type2v6
                             
 
 def visualize_attn_overtime(config_version, sub, ax):
@@ -493,9 +454,9 @@ def examine_subject_lc_and_attn_overtime(attn_config_version, v):
             
         plt.suptitle(
             f'sub{sub}, diff={per_config_mse:.3f}\n' \
-            f'Type{type_i}, alpha={all_types_alphas[i]}, recon={all_types_binary_recon[i]}({np.mean(all_types_binary_recon[i]):.3f}), zero%={all_types_zero_attn[i]}\n' \
-            f'Type{type_j}, alpha={all_types_alphas[j]}, recon={all_types_binary_recon[j]}({np.mean(all_types_binary_recon[j]):.3f}), zero%={all_types_zero_attn[j]}\n' \
-            f'Type{type_k}, alpha={all_types_alphas[k]}, recon={all_types_binary_recon[k]}({np.mean(all_types_binary_recon[k]):.3f}), zero%={all_types_zero_attn[k]}\n' \
+            f'Type{type_i}, alpha={all_types_alphas[i]}, rec={all_types_binary_recon[i]}({np.mean(all_types_binary_recon[i]):.3f}), %={all_types_zero_attn[i]}\n' \
+            f'Type{type_j}, alpha={all_types_alphas[j]}, rec={all_types_binary_recon[j]}({np.mean(all_types_binary_recon[j]):.3f}), %={all_types_zero_attn[j]}\n' \
+            f'Type{type_k}, alpha={all_types_alphas[k]}, rec={all_types_binary_recon[k]}({np.mean(all_types_binary_recon[k]):.3f}), %={all_types_zero_attn[k]}\n' \
         , horizontalalignment='center')
         plt.tight_layout()
         plt.savefig(f'results/lc_sub{sub}_{v}.png')
@@ -505,57 +466,6 @@ def examine_subject_lc_and_attn_overtime(attn_config_version, v):
     # this will be used as benchmark for further search and eval.
     np.save('best_diff_recorder.npy', best_diff_recorder)
     
-
-def consistency_alphas_vs_recon_naive_withNoise():
-    """
-    Same analysis as below but on v4_naive-withNoise (500runs)
-    """
-    problem_types=[1, 2, 6]
-    num_runs = 500
-    runs = range(num_runs)
-    attn_config_version = 'v4_naive-withNoise'
-    
-    fig, ax = plt.subplots()
-    
-    all_rhos = []
-    all_alphas = []
-    all_recon = []
-    for run in runs:
-        all_types_alphas = []
-        all_types_recon = []
-        for idx in range(len(problem_types)):
-            problem_type = problem_types[idx]
-
-            alphas = np.round(
-                np.load(
-                f'results/{attn_config_version}/' \
-                f'all_alphas_type{problem_type}_run{run}_cluster.npy')[-3:], 3)
-            
-            binary_recon = np.round(
-                np.load(
-                f'results/{attn_config_version}/' \
-                f'all_recon_loss_ideal_type{problem_type}_run{run}_cluster.npy')[-3:], 3)
-            
-            all_types_alphas.extend(alphas)
-            all_types_recon.extend(binary_recon)
-            all_alphas.extend(alphas)
-            all_recon.extend(binary_recon)
-
-        rho, _ = stats.spearmanr(all_types_alphas, all_types_recon)
-        if str(rho) == 'nan':
-            pass
-        else:
-            all_rhos.append(rho)
-    
-    ax.set_xlabel('Attention Strength')
-    ax.set_ylabel('Reconstruction Loss')
-    ax.scatter(all_alphas, all_recon)
-    plt.savefig(f'results/correlation_highAttn_vs_reconLoss_v4.png')
-    
-    print(np.round(all_rhos, 3))
-    t, p = stats.ttest_1samp(all_rhos, popmean=0)
-    print(f't={t:.3f}, p={p/2:.3f}')
-
 
 def consistency_alphas_vs_recon(attn_config_version, v):
     """
@@ -617,7 +527,6 @@ def recon_loss_by_type(attn_config_version, v):
     problem_types = [1, 2, 6]
     num_subs = 23
     subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
-    # subs = range(500)
     num_subs = len(subs)
     num_dims = 3
     results_path = 'results'
@@ -629,23 +538,17 @@ def recon_loss_by_type(attn_config_version, v):
             # For binary recon, we grab the last 3 entries (each for a dim)
             fpath = f'{results_path}/{attn_config_version}_sub{sub}_{v}/' \
                     f'all_recon_loss_ideal_type{problem_type}_sub{sub}_cluster.npy'
-            # fpath = f'{results_path}/v4_naive-withNoise/' \
-            #         f'all_recon_loss_ideal_type{problem_type}_run{sub}_cluster.npy'
             per_type_results = np.load(fpath)[-num_dims : ]
             recon_loss_collector[problem_type].append(np.mean(per_type_results))
-    np.save(f'{results_path}/recon_loss_{v}.npy', recon_loss_collector)
+            
+    np.save(f'{results_path}/recon_loss_{attn_config_version}_{v}.npy', recon_loss_collector)
         
-    for problem_type in problem_types:   
-        print(
-            f'Type={problem_type}, '\
-            f'recon={np.mean(recon_loss_collector[problem_type]):.3f}, '\
-            f'sem={stats.sem(recon_loss_collector[problem_type]):.3f}'
-        )
-    
     average_coef, t, p = recon_loss_by_type_regression(
         recon_loss_collector, 
         num_subs=num_subs, 
         problem_types=problem_types)
+    
+    return average_coef, t, p
 
 
 def recon_loss_by_type_regression(recon_loss_collector, num_subs, problem_types):
@@ -685,17 +588,14 @@ def recon_loss_by_type_regression(recon_loss_collector, num_subs, problem_types)
         # [sub02_type1_acc, sub02_type2_acc, ...]
         y_sub = group_results_by_subject[s, :]
         coef = pg.linear_regression(X=X_sub, y=y_sub, coef_only=True)
-        # print(f'sub{subs[s]}, {y_sub}, coef={coef[-1]:.3f}')
         all_coefs.append(coef[-1])
     
     average_coef = np.mean(all_coefs)
-    print(f'average_coef={average_coef:.3f}')
     t, p = stats.ttest_1samp(all_coefs, popmean=0)
-    print(f't={t:.3f}, one-tailed p={p/2:.3f}')
     return average_coef, t, p/2
         
 
-def relate_recon_loss_to_decoding_error(num_runs, roi, v):
+def relate_recon_loss_to_decoding_error_errorbar(axes, attn_config_version, num_runs, roi, v):
     """Relate binary reconstruction loss at the final layer
     of DCNN to the decoding error of the problem types 
     in the brain given ROI. For brain decoding, see `brain_data/`
@@ -709,62 +609,15 @@ def relate_recon_loss_to_decoding_error(num_runs, roi, v):
         following conventions of how we save decoding results.
     """
     problem_types = [1, 2, 6]
+    
     recon_loss_collector = np.load(
-        f'results/recon_loss_{v}.npy', 
+        f'results/recon_loss_{attn_config_version}_{v}.npy', 
         allow_pickle=True).ravel()[0]
+    
     decoding_error_collector = np.load(
         f'brain_data/decoding_results/decoding_error_{num_runs}runs_{roi}.npy', 
         allow_pickle=True).ravel()[0]
     
-    fig, ax = plt.subplots(1, 2)
-    palette = {'Type 1': 'pink', 'Type 2': 'green', 'Type 6': 'blue'}
-    results_collectors = [recon_loss_collector, decoding_error_collector]
-    for i in range(len(results_collectors)):
-        results_collector = results_collectors[i]
-        x = []
-        y = []
-        for problem_type in problem_types:
-            # per_type_data = np.array(results_collector[problem_type])
-            # data.append(per_type_data)
-            y.extend(results_collector[problem_type])
-            x.extend([f'Type {problem_type}'] * len(results_collector[problem_type]))
-        
-        # sns.boxplot(data=data, ax=ax[i], palette=palette)
-        sns.boxplot(x=x, y=y, ax=ax[i], palette=palette)
-        ax[i].set_xlabel('Problem Types')
-        ax[i].set_xticks(range(len(problem_types)))
-        ax[i].set_xticklabels(problem_types)
-        if i == 0:
-            ax[i].set_ylabel('Model Stimulus Reconstruction Loss')
-        else:
-            ax[i].set_ylabel(f'{roi} Neural Stimulus Reconstruction Loss\n(1 - decoding accuracy)')
-        plt.title(f'ROI: {roi}')
-        plt.tight_layout()
-        plt.savefig(f'results/relate_recon_loss_to_decoding_error_{roi}_{v}.png')
-
-
-def relate_recon_loss_to_decoding_error_errorbar(num_runs, roi, v):
-    """Relate binary reconstruction loss at the final layer
-    of DCNN to the decoding error of the problem types 
-    in the brain given ROI. For brain decoding, see `brain_data/`
-    
-    Impl:
-    -----
-        For brain decoding, we have produced results which are 
-        in `brain_data/decoding.py` and `brain_data/decoding_results/`.
-
-        For model recon, we obtain results in `recon_loss_by_type`
-        following conventions of how we save decoding results.
-    """
-    problem_types = [1, 2, 6]
-    recon_loss_collector = np.load(
-        f'results/recon_loss_{v}.npy', 
-        allow_pickle=True).ravel()[0]
-    decoding_error_collector = np.load(
-        f'brain_data/decoding_results/decoding_error_{num_runs}runs_{roi}.npy', 
-        allow_pickle=True).ravel()[0]
-    
-    fig, ax = plt.subplots(1, 2)
     palette = {'Type 1': 'pink', 'Type 2': 'green', 'Type 6': 'blue'}
     results_collectors = [recon_loss_collector, decoding_error_collector]
     for i in range(len(results_collectors)):
@@ -774,7 +627,7 @@ def relate_recon_loss_to_decoding_error_errorbar(num_runs, roi, v):
             problem_type = problem_types[j]
             data_perType = results_collector[problem_type]
             
-            ax[i].errorbar(
+            axes[i].errorbar(
                 x=j,
                 y=np.mean(data_perType),
                 yerr=stats.sem(data_perType),
@@ -783,26 +636,23 @@ def relate_recon_loss_to_decoding_error_errorbar(num_runs, roi, v):
                 capsize=3,
             )
 
-        ax[i].set_xlabel('Problem Types')
-        ax[i].set_xticks(range(len(problem_types)))
-        ax[i].set_xticklabels(problem_types)
+        axes[i].set_xlabel('Problem Types')
+        axes[i].set_xticks(range(len(problem_types)))
+        axes[i].set_xticklabels(problem_types)
         if i == 0:
-            ax[i].set_ylabel('Model Stimulus Reconstruction Loss')
+            axes[i].set_title('Model Recon')
         else:
-            ax[i].set_ylabel(f'{roi} Neural Stimulus Reconstruction Loss\n(1 - decoding accuracy)')
-        plt.title(f'ROI: {roi}')
-        plt.tight_layout()
-        plt.legend()
-        plt.savefig(f'results/relate_recon_loss_to_decoding_error_{roi}_{v}_errorbar.png')
+            axes[i].set_title(f'{roi} Neural Recon')
+    
+    return axes
 
 
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
     v = 'fit-human-entropy-fast-nocarryover'
-    examine_subject_lc_and_attn_overtime('best_config', v=v)
-    compare_across_types_V3('best_config', v=v, filter_strategy=False)
-    histogram_low_attn_weights('best_config', v=v, filter_strategy=False)
-    recon_loss_by_type('best_config', v=v)
-    relate_recon_loss_to_decoding_error_errorbar(num_runs=3, roi='LOC', v=v)
-    consistency_alphas_vs_recon('best_config', v=v)
-    # consistency_alphas_vs_recon_naive_withNoise()
+    # attn_config_version = 'best_config'
+    attn_config_version = 'hyper89'
+    # overall_eval(attn_config_version, v)
+    examine_subject_lc_and_attn_overtime(
+        attn_config_version=attn_config_version, v=v)
+    # consistency_alphas_vs_recon('best_config', v=v)

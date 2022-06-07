@@ -23,6 +23,23 @@ Evaluation routines.
 """  
 
 def overall_eval(attn_config_version, v, threshold=[0, 0, 0]):
+    """
+    This function does all key evaluations and plot all results 
+    in one figure for visual exam purpose. This function evals 
+    one specific config (could be a hyper or best config).
+    
+    1. Percentage of zero low-level attn weights
+        (two subplots: one errorbar, one CDF; one significance test)
+    2. Binary recon loss 
+        (three subplots, one per Type)
+    3. Decoding accuracy
+        (two subplots, and one significance test)
+    
+    return:
+    -------
+        - A figure with all the plots.
+        - Results of significance tests that will be used for hyper selection.
+    """
     problem_types = [1, 2, 6]
     num_subs = 23
     subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
@@ -37,10 +54,15 @@ def overall_eval(attn_config_version, v, threshold=[0, 0, 0]):
         # e.g. { problem_type: {(True, False, False): [metric1, metric2, ... ]} }
         type2strategy2metric = defaultdict(lambda: defaultdict(list))
 
+        alphas_all_types = np.ones((len(problem_types), num_subs, num_dims))
+        
         for z in range(len(problem_types)):
             problem_type = problem_types[z]
 
-            for sub in subs:
+            # for sub in subs:
+            for s in range(num_subs):
+                sub = subs[s]
+                
                 # First grab the final metric
                 if comparison == 'zero_attn':
                     # For %attn, we grab the last item
@@ -63,7 +85,11 @@ def overall_eval(attn_config_version, v, threshold=[0, 0, 0]):
                     # for recon only, to plot, we need to rearrange the dims
                     # as similarly done when there is counterbalancing.
                     conversion_order = np.argsort(alphas)[::-1]
+                    alphas = alphas[conversion_order]
                     metric = metric[conversion_order]
+                    
+                    # collect the sorted alphas for later plotting average per type.
+                    alphas_all_types[z, s, :] = alphas
                 
                 # 1e-6 is the lower bound of alpha constraint.
                 # use tuple instead of list because tuple is not mutable.                    
@@ -71,8 +97,8 @@ def overall_eval(attn_config_version, v, threshold=[0, 0, 0]):
                 strategy = tuple(alphas > 1.0e-6)
                 type2strategy2metric[problem_type][strategy].append(metric)
                 
-        #### End of extracting results ####
-        #### Begin of plotting ####
+        ######## End of extracting results ########
+        ######## Begin of plotting ########
                 
         # plotting both %attn and binary recon.
         if comparison == 'zero_attn':
@@ -136,8 +162,8 @@ def overall_eval(attn_config_version, v, threshold=[0, 0, 0]):
             # write stats on the empty space.
             ax = axes[0, 2]
             ax.axis('off')
-            ax.text(-1, 0.9, f'Type 1 vs 2 = \n{t_type1v2:.1f}(p={p_type1v2:.3f})')
-            ax.text(-1, 0.4, f'Type 2 vs 6 = \n{t_type2v6:.1f}(p={p_type2v6:.3f})')
+            ax.text(-0., 0.8, f'Type 1 vs 2 = \n{t_type1v2:.1f}(p={p_type1v2:.3f})')
+            ax.text(-0., 0.3, f'Type 2 vs 6 = \n{t_type2v6:.1f}(p={p_type2v6:.3f})')
     
             
         elif comparison == 'binary_recon':
@@ -178,7 +204,7 @@ def overall_eval(attn_config_version, v, threshold=[0, 0, 0]):
                 axes[1, col_idx].set_title(f'Type {problem_type}')
     
     # finally plot the third row which is the decoding results.
-    average_coef, t, p = recon_loss_by_type(
+    average_coef_decoding, t_decoding, p_decoding = recon_loss_by_type(
         attn_config_version=attn_config_version, v=v)
     
     relate_recon_loss_to_decoding_error_errorbar(
@@ -189,7 +215,11 @@ def overall_eval(attn_config_version, v, threshold=[0, 0, 0]):
     # write stats on the empty space.
     ax = axes[2, 2]
     ax.axis('off')
-    ax.text(-1, 0.9, f'Avg coef={average_coef:.3f}\nt={t:.1f}(p={p:.3f})')
+    ax.text(
+        -0., 0.8, 
+        f'Avg coef={average_coef_decoding:.3f}\n'\
+        f't={t_decoding:.1f}(p={p_decoding:.3f})'
+    )
     
     # write behaviour fitting stats
     # 1. Sum of fitting MSE of all subjects.
@@ -202,13 +232,19 @@ def overall_eval(attn_config_version, v, threshold=[0, 0, 0]):
             model_lc = np.load(f'results/{attn_config_version}_sub{sub}_{v}/lc_type{problem_type}_sub{sub}_cluster.npy')
             per_config_mse += np.mean( (human_lc - model_lc)**2 )
             per_config_mse_all_subs += per_config_mse
-    ax.text(-1, 0.6, f'Sum all subs MSE = {per_config_mse_all_subs:.3f}')
+    ax.text(-0., 0.5, f'Sum all subs MSE = {per_config_mse_all_subs:.3f}')
     
     # 2. Final dim-averaged (counterbalanced) high-attn weights.
-
+    ax.text(-0., 0.2, f'Type1 alphas={np.round(np.mean(alphas_all_types[0], axis=0), 1)}')
+    ax.text(-0., 0.0, f'Type2 alphas={np.round(np.mean(alphas_all_types[1], axis=0), 1)}')
+    ax.text(-0., -0.2, f'Type6 alphas={np.round(np.mean(alphas_all_types[2], axis=0), 1)}')
+    
+    plt.suptitle(f'{attn_config_version}_{v}')
     plt.tight_layout()
     plt.savefig(f'{results_path}/overall_eval_{attn_config_version}_{v}.png')
     plt.close()
+    
+    return t_type1v2, p_type1v2, t_type2v6, p_type2v6, t_decoding, p_decoding, per_config_mse_all_subs
             
             
 def stats_significance_of_zero_attn(attn_config_version, v):
@@ -652,7 +688,7 @@ if __name__ == '__main__':
     v = 'fit-human-entropy-fast-nocarryover'
     # attn_config_version = 'best_config'
     attn_config_version = 'hyper89'
-    # overall_eval(attn_config_version, v)
-    examine_subject_lc_and_attn_overtime(
-        attn_config_version=attn_config_version, v=v)
+    overall_eval(attn_config_version, v)
+    # examine_subject_lc_and_attn_overtime(
+    #     attn_config_version=attn_config_version, v=v)
     # consistency_alphas_vs_recon('best_config', v=v)

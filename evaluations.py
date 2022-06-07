@@ -459,17 +459,20 @@ def examine_subject_lc_and_attn_overtime(attn_config_version, v):
         
         # plot hyper-params of this config on figure
         x_coord = 3
-        y_coord = 0.25
+        y_coord = 0.45
         margin = 0.08        
         lr_attn = config['lr_attn']
         inner_loop_epochs = config['inner_loop_epochs']
         recon_clusters_weighting = config['recon_clusters_weighting']
         noise_level = config['noise_level']
+        reg_strength = config['reg_strength']
+        high_attn_reg_strength = config['high_attn_reg_strength']
         ax2.text(x_coord, y_coord, f'lr_attn={lr_attn}')
         ax2.text(x_coord, y_coord-margin*1, f'inner_loop_epochs={inner_loop_epochs}')
         ax2.text(x_coord, y_coord-margin*2, f'recon_clusters_weighting={recon_clusters_weighting}')
         ax2.text(x_coord, y_coord-margin*3, f'noise_level={noise_level}')
-                
+        ax2.text(x_coord, y_coord-margin*4, f'reg_strength={reg_strength}')
+        ax2.text(x_coord, y_coord-margin*5, f'high_attn_reg_strength={high_attn_reg_strength}')
         plt.legend()
         
         if int(sub) % 2 == 0:

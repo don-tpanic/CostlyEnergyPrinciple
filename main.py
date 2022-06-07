@@ -110,6 +110,7 @@ def train_model(sub, attn_config_version):
     # # carryover Adam.
     # optimizer_attn = tf.keras.optimizers.Adam(learning_rate=lr_attn)
     for problem_type in problem_types:
+        print(f'[Check] problem_type {problem_type}')
         lc = np.zeros(num_repetitions)
         
         # init new model
@@ -313,7 +314,8 @@ def train_model(sub, attn_config_version):
 if __name__ == '__main__':
     start_time = time.time()
     num_subs = 23
-    subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
+    # subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
+    subs = ['02']
     num_processes = 70
     
     os.environ["CUDA_VISIBLE_DEVICES"] = "-1"

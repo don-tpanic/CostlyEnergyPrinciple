@@ -19,56 +19,49 @@ from utils import cuda_manager, load_config
 from evaluations import overall_eval
 
 
-def per_subject_compare_human_to_model(sub, v, hyper_begin, hyper_end):
+def select_best_config(v, hyper_begin, hyper_end):
     """
-    For a given subject, find the best config over
-    a range of hyper-params combo.
+    Go over all hyper-params combo, and find the best config.
+    The selection is based on multiple criteria. 
+    1. Diff to lc of human behaviour.
+    2. Statistical significance of %zero attn between Types.
+    3. Statistical significance of the direction of the decoding.
     """
-    problem_types = [1, 2, 6]
-    
-    # FIXME:
-    # if it's the first time searching
-    # meaning we don't have best_config for this v yet.
-    # so we wouldn't have best_diff_recorder, use 999.
-    best_diff = 999
-    # best_config = f'best_config_sub{sub}_{v}'
-    # best_diff_recorder = np.load('best_diff_recorder.npy', allow_pickle=True)
-    # best_diff = best_diff_recorder.ravel()[0][sub]
-
-    for i in range(hyper_begin, hyper_end):
-        config_version = f'hyper{i}_sub{sub}_{v}'
-        print(f'hyper{i}_sub{sub}_{v}')
-
-        per_config_mse = 0
-        try:
-            # one subject's one config's score
-            for problem_type in problem_types:
-                human_lc = np.load(f'clustering/results/human/lc_type{problem_type}_sub{sub}.npy')
-                model_lc = np.load(f'results/{config_version}/lc_type{problem_type}_sub{sub}_cluster.npy')
-                per_config_mse += np.mean( (human_lc - model_lc)**2 )
-            
-            overall_eval(attn_config_version=f'hyper{i}', v=v)
-
-        except FileNotFoundError:
-            # catch config with missing files
-            print(f'[Warning] config {config_version} is missing files.')
-            continue
+    if os.path.exists(f'best_config_performance_{v}.npy'):
+        best_config_performance = np.load(f'best_config_performance_{v}.npy')
+    else:
+        best_config_performance = [0, 0, 0, 999]
         
-        if per_config_mse < best_diff:
-            best_config = config_version
-            best_diff = per_config_mse
+    for i in range(hyper_begin, hyper_end):
+        print(f'hyper{i}')
+        
+        t_type1v2, _, \
+            t_type2v6, _, \
+                t_decoding, _, \
+                    per_config_mse_all_subs = \
+                        overall_eval(attn_config_version=f'hyper{i}', v=v)
     
-    print(f'[sub{sub}], best config {best_config}, diff = {best_diff}')
-    
-    # # override the current best config 
-    # # by the best config we just found
-    # subprocess.run(
-    #     ['cp', 
-    #      f'configs/config_{best_config}.yaml', 
-    #      f'configs/config_best_config_sub{sub}_{v}.yaml'
-    #     ]
-    # )
-
+        if t_type1v2 > best_config_performance[0] and \
+            t_type2v6 > best_config_performance[1] and \
+                t_decoding < best_config_performance[2]:
+                    
+            if per_config_mse_all_subs <= best_config_performance[3]:
+                best_config_performance[0] = t_type1v2
+                best_config_performance[1] = t_type2v6
+                best_config_performance[2] = t_decoding
+                best_config_performance[3] = per_config_mse_all_subs
+                best_config = f'hyper{i}'
+                print('New best config!')
+            else:
+                if (per_config_mse_all_subs - best_config_performance[3]) / per_config_mse_all_subs < 0.2:
+                    best_config_performance[1] = t_type2v6
+                    best_config_performance[2] = t_decoding
+                    best_config_performance[3] = per_config_mse_all_subs
+                    best_config = f'hyper{i}'
+                    print('New best config!')
+                    
+    print(f'best config {best_config}')
+            
 
 def multiprocess_train(target_func, subs, v, hyper_begin, hyper_end, num_processes):
     """
@@ -90,47 +83,22 @@ def multiprocess_train(target_func, subs, v, hyper_begin, hyper_end, num_process
         pool.join()
 
 
-def multiprocess_eval(subs, v, hyper_begin, hyper_end, num_processes):
+def multiprocess_eval(target_func, v, hyper_begin, hyper_end, num_processes):
     """
     Eval all choices of hyper-param combo.
     After finding the best configs so far, retrain best configs.
-    
-    return:
-    -------
-        For each subject, the best config will be overriden.
     """
     # eval lc and obtain best configs.
     os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
     with multiprocessing.Pool(num_processes) as pool:
-        for s in range(len(subs)):
-            sub = subs[s]
-            results = pool.apply_async(
-                per_subject_compare_human_to_model, 
-                args=[sub, v, hyper_begin, hyper_end]
-            )
+        results = pool.apply_async(
+            target_func, 
+            args=[v, hyper_begin, hyper_end]
+        )
         print(results.get())
         pool.close()
         pool.join()
-    
-    # # retrain to get best config named files.
-    # with multiprocessing.Pool(num_processes) as pool:
-    #     for s in range(len(subs)):
-    #         sub = subs[s]
-    #         attn_config_version = \
-    #             f'best_config_sub{sub}_{v}'
-    #         results = pool.apply_async(
-    #             train_model, 
-    #             args=[sub, attn_config_version]
-    #         )
-    #     print(results.get())
-    #     pool.close()
-    #     pool.join()
-    
-    # # evaluate the lc of each sub's best config.
-    # print(f'[Check] evaluating best config lc...')
-    # examine_subject_lc_and_attn_overtime('best_config', v=v)
-    # compare_across_types_V3('best_config', v=v)
-    
+        
     
 if __name__ == '__main__':
     start_time = time.time()
@@ -168,7 +136,7 @@ if __name__ == '__main__':
     
     elif mode == 'eval':
         multiprocess_eval(
-            subs=subs,
+            target_func=select_best_config,
             v=v,
             hyper_begin=hyper_begin, 
             hyper_end=hyper_end, 

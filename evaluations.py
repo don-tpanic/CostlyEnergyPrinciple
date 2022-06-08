@@ -497,11 +497,11 @@ def examine_subject_lc_and_attn_overtime(attn_config_version, v):
             type_k = 1
             
         plt.suptitle(
-            f'sub{sub}, diff={per_config_mse:.3f}\n' \
-            f'Type{type_i}, alpha={all_types_alphas[i]}, rec={all_types_binary_recon[i]}({np.mean(all_types_binary_recon[i]):.3f}), %={all_types_zero_attn[i]}\n' \
-            f'Type{type_j}, alpha={all_types_alphas[j]}, rec={all_types_binary_recon[j]}({np.mean(all_types_binary_recon[j]):.3f}), %={all_types_zero_attn[j]}\n' \
-            f'Type{type_k}, alpha={all_types_alphas[k]}, rec={all_types_binary_recon[k]}({np.mean(all_types_binary_recon[k]):.3f}), %={all_types_zero_attn[k]}\n' \
-        , horizontalalignment='center')
+            f'sub{sub}, diff={per_config_mse:.3f}\n') \
+            # f'Type{type_i}, alpha={all_types_alphas[i]}, rec={all_types_binary_recon[i]}({np.mean(all_types_binary_recon[i]):.3f}), %={all_types_zero_attn[i]}\n' \
+            # f'Type{type_j}, alpha={all_types_alphas[j]}, rec={all_types_binary_recon[j]}({np.mean(all_types_binary_recon[j]):.3f}), %={all_types_zero_attn[j]}\n' \
+            # f'Type{type_k}, alpha={all_types_alphas[k]}, rec={all_types_binary_recon[k]}({np.mean(all_types_binary_recon[k]):.3f}), %={all_types_zero_attn[k]}\n' \
+        # , horizontalalignment='center')
         plt.tight_layout()
         plt.savefig(f'results/lc_sub{sub}_{v}.png')
         plt.close()
@@ -700,7 +700,6 @@ if __name__ == '__main__':
     v = 'fit-human-entropy-fast-nocarryover'
     # attn_config_version = 'best_config'
     attn_config_version = 'hyper89'
-    overall_eval(attn_config_version, v)
-    # examine_subject_lc_and_attn_overtime(
-    #     attn_config_version=attn_config_version, v=v)
+    # overall_eval(attn_config_version, v)
+    examine_subject_lc_and_attn_overtime(attn_config_version, v)
     # consistency_alphas_vs_recon('best_config', v=v)

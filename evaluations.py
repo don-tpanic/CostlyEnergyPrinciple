@@ -506,10 +506,6 @@ def examine_subject_lc_and_attn_overtime(attn_config_version, v):
         plt.savefig(f'results/lc_sub{sub}_{v}.png')
         plt.close()
     
-    # save current best configs' best diff to human lc.
-    # this will be used as benchmark for further search and eval.
-    np.save('best_diff_recorder.npy', best_diff_recorder)
-    
 
 def consistency_alphas_vs_recon(attn_config_version, v):
     """

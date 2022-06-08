@@ -130,7 +130,7 @@ def hyperparams_ranges(sub, clustering_config_version):
                     lr_attn_, inner_loop_epochs_, recon_clusters_weighting_, noise_level_
 
 
-def per_subject_generate_candidate_configs(ct, v, sub, subj_general=False):
+def per_subject_generate_candidate_configs(DCNN_config_version, ct, v, sub, subj_general=False):
     """
     Given a joint_model best config as template, we replace params regarding clustering model with 
     subject-specific best config. Then we iterate through hypers for training low_level attn
@@ -166,6 +166,7 @@ def per_subject_generate_candidate_configs(ct, v, sub, subj_general=False):
                 lr_attn_, inner_loop_epochs_, recon_clusters_weighting_, noise_level_ = \
                     per_subject_hyperparams_ranges(
                         sub=sub, 
+                        v=v,
                         DCNN_config_version=DCNN_config_version
                     )
     else:
@@ -207,6 +208,7 @@ if __name__ == '__main__':
     subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
     for sub in subs:
         per_subject_generate_candidate_configs(
+            DCNN_config_version='hyper89',
             ct=450, 
             v='fit-human-entropy-fast-nocarryover', 
             sub=sub,
@@ -219,6 +221,7 @@ if __name__ == '__main__':
             # inner_loop_epochs_ = [5, 10, 15, 20, 25, 30]
             # recon_clusters_weighting_ = [1000, 10000, 100000, 1000000, 10000000]
             # noise_level_ = [0.2, 0.3, 0.4, 0.5, 0.6]
+        # best overall: hyper89
     
     # [450, 2637): Building on the best joint config from hyper[0, 450), 
             # we re-search hypers of clustering module in a subject-specific manner. 

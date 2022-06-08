@@ -26,41 +26,14 @@ def select_best_config(v, hyper_begin, hyper_end):
     1. Diff to lc of human behaviour.
     2. Statistical significance of %zero attn between Types.
     3. Statistical significance of the direction of the decoding.
-    """
-    if os.path.exists(f'best_config_performance_{v}.npy'):
-        best_config_performance = np.load(f'best_config_performance_{v}.npy')
-    else:
-        best_config_performance = [0, 0, 0, 999]
-        
+    """        
     for i in range(hyper_begin, hyper_end):
         print(f'hyper{i}')
-        
         t_type1v2, _, \
             t_type2v6, _, \
                 t_decoding, _, \
                     per_config_mse_all_subs = \
                         overall_eval(attn_config_version=f'hyper{i}', v=v)
-    
-        if t_type1v2 > best_config_performance[0] and \
-            t_type2v6 > best_config_performance[1] and \
-                t_decoding < best_config_performance[2]:
-                    
-            if per_config_mse_all_subs <= best_config_performance[3]:
-                best_config_performance[0] = t_type1v2
-                best_config_performance[1] = t_type2v6
-                best_config_performance[2] = t_decoding
-                best_config_performance[3] = per_config_mse_all_subs
-                best_config = f'hyper{i}'
-                print('New best config!')
-            else:
-                if (per_config_mse_all_subs - best_config_performance[3]) / per_config_mse_all_subs < 0.2:
-                    best_config_performance[1] = t_type2v6
-                    best_config_performance[2] = t_decoding
-                    best_config_performance[3] = per_config_mse_all_subs
-                    best_config = f'hyper{i}'
-                    print('New best config!')
-                    
-    print(f'best config {best_config}')
             
 
 def multiprocess_train(target_func, subs, v, hyper_begin, hyper_end, num_processes):
@@ -122,7 +95,7 @@ if __name__ == '__main__':
     num_subs = 23
     subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
     v = 'fit-human-entropy-fast-nocarryover'
-    num_processes = 68
+    num_processes = 70
     
     if mode == 'search':
         multiprocess_train(

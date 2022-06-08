@@ -633,9 +633,13 @@ def recon_loss_by_type_regression(recon_loss_collector, num_subs, problem_types)
         y_sub = group_results_by_subject[s, :]
         coef = pg.linear_regression(X=X_sub, y=y_sub, coef_only=True)
         all_coefs.append(coef[-1])
-    
+        # print(f'{s}', y_sub, coef[-1])
+
     average_coef = np.mean(all_coefs)
     t, p = stats.ttest_1samp(all_coefs, popmean=0)
+    # print(average_coef)
+    # print(t, p)
+    
     return average_coef, t, p/2
         
 

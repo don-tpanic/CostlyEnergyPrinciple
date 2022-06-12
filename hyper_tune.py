@@ -19,29 +19,28 @@ from utils import cuda_manager, load_config
 from evaluations import overall_eval
 
 
-def select_best_config(v, hyper_begin, hyper_end):
+def select_best_config(i, v):
     """
     Go over all hyper-params combo, and find the best config.
     The selection is based on multiple criteria. 
     1. Diff to lc of human behaviour.
     2. Statistical significance of %zero attn between Types.
     3. Statistical significance of the direction of the decoding.
-    """        
-    for i in range(hyper_begin, hyper_end):
-        print(f'hyper{i}')
-        t_type1v2, _, \
-            t_type2v6, _, \
-                t_decoding, _, \
-                    per_config_mse_all_subs = \
-                        overall_eval(attn_config_version=f'hyper{i}', v=v)
-            
+    """
+    print(f'hyper{i}')
+    t_type1v2, _, \
+        t_type2v6, _, \
+            t_decoding, _, \
+                per_config_mse_all_subs = \
+                    overall_eval(attn_config_version=f'hyper{i}', v=v)
+
 
 def multiprocess_train(target_func, subs, v, hyper_begin, hyper_end, num_processes):
     """
     Train a bunch of models at once 
     by launching them to all avaialble CPU cores.
     """
-    with multiprocessing.Pool(num_processes) as pool:
+    with multiprocessing.Pool(num_processes, maxtasksperchild=1) as pool:
         for i in range(hyper_begin, hyper_end):
             for sub in subs:
                 # the same hyper_i with different sub 
@@ -58,16 +57,21 @@ def multiprocess_train(target_func, subs, v, hyper_begin, hyper_end, num_process
 
 def multiprocess_eval(target_func, v, hyper_begin, hyper_end, num_processes):
     """
-    Eval all choices of hyper-param combo.
-    After finding the best configs so far, retrain best configs.
+    Go over all hyper-params combo, and find the best config.
+    The selection is based on multiple criteria. 
+    1. Diff to lc of human behaviour.
+    2. Statistical significance of %zero attn between Types.
+    3. Statistical significance of the direction of the decoding.
     """
-    # eval lc and obtain best configs.
     os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
     with multiprocessing.Pool(num_processes) as pool:
-        results = pool.apply_async(
-            target_func, 
-            args=[v, hyper_begin, hyper_end]
-        )
+        
+        for i in range(hyper_begin, hyper_end):
+            results = pool.apply_async(
+                target_func, 
+                args=[i, v]
+            )
+            
         print(results.get())
         pool.close()
         pool.join()

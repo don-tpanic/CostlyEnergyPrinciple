@@ -33,6 +33,8 @@ def select_best_config(i, v):
             t_decoding, _, \
                 per_config_mse_all_subs = \
                     overall_eval(attn_config_version=f'hyper{i}', v=v)
+    
+    return per_config_mse_all_subs
 
 
 def multiprocess_train(target_func, subs, v, hyper_begin, hyper_end, num_processes):
@@ -66,15 +68,22 @@ def multiprocess_eval(target_func, v, hyper_begin, hyper_end, num_processes):
     os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
     with multiprocessing.Pool(num_processes) as pool:
         
+        results_obj_collector = []
         for i in range(hyper_begin, hyper_end):
             results = pool.apply_async(
                 target_func, 
                 args=[i, v]
             )
             
-        print(results.get())
+            results_obj_collector.append(results)
+            
+        # print(results.get())
         pool.close()
         pool.join()
+    
+    results_collector = [res.get() for res in results_obj_collector]
+    print(range(hyper_begin, hyper_end)[np.argmin(results_collector)])
+        
         
     
 if __name__ == '__main__':

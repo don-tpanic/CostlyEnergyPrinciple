@@ -120,21 +120,32 @@ def hyperparams_ranges(sub, clustering_config_version):
     temp2_ = [temp2]
     high_attn_reg_strength_ = [high_attn_reg_strength]
     
-    lr_attn_ = [0.00092, 0.0092, 0.092]
-    inner_loop_epochs_ = [5, 10, 15, 20, 25, 30]
+    lr_attn_ = [0.00092, 0.0092]
+    inner_loop_epochs_ = [10, 15, 20, 25, 30]
     recon_clusters_weighting_ = [1000, 10000, 100000, 1000000, 10000000]
-    noise_level_ = [0.2, 0.3, 0.4, 0.5, 0.6]
+    noise_level_ = [0.4, 0.5, 0.6]
     
     return lr_, attn_lr_multiplier_, \
                 Phi_, specificity_, thr_, beta_, temp2_, high_attn_reg_strength_, \
                     lr_attn_, inner_loop_epochs_, recon_clusters_weighting_, noise_level_
 
 
-def per_subject_generate_candidate_configs(DCNN_config_version, ct, v, sub, subj_general=False):
+def per_subject_generate_candidate_configs(DCNN_config_version, ct, v, sub):
     """
-    Given a joint_model best config as template, we replace params regarding clustering model with 
-    subject-specific best config. Then we iterate through hypers for training low_level attn
-    in the DCNN and save the configs.
+    There are two scenarios where the configs for joint are created.
+    1. We just finished searching for the best configs for the clustering module
+        which is subject-specific. Once that search is done, we do not touch 
+        it again. Then, we carry over the clustering params to the joint config,
+        and we search for the best configs for the joint module (clustering params fixed).
+        
+        Notice, for this scenario, there was no joint config created at this point (actually
+        there is the template for the joint config from the previous version but the values 
+        do not matter).
+    
+    2. We finished 1. and want to further search for params. Here we have joint configs. We search 
+        for both clustering and joint params on top of the best configs from 1.
+        
+    These 2 steps must run in this order.
     """
     # load clustering best configs (indepedently optimised in `sustain_plus` before move onto joint).
     clustering_config_version = f'best_config_sub{sub}_fit-human-entropy-nocarryover'
@@ -160,23 +171,22 @@ def per_subject_generate_candidate_configs(DCNN_config_version, ct, v, sub, subj
         else:
             template[key] = clustering_config[key]
 
-    if not subj_general:
-        lr_, attn_lr_multiplier_, \
-            Phi_, specificity_, thr_, beta_, temp2_, high_attn_reg_strength_, \
-                lr_attn_, inner_loop_epochs_, recon_clusters_weighting_, noise_level_ = \
-                    per_subject_hyperparams_ranges(
-                        sub=sub, 
-                        v=v,
-                        DCNN_config_version=DCNN_config_version
-                    )
-    else:
-        lr_, attn_lr_multiplier_, \
-            Phi_, specificity_, thr_, beta_, temp2_, high_attn_reg_strength_, \
-                lr_attn_, inner_loop_epochs_, recon_clusters_weighting_, noise_level_ = \
-                    hyperparams_ranges(
-                        sub=sub, 
-                        clustering_config_version=clustering_config_version
-                    )
+    # lr_, attn_lr_multiplier_, \
+    #     Phi_, specificity_, thr_, beta_, temp2_, high_attn_reg_strength_, \
+    #         lr_attn_, inner_loop_epochs_, recon_clusters_weighting_, noise_level_ = \
+    #             per_subject_hyperparams_ranges(
+    #                 sub=sub, 
+    #                 v=v,
+    #                 DCNN_config_version=DCNN_config_version
+    #             )
+    
+    lr_, attn_lr_multiplier_, \
+        Phi_, specificity_, thr_, beta_, temp2_, high_attn_reg_strength_, \
+            lr_attn_, inner_loop_epochs_, recon_clusters_weighting_, noise_level_ = \
+                hyperparams_ranges(
+                    sub=sub, 
+                    clustering_config_version=clustering_config_version
+                )
     
     # update all searchable entries in template
     for lr in lr_:
@@ -209,13 +219,13 @@ if __name__ == '__main__':
     for sub in subs:
         per_subject_generate_candidate_configs(
             DCNN_config_version='hyper89',
-            ct=450, 
+            ct=2637, 
             v='fit-human-entropy-fast-nocarryover', 
             sub=sub,
-            subj_general=False
         )
         
-    # [0, 450): Building on best subject-specific hypers from searching clustering independently, 
+    # [0, 450): Building on best subject-specific hypers from searching clustering independently
+            # in hyper[0, 27024), 
             # we fix those hypers and search DCNN hypers in a subject-general manner.
             # lr_attn_ = [0.00092, 0.0092, 0.092]
             # inner_loop_epochs_ = [5, 10, 15, 20, 25, 30]
@@ -227,4 +237,14 @@ if __name__ == '__main__':
             # we re-search hypers of clustering module in a subject-specific manner. 
             # At the same time, we keep search hypers of the DCNN in a subject-general manner 
             # because we care about overall results over individual fits to human lc.
+        # no good.
+            
+    # [2637, 2787): Building on the best subject-specific config from searching clustering independently
+            # in hyper[27024, 50352)
+            # we fix those hypers and search DCNN hypers in a subject-general manner.
+            # lr_attn_ = [0.00092, 0.0092]
+            # inner_loop_epochs_ = [10, 15, 20, 25, 30]
+            # recon_clusters_weighting_ = [1000, 10000, 100000, 1000000, 10000000]
+            # noise_level_ = [0.4, 0.5, 0.6]
+        # 
             

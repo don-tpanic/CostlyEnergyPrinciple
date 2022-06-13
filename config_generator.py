@@ -26,15 +26,11 @@ def per_subject_hyperparams_ranges(sub, v, DCNN_config_version):
     noise_level = config['noise_level']
     
     lr_ = [
-        lr*0.75,
         lr, 
-        lr*1.25,
     ]
     
     attn_lr_multiplier_ = [
-        attn_lr_multiplier*0.75,
         attn_lr_multiplier,
-        attn_lr_multiplier*1.25,
     ]
     
     Phi_ = [
@@ -58,33 +54,40 @@ def per_subject_hyperparams_ranges(sub, v, DCNN_config_version):
     ]
         
     high_attn_reg_strength_ = [
-        high_attn_reg_strength*0.75,
         high_attn_reg_strength,
-        high_attn_reg_strength*1.25
     ]
     
     lr_attn_ = [
+        lr_attn*0.5,
         lr_attn*0.75,
         lr_attn, 
-        lr_attn*1.25, 
+        lr_attn*1.25,
+        lr_attn*1.5,
     ]
     
     inner_loop_epochs_ = [
+        int(inner_loop_epochs*0.5),
         int(inner_loop_epochs*0.75),
         inner_loop_epochs,
-        int(inner_loop_epochs*1.25)
+        int(inner_loop_epochs*1.25),
+        int(inner_loop_epochs*1.5),
+
     ]
     
     recon_clusters_weighting_ = [
+        recon_clusters_weighting*0.5,
         recon_clusters_weighting*0.75,
-        recon_clusters_weighting, 
+        recon_clusters_weighting,
         recon_clusters_weighting*1.25,
+        recon_clusters_weighting*1.5,
     ]
     
     noise_level_ = [
+        noise_level*0.5,
         noise_level*0.75,
         noise_level, 
         noise_level*1.25,
+        noise_level*1.5,
     ]
         
     return lr_, attn_lr_multiplier_, \
@@ -171,22 +174,23 @@ def per_subject_generate_candidate_configs(DCNN_config_version, ct, v, sub):
         else:
             template[key] = clustering_config[key]
 
-    # lr_, attn_lr_multiplier_, \
-    #     Phi_, specificity_, thr_, beta_, temp2_, high_attn_reg_strength_, \
-    #         lr_attn_, inner_loop_epochs_, recon_clusters_weighting_, noise_level_ = \
-    #             per_subject_hyperparams_ranges(
-    #                 sub=sub, 
-    #                 v=v,
-    #                 DCNN_config_version=DCNN_config_version
-    #             )
-    
     lr_, attn_lr_multiplier_, \
         Phi_, specificity_, thr_, beta_, temp2_, high_attn_reg_strength_, \
             lr_attn_, inner_loop_epochs_, recon_clusters_weighting_, noise_level_ = \
-                hyperparams_ranges(
+                per_subject_hyperparams_ranges(
                     sub=sub, 
-                    clustering_config_version=clustering_config_version
+                    v=v,
+                    DCNN_config_version=DCNN_config_version
                 )
+    
+    # NOTE, only used for the first search.
+    # lr_, attn_lr_multiplier_, \
+    #     Phi_, specificity_, thr_, beta_, temp2_, high_attn_reg_strength_, \
+    #         lr_attn_, inner_loop_epochs_, recon_clusters_weighting_, noise_level_ = \
+    #             hyperparams_ranges(
+    #                 sub=sub, 
+    #                 clustering_config_version=clustering_config_version
+    #             )
     
     # update all searchable entries in template
     for lr in lr_:
@@ -218,8 +222,8 @@ if __name__ == '__main__':
     subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
     for sub in subs:
         per_subject_generate_candidate_configs(
-            DCNN_config_version='hyper89',
-            ct=2637, 
+            DCNN_config_version='hyper2639',
+            ct=2787, 
             v='fit-human-entropy-fast-nocarryover', 
             sub=sub,
         )
@@ -237,7 +241,7 @@ if __name__ == '__main__':
             # we re-search hypers of clustering module in a subject-specific manner. 
             # At the same time, we keep search hypers of the DCNN in a subject-general manner 
             # because we care about overall results over individual fits to human lc.
-        # no good.
+        # no better.
             
     # [2637, 2787): Building on the best subject-specific config from searching clustering independently
             # in hyper[27024, 50352)
@@ -246,5 +250,8 @@ if __name__ == '__main__':
             # inner_loop_epochs_ = [10, 15, 20, 25, 30]
             # recon_clusters_weighting_ = [1000, 10000, 100000, 1000000, 10000000]
             # noise_level_ = [0.4, 0.5, 0.6]
-        # 
-            
+        # best overall: hyper2639
+
+    # [2787, 3412): Building on the best joint config from hyper[2637, 2787),
+            # we re-search hypers of DCNN in a subject-general manner,
+            # because we want better overall results.         

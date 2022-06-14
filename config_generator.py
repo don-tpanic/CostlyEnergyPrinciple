@@ -24,6 +24,13 @@ def per_subject_hyperparams_ranges(sub, v, DCNN_config_version):
     inner_loop_epochs = config['inner_loop_epochs']
     recon_clusters_weighting = config['recon_clusters_weighting']
     noise_level = config['noise_level']
+
+    print(
+        f'lr_attn={lr_attn}, ' \
+        f'inner_loop_epochs={inner_loop_epochs}, ' \
+        f'recon_clusters_weighting={recon_clusters_weighting}, ' \
+        f'noise_level={noise_level}'
+    )
     
     lr_ = [
         lr, 
@@ -58,6 +65,7 @@ def per_subject_hyperparams_ranges(sub, v, DCNN_config_version):
     ]
     
     lr_attn_ = [
+        lr_attn*0.1,
         lr_attn*0.5,
         lr_attn*0.75,
         lr_attn, 
@@ -75,15 +83,14 @@ def per_subject_hyperparams_ranges(sub, v, DCNN_config_version):
     ]
     
     recon_clusters_weighting_ = [
-        recon_clusters_weighting*0.5,
         recon_clusters_weighting*0.75,
         recon_clusters_weighting,
         recon_clusters_weighting*1.25,
         recon_clusters_weighting*1.5,
+        recon_clusters_weighting*5,
     ]
     
     noise_level_ = [
-        noise_level*0.5,
         noise_level*0.75,
         noise_level, 
         noise_level*1.25,
@@ -222,8 +229,8 @@ if __name__ == '__main__':
     subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
     for sub in subs:
         per_subject_generate_candidate_configs(
-            DCNN_config_version='hyper2639',
-            ct=2787, 
+            DCNN_config_version='hyper89',
+            ct=3412, 
             v='fit-human-entropy-fast-nocarryover', 
             sub=sub,
         )
@@ -254,4 +261,9 @@ if __name__ == '__main__':
 
     # [2787, 3412): Building on the best joint config from hyper[2637, 2787),
             # we re-search hypers of DCNN in a subject-general manner,
-            # because we want better overall results.         
+            # because we want better overall results.
+        # best overall: hyper2969    
+
+    # [3412, 4012): Building on the best joint config from hyper[0, 450) which is hyper89,
+            # we re-search hypers of DCNN in a subject-specific manner.
+        # best overall: 

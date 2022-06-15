@@ -12,14 +12,20 @@ def per_subject_hyperparams_ranges(sub, v, DCNN_config_version):
     config_version = f'{DCNN_config_version}_sub{sub}_{v}'
     config = load_config(
         component=None, config_version=config_version)
+    
+    # Clustering
     lr = config['lr']
+    center_lr_multiplier = config['center_lr_multiplier']
     attn_lr_multiplier = config['attn_lr_multiplier']
+    asso_lr_multiplier = config['asso_lr_multiplier']
     Phi = config['Phi']
     specificity = config['specificity']
     thr = config['thr']
     beta = config['beta']
     temp2 = config['temp2']
     high_attn_reg_strength = config['high_attn_reg_strength']
+
+    # DCNN
     lr_attn = config['lr_attn']
     inner_loop_epochs = config['inner_loop_epochs']
     recon_clusters_weighting = config['recon_clusters_weighting']
@@ -32,37 +38,16 @@ def per_subject_hyperparams_ranges(sub, v, DCNN_config_version):
         f'noise_level={noise_level}'
     )
     
-    lr_ = [
-        lr, 
-    ]
-    
-    attn_lr_multiplier_ = [
-        attn_lr_multiplier,
-    ]
-    
-    Phi_ = [
-        Phi, 
-    ]
-    
-    specificity_ = [
-        specificity, 
-    ]
-    
-    thr_ = [
-        thr,
-    ]
-    
-    beta_ = [
-        beta,
-    ]
-    
-    temp2_ = [
-        temp2,
-    ]
-        
-    high_attn_reg_strength_ = [
-        high_attn_reg_strength,
-    ]
+    lr_ = [lr]
+    center_lr_multiplier_ = [center_lr_multiplier]
+    attn_lr_multiplier_ = [attn_lr_multiplier]
+    asso_lr_multiplier_ = [asso_lr_multiplier]
+    Phi_ = [Phi]
+    specificity_ = [specificity]
+    thr_ = [thr]
+    beta_ = [beta]
+    temp2_ = [temp2]
+    high_attn_reg_strength_ = [high_attn_reg_strength]
     
     lr_attn_ = [
         lr_attn*0.1,
@@ -97,9 +82,10 @@ def per_subject_hyperparams_ranges(sub, v, DCNN_config_version):
         noise_level*1.5,
     ]
         
-    return lr_, attn_lr_multiplier_, \
-                Phi_, specificity_, thr_, beta_, temp2_, high_attn_reg_strength_, \
-                    lr_attn_, inner_loop_epochs_, recon_clusters_weighting_, noise_level_
+    return lr_, center_lr_multiplier_, \
+                attn_lr_multiplier_, asso_lr_multiplier_, \
+                    Phi_, specificity_, thr_, beta_, temp2_, high_attn_reg_strength_, \
+                        lr_attn_, inner_loop_epochs_, recon_clusters_weighting_, noise_level_
                         
 
 def hyperparams_ranges(sub, clustering_config_version):
@@ -112,8 +98,12 @@ def hyperparams_ranges(sub, clustering_config_version):
         component='clustering', 
         config_version=clustering_config_version
     )
+
+    # clustering
     lr = config['lr']
+    center_lr_multiplier = config['center_lr_multiplier']
     attn_lr_multiplier = config['attn_lr_multiplier']
+    asso_lr_multiplier = config['asso_lr_multiplier']
     Phi = config['Phi']
     specificity = config['specificity']
     thr = config['thr']
@@ -122,7 +112,9 @@ def hyperparams_ranges(sub, clustering_config_version):
     high_attn_reg_strength = config['high_attn_reg_strength']
     
     lr_ = [lr]
+    center_lr_multiplier_ = [center_lr_multiplier]
     attn_lr_multiplier_ = [attn_lr_multiplier]
+    asso_lr_multiplier_ = [asso_lr_multiplier]
     Phi_ = [Phi]
     specificity_ = [specificity]
     thr_ = [thr]
@@ -130,14 +122,16 @@ def hyperparams_ranges(sub, clustering_config_version):
     temp2_ = [temp2]
     high_attn_reg_strength_ = [high_attn_reg_strength]
     
+    # DCNN
     lr_attn_ = [0.00092, 0.0092]
     inner_loop_epochs_ = [10, 15, 20, 25, 30]
     recon_clusters_weighting_ = [1000, 10000, 100000, 1000000, 10000000]
     noise_level_ = [0.4, 0.5, 0.6]
     
-    return lr_, attn_lr_multiplier_, \
-                Phi_, specificity_, thr_, beta_, temp2_, high_attn_reg_strength_, \
-                    lr_attn_, inner_loop_epochs_, recon_clusters_weighting_, noise_level_
+    return lr_, center_lr_multiplier_, \
+                attn_lr_multiplier_, asso_lr_multiplier_, \
+                    Phi_, specificity_, thr_, beta_, temp2_, high_attn_reg_strength_, \
+                        lr_attn_, inner_loop_epochs_, recon_clusters_weighting_, noise_level_
 
 
 def per_subject_generate_candidate_configs(DCNN_config_version, ct, v, sub):
@@ -181,14 +175,14 @@ def per_subject_generate_candidate_configs(DCNN_config_version, ct, v, sub):
         else:
             template[key] = clustering_config[key]
 
-    lr_, attn_lr_multiplier_, \
-        Phi_, specificity_, thr_, beta_, temp2_, high_attn_reg_strength_, \
-            lr_attn_, inner_loop_epochs_, recon_clusters_weighting_, noise_level_ = \
-                per_subject_hyperparams_ranges(
-                    sub=sub, 
-                    v=v,
-                    DCNN_config_version=DCNN_config_version
-                )
+    lr_, center_lr_multiplier_, \
+        attn_lr_multiplier_, asso_lr_multiplier_, \
+            Phi_, specificity_, thr_, beta_, temp2_, high_attn_reg_strength_, \
+                lr_attn_, inner_loop_epochs_, recon_clusters_weighting_, noise_level_ = \
+                    per_subject_hyperparams_ranges(
+                        sub=sub, 
+                        v=v,
+                        DCNN_config_version=DCNN_config_version)
     
     # NOTE, only used for the first search.
     # lr_, attn_lr_multiplier_, \
@@ -200,26 +194,41 @@ def per_subject_generate_candidate_configs(DCNN_config_version, ct, v, sub):
     #             )
     
     # update all searchable entries in template
-    for lr in lr_:
-        for attn_lr_multiplier in attn_lr_multiplier_:
-            for high_attn_reg_strength in high_attn_reg_strength_:
-                for lr_attn in lr_attn_:
-                    for inner_loop_epochs in inner_loop_epochs_:
-                        for recon_clusters_weighting in recon_clusters_weighting_:
-                            for noise_level in noise_level_:
-                                config_version = f'hyper{ct}_sub{sub}_{v}'
-                                template['lr'] = lr
-                                template['attn_lr_multiplier'] = attn_lr_multiplier
-                                template['high_attn_reg_strength'] = high_attn_reg_strength
-                                template['lr_attn'] = lr_attn
-                                template['inner_loop_epochs'] = inner_loop_epochs
-                                template['recon_clusters_weighting'] = recon_clusters_weighting
-                                template['noise_level'] = noise_level
+    for lr in lr_:        
+        for center_lr_multiplier in center_lr_multiplier_:
+            for attn_lr_multiplier in attn_lr_multiplier_:
+                for asso_lr_multiplier in asso_lr_multiplier_:
+                    for Phi in Phi_:
+                        for specificity in specificity_:
+                            for thr in thr_:    
+                                for beta in beta_:
+                                    for temp2 in temp2_:
+                                        for high_attn_reg_strength in high_attn_reg_strength_:
+                                            for lr_attn in lr_attn_:
+                                                for inner_loop_epochs in inner_loop_epochs_:
+                                                    for recon_clusters_weighting in recon_clusters_weighting_:
+                                                        for noise_level in noise_level_:
+                                                            config_version = f'hyper{ct}_sub{sub}_{v}' 
+                                                            template['config_version'] = config_version
+                                                            template['lr'] = float(lr)
+                                                            template['center_lr_multiplier'] = float(center_lr_multiplier)
+                                                            template['attn_lr_multiplier'] = float(attn_lr_multiplier)
+                                                            template['asso_lr_multiplier'] = float(asso_lr_multiplier)
+                                                            template['Phi'] = float(Phi)
+                                                            template['specificity'] = float(specificity)
+                                                            template['thr'] = float(thr)
+                                                            template['beta'] = float(beta)
+                                                            template['temp2'] = float(temp2)
+                                                            template['high_attn_reg_strength'] = float(high_attn_reg_strength)
+                                                            template['lr_attn'] = lr_attn
+                                                            template['inner_loop_epochs'] = inner_loop_epochs
+                                                            template['recon_clusters_weighting'] = recon_clusters_weighting
+                                                            template['noise_level'] = noise_level
 
-                                filepath = os.path.join(f'configs', f'config_{config_version}.yaml')
-                                with open(filepath, 'w') as yaml_file:
-                                    yaml.dump(template, yaml_file, default_flow_style=False)
-                                ct += 1
+                                                            filepath = os.path.join(f'configs', f'config_{config_version}.yaml')
+                                                            with open(filepath, 'w') as yaml_file:
+                                                                yaml.dump(template, yaml_file, default_flow_style=False)
+                                                            ct += 1
                                 
     print(f'sub[{sub}] Total number of candidates = {ct}')
 

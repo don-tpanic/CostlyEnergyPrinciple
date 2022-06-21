@@ -7,6 +7,7 @@ from collections import defaultdict
 
 import numpy as np
 import pandas as pd
+import scipy.stats as stats
 from scipy.special import softmax
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -166,64 +167,8 @@ def compression_execute(config_version, repr_level, subs, runs, tasks, num_proce
         # load presaved results dictionary.
         compression_results = np.load(f'compression_results/{repr_level}.npy', allow_pickle=True).ravel()[0]
 
-    # plot violinplots / stripplots
-    fig, ax = plt.subplots()
-    x = compression_results['x']
-    y = compression_results['y']
-    hue = compression_results['hue']
-    means = compression_results['means']
-    palette = {'Type 1': 'pink', 'Type 2': 'green', 'Type 6': 'blue'}
-    ax = sns.stripplot(x=x, y=y, hue=hue, palette=palette, dodge=True, alpha=0.8, jitter=0.3, size=4)
-    
-    # plot mean/median
-    num_bars = int(len(y) / (num_subs))
-    positions = []
-    margin = 0.24
-    problem_types = [1, 2, 6]
-    for per_run_center in ax.get_xticks():
-        positions.append(per_run_center-margin)
-        positions.append(per_run_center)
-        positions.append(per_run_center+margin)
-    
-    labels = []
-    final_run_data = []  # for t-test
-    # global_index: 0-11
-    for global_index in range(num_bars):
-        # run: 1-4
-        run = global_index // len(problem_types) + 1
-        # within_run_index: 0-2
-        within_run_index = global_index % len(problem_types)        
-        problem_type = problem_types[within_run_index]
-        
-        # data
-        per_type_data = y[ global_index * num_subs : (global_index+1) * num_subs ]
-        position = [positions[global_index]]
-        
-        q1, md, q3 = np.percentile(per_type_data, [25,50,75])
-        mean = np.mean(per_type_data)
-        std = np.std(per_type_data)
-        mean_obj = ax.scatter(position, mean, marker='^', color='k', s=33, zorder=3)
-        
-        # print out stats
-        print(f'Type=[{problem_type}], run=[{run}], mean=[{mean:.3f}], std=[{std:.3f}]')
-        if within_run_index == 2:
-            print('-'*60)
-        
-        if global_index in range(num_bars)[-3:]:
-            # print(global_index)
-            final_run_data.append(per_type_data)
-        
-    # hacky way getting legend
-    ax.scatter(position, mean, marker='^', color='k', s=33, zorder=3, label='mean')
-    plt.legend()
-    ax.set_xlabel('Learning Blocks')
-    ax.set_ylabel(f'Compression')
-    if repr_level == 'low_attn':
-        title = 'Low-level attn (DCNN)'
-    elif repr_level == 'high_attn':
-        title = 'High-level attn (Clustering)'
-    plt.title(f'{title}')
-    plt.savefig(f'compression_results/{repr_level}.png')
+    # plot compression results
+    compression_plotter(compression_results)
 
 
 def mixed_effects_analysis(repr_level):
@@ -296,6 +241,74 @@ def mixed_effects_analysis(repr_level):
         data=df, 
     )
     print(res)
+
+
+def compression_plotter(compression_results):
+    fig, ax = plt.subplots()
+    x = compression_results['x']
+    y = compression_results['y']
+    hue = compression_results['hue']
+    means = compression_results['means']
+    palette = {'Type 1': 'pink', 'Type 2': 'green', 'Type 6': 'blue'}
+    ax = sns.stripplot(x=x, y=y, hue=hue, palette=palette, dodge=True, alpha=0.8, jitter=0.3, size=4)
+    
+    # plot mean/median
+    num_bars = int(len(y) / (num_subs))
+    positions = []
+    margin = 0.24
+    problem_types = [1, 2, 6]
+    for per_run_center in ax.get_xticks():
+        positions.append(per_run_center-margin)
+        positions.append(per_run_center)
+        positions.append(per_run_center+margin)
+    
+    labels = []
+    final_run_data = []  # for t-test
+    # global_index: 0-11
+    for global_index in range(num_bars):
+        # run: 1-4
+        run = global_index // len(problem_types) + 1
+        # within_run_index: 0-2
+        within_run_index = global_index % len(problem_types)        
+        problem_type = problem_types[within_run_index]
+        
+        # data
+        per_type_data = y[ global_index * num_subs : (global_index+1) * num_subs ]
+        position = [positions[global_index]]
+        
+        mean = np.mean(per_type_data)
+        sem = stats.sem(per_type_data)
+        std = np.std(per_type_data)
+        mean_obj = ax.scatter(position, mean, marker='^', color='k', s=33, zorder=3)
+        
+        # ax.errorbar(
+        #     position,
+        #     mean,
+        #     yerr=sem,
+        #     fmt='o',
+        #     capsize=3
+        # )
+        
+        # print out stats
+        print(f'Type=[{problem_type}], run=[{run}], mean=[{mean:.3f}], sem=[{sem:.3f}]')
+        if within_run_index == 2:
+            print('-'*60)
+        
+        if global_index in range(num_bars)[-3:]:
+            # print(global_index)
+            final_run_data.append(per_type_data)
+        
+    # hacky way getting legend
+    ax.scatter(position, mean, marker='^', color='k', s=33, zorder=3, label='mean')
+    plt.legend()
+    ax.set_xlabel('Learning Blocks')
+    ax.set_ylabel(f'Compression')
+    if repr_level == 'low_attn':
+        title = 'Low-level attn (DCNN)'
+    elif repr_level == 'high_attn':
+        title = 'High-level attn (Clustering)'
+    plt.title(f'{title}')
+    plt.savefig(f'compression_results/{repr_level}.png')
 
 
 ##### repetition level #####
@@ -485,7 +498,7 @@ def compression_execute_repetition_level(
 
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
-    config_version = 'best_config'
+    config_version = 'hyper89'
     repr_level = 'high_attn'
     num_subs = 23
     subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]

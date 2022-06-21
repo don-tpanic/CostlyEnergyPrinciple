@@ -30,7 +30,7 @@ def load_trained_model(
         sub, 
         repetition, 
         repr_level,
-        image_shape=(224, 224, 3)):
+        image_shape=(14, 14, 512)):
     """
     Load a trained model, intercepted at some layer,
     specified by `repr_level`.
@@ -162,9 +162,9 @@ def return_n_visualize_RDM(
     
     dataset, subj_signatures, _ = data_loader_human_order(
         attn_config_version=config_version, 
-        problem_type=problem_type, sub=sub, 
-        repetition=repetition,
-        preprocess_func=preprocess_func)
+        problem_type=problem_type, 
+        sub=sub, 
+        repetition=repetition)
     
     # We convert the images into order 000, 001, ...
     # in terms of SUBJECT coding. We do this because 
@@ -267,7 +267,7 @@ def create_model_RDMs(
                         results = pool.apply_async(
                             return_n_visualize_RDM, 
                             args=[
-                                f'{config_version}_sub{sub}_fit-human', 
+                                f'{config_version}_sub{sub}_fit-human-entropy-fast-nocarryover', 
                                 problem_type, 
                                 sub, 
                                 distance, 
@@ -428,8 +428,8 @@ def compare_pre_and_post_attn_actv_RSA(problem_type, distance='pearson'):
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
     
-    config_version = 'best_config'
-    repr_levels = ['LOC', 'cluster']
+    config_version = 'hyper89'
+    repr_levels = ['LOC', 'cluster', 'LOC_no_attn']
     problem_types = [1, 2, 6]
     runs = [1, 2, 3, 4]
     num_subs = 23

@@ -18,6 +18,17 @@ from data import data_loader_V2, load_X_only
 from clustering.utils import load_data
 from losses import binary_crossentropy
 
+color_palette = sns.color_palette("bright")
+colors = [
+    color_palette[1],   # 1
+    color_palette[6],   # 2
+    color_palette[3],   # 3
+    color_palette[4],   # 4
+    color_palette[8],   # 5
+    color_palette[9],   # 6
+]
+plt.rcParams.update({'font.size': 12})
+
 """
 Evaluation routines.
 """
@@ -785,26 +796,27 @@ def examine_clustering_learning_curves(
     of types are expected.
     """
     num_types = 6
-    colors = ['blue', 'orange', 'black', 'green', 'red', 'cyan']
     fig, ax = plt.subplots()
-    trapz_areas = np.empty(num_types)
     for i in range(num_types):
         problem_type = i + 1
         lc = np.load(
             f'results/{attn_config_version}/lc_type{problem_type}_{recon_level}.npy'
         )
-        trapz_areas[i] = np.round(np.trapz(lc), 3)
         ax.errorbar(
             range(lc.shape[0]), 
             lc, 
             color=colors[i],
             label=f'Type {problem_type}',
         )
-    print(f'[Results] trapzoidal areas = ', trapz_areas)
+
+    ax.set_xticks(range(0, lc.shape[0], 8))
+    ax.set_xticklabels([1, 2, 3, 4])
+    ax.set_xlabel('Learning Blocks')
+    ax.set_ylabel('Probability Error')
     plt.legend()
-    plt.title(f'{trapz_areas}')
     plt.tight_layout()
     plt.savefig(f'results/{attn_config_version}/lc.png')
+    plt.savefig(f'figs/lc_{attn_config_version}.png')
 
 
 def attn_weights_stability():
@@ -2210,7 +2222,7 @@ if __name__ == '__main__':
     attn_config_version = 'v4_naive-withNoise'
     dcnn_config_version = 't1.vgg16.block4_pool.None.run1'
     
-    # examine_clustering_learning_curves(attn_config_version)
+    examine_clustering_learning_curves(attn_config_version)
     
     # compare_across_types_V3(
     #     attn_config_version,
@@ -2220,4 +2232,4 @@ if __name__ == '__main__':
     # stats_significance_of_zero_attn(attn_config_version)
     # histogram_low_attn_weights(attn_config_version)
     
-    examine_high_attn_per_run(attn_config_version)
+    # examine_high_attn_per_run(attn_config_version)

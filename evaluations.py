@@ -878,6 +878,7 @@ def find_canonical_runs(
 
     from collections import defaultdict
     canonical_runs = defaultdict(list)
+    type_proportions = {}
 
     for i in range(num_types):
         problem_type = i + 1
@@ -892,8 +893,12 @@ def find_canonical_runs(
                     canonical_runs[i].append(run)
             else:
                 canonical_runs[i].append(run)
+        
+        proportion = np.round(len(canonical_runs[i]) / num_runs, 3)
+        type_proportions[i] = proportion
         print(f'Type {problem_type}, has {len(canonical_runs[i])}/{num_runs} canonical solutions')
-    return canonical_runs
+
+    return canonical_runs, type_proportions
 
 
 def canonical_runs_correspondence_to_attn_n_binary(
@@ -987,7 +992,7 @@ def compare_across_types_V3(
     num_dims = 3
     comparisons = ['zero_attn', 'binary_recon']
     results_path = f'results/{attn_config_version}'
-    type2runs = find_canonical_runs(
+    type2runs, type_proportions = find_canonical_runs(
         attn_config_version, canonical_runs_only=canonical_runs_only)
 
     for c in range(len(comparisons)):
@@ -1228,7 +1233,7 @@ def histogram_low_attn_weights(attn_config_version, threshold=[0., 0., 0.]):
     num_dims = 3
     attn_position = attn_config['attn_positions'].split(',')[0]
     results_path = f'results/{attn_config_version}'
-    type2runs = find_canonical_runs(
+    type2runs, type_proportions = find_canonical_runs(
         attn_config_version, canonical_runs_only=True)
     
     type1 = []
@@ -1306,7 +1311,7 @@ def compare_across_types_thru_time_V3(
     num_dims = 3
     comparisons = ['zero_attn', 'binary_recon']
     results_path = f'results/{attn_config_version}'
-    type2runs = find_canonical_runs(
+    type2runs, type_proportions = find_canonical_runs(
         attn_config_version, canonical_runs_only=canonical_runs_only)
 
     # Just to get total steps:
@@ -1786,7 +1791,7 @@ def turned_off_attn_across_positions(
     attn_positions = attn_config['attn_positions'].split(',')
     num_positions = len(attn_positions)
     num_types = 6
-    type2runs = find_canonical_runs(
+    type2runs, type_proportions = find_canonical_runs(
         attn_config_version, canonical_runs_only=canonical_runs_only)
     results_path = f'results/{attn_config_version}'
 
@@ -2188,7 +2193,7 @@ def post_attn_actv_thru_time(attn_config_version):
                                     )[::-1][:5]])
                         
 
-def examine_high_attn_per_run(attn_config_version, canonical_runs_only=True):
+def examine_high_attn_and_modal_solutions(attn_config_version, canonical_runs_only=True):
     """
     Final high-attn in clustering module across types and runs.
     """
@@ -2197,23 +2202,115 @@ def examine_high_attn_per_run(attn_config_version, canonical_runs_only=True):
         config_version=attn_config_version
     )
     num_runs = attn_config['num_runs']
-    problem_types = [1, 2, 6]
+    problem_types = [1, 2, 3, 4, 5, 6]
     num_dims = 3
     results_path = f'results/{attn_config_version}'
-    type2runs = find_canonical_runs(
+    type2runs, type_proportions = find_canonical_runs(
         attn_config_version, canonical_runs_only=canonical_runs_only)
 
+    num_cols = 2
+    num_rows = 3
+    fig, ax = plt.subplots(num_rows, num_cols)
     for z in range(len(problem_types)):
         problem_type = problem_types[z]
         print(f'------------ problem_type = {problem_type} ------------')
 
-        for run in type2runs[z]:
-            
+        # collect type-level all alphas
+        alphas_per_type = np.empty((num_runs, num_dims))
+
+        for i in range(len(type2runs[z])):
+            run = type2runs[z][i]
             # Second group metric based on attn strategy
             alphas_fpath = f'{results_path}/all_alphas_type{problem_type}_run{run}_cluster.npy'
             # get the final 3 alphas
             alphas = np.round(np.load(alphas_fpath)[-3:], 3)
-            print(f'run={run}, attn={alphas}')
+
+            counter_balancing_fpath = f'{results_path}/counter_balancing_type{problem_type}_run{run}_cluster.npy'
+            counter_balancing = np.load(counter_balancing_fpath, allow_pickle=True)
+            rot_dims = counter_balancing.item()['rot_dims']
+            k = counter_balancing.item()['k'][0]
+            if k != 2:
+                # no need to rotate if k == 2 as it is same as k == 0
+                # otherwise just switch based on index.
+                alphas[rot_dims[1]], alphas[rot_dims[0]] = alphas[rot_dims[0]], alphas[rot_dims[1]]
+
+            # NOTE, we do this so that the last 2 dims are the relevant dims
+            # this is to be consistent with later Mack et al. dataset.
+            # in simulation results, we had the first 2 dims as the relevant dims
+            # for Type 2.
+            if problem_type == 2:
+                alphas = alphas[::-1]
+
+            alphas_per_type[i, :] = alphas
+                
+        # get mean and sem across runs
+        mean_alphas = np.mean(alphas_per_type, axis=0)
+        sem_alphas = stats.sem(alphas_per_type, axis=0)
+        std_alphas = np.std(alphas_per_type, axis=0)
+        print(f'mean_alphas = {mean_alphas}')
+        print(f'sem_alphas = {sem_alphas}')
+
+        # plot
+        row_idx = z // num_cols
+        col_idx = z % num_cols
+        ax[row_idx, col_idx].errorbar(
+            range(num_dims), 
+            mean_alphas, 
+            yerr=std_alphas, 
+            color=colors[z],
+            capsize=3,
+            fmt='o',
+            ls='none')
+        
+        ax[row_idx, col_idx].set_xticks([])
+        ax[-1, col_idx].set_xlabel('Abstract Dimensions')
+        ax[row_idx, col_idx].set_ylim([-0.1, 1.2])
+        ax[row_idx, col_idx].set_yticks([0, 0.5, 1])
+        ax[row_idx, col_idx].set_yticklabels([0, 0.5, 1])
+        ax[1, 0].set_ylabel(f'Attention Strength')
+        ax[row_idx, col_idx].set_title(f'Type {problem_type}')
+    
+    plt.tight_layout()
+    plt.savefig(f'figs/alphas_{attn_config_version}.png')
+    plt.close()
+
+    # plot modal solution proportion as pie chart
+    num_cols = 2
+    num_rows = 3
+    fig, ax = plt.subplots(num_rows, num_cols, figsize=(4, 6))
+    for z in range(len(problem_types)):
+        problem_type = problem_types[z]
+
+        row_idx = z // num_cols
+        col_idx = z % num_cols
+
+        sizes = [type_proportions[z], 1-type_proportions[z]]
+        explode = (0.15, 0)
+
+        # ax[row_idx, col_idx].pie(
+        #     sizes, explode=explode, labels=labels, autopct='%1.1f%%',
+        #     shadow=True, startangle=90, colors=['grey', 'orange']
+        # )
+        # Equal aspect ratio ensures that pie is drawn as a circle.
+        ax[row_idx, col_idx].axis('equal')
+        ax[row_idx, col_idx].set_title(f'Type {problem_type}')
+    
+        wedges, _, _ = \
+            ax[row_idx, col_idx].pie(
+                sizes, autopct='%1.1f%%', 
+                shadow=True, 
+                startangle=0, 
+                explode=explode,
+                colors=['orange', 'grey'],
+                textprops=dict(color="k")
+            )
+
+    labels = ['modal solutions', 'other solutions']
+    plt.legend(wedges, labels, bbox_to_anchor=(0.6, 0.1))
+    # plt.tight_layout()
+    plt.savefig(f'figs/modal_solution_proportion_{attn_config_version}.png')
+
+
                     
                         
 if __name__ == '__main__':
@@ -2222,7 +2319,7 @@ if __name__ == '__main__':
     attn_config_version = 'v4_naive-withNoise'
     dcnn_config_version = 't1.vgg16.block4_pool.None.run1'
     
-    examine_clustering_learning_curves(attn_config_version)
+    # examine_clustering_learning_curves(attn_config_version)
     
     # compare_across_types_V3(
     #     attn_config_version,
@@ -2232,4 +2329,4 @@ if __name__ == '__main__':
     # stats_significance_of_zero_attn(attn_config_version)
     # histogram_low_attn_weights(attn_config_version)
     
-    # examine_high_attn_per_run(attn_config_version)
+    examine_high_attn_and_modal_solutions(attn_config_version)

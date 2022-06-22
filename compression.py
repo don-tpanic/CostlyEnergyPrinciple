@@ -15,6 +15,7 @@ import tensorflow as tf
 from tensorflow.keras import backend as K
 
 from utils import load_config
+plt.rcParams.update({'font.size': 12})
 
 """This script does two main things.
 1. Replicate attn compression results in Mack 2020;
@@ -168,7 +169,8 @@ def compression_execute(config_version, repr_level, subs, runs, tasks, num_proce
         compression_results = np.load(f'compression_results/{repr_level}.npy', allow_pickle=True).ravel()[0]
 
     # plot compression results
-    compression_plotter(compression_results)
+    # compression_plotter(compression_results)
+    compression_plotter_V2(compression_results)
 
 
 def mixed_effects_analysis(repr_level):
@@ -280,15 +282,7 @@ def compression_plotter(compression_results):
         sem = stats.sem(per_type_data)
         std = np.std(per_type_data)
         mean_obj = ax.scatter(position, mean, marker='^', color='k', s=33, zorder=3)
-        
-        # ax.errorbar(
-        #     position,
-        #     mean,
-        #     yerr=sem,
-        #     fmt='o',
-        #     capsize=3
-        # )
-        
+                
         # print out stats
         print(f'Type=[{problem_type}], run=[{run}], mean=[{mean:.3f}], sem=[{sem:.3f}]')
         if within_run_index == 2:
@@ -308,6 +302,60 @@ def compression_plotter(compression_results):
     elif repr_level == 'high_attn':
         title = 'High-level attn (Clustering)'
     plt.title(f'{title}')
+    plt.savefig(f'compression_results/{repr_level}.png')
+
+
+def compression_plotter_V2(compression_results):
+    fig, ax = plt.subplots(figsize=(6, 4))
+    runs = compression_results['x']       
+    scores = compression_results['y']       
+    types = compression_results['hue']
+    color_palette = sns.color_palette("bright")
+    palette = {'Type 1': color_palette[1], 'Type 2': color_palette[6], 'Type 6': color_palette[9]}
+    problem_types = [1, 2, 6]
+    num_bars = int(len(scores) / (num_subs))
+    positions = [1,2,3, 5,6,7, 9,10,11, 13,14,15]
+    
+    means = []
+    for i in range(len(positions)):
+        position = positions[i]
+        run_i = i // 3 + 1
+        problem_type = problem_types[i % 3]
+        per_run_n_type_data = scores[i * num_subs : (i+1) * num_subs]
+
+        if position >= 13:
+            label = f'Type {problem_type}'
+        else:
+            label = None
+        
+        mean = np.mean(per_run_n_type_data)
+        means.append(mean)
+        sem = stats.sem(per_run_n_type_data)
+        ax.errorbar(
+            position,
+            mean,
+            yerr=sem,
+            fmt='o',
+            capsize=3,
+            color=palette[f'Type {problem_type}'],
+            label=label
+        )    
+    
+    # plot curve of means for each run
+    for run_i in range(int(len(positions)/len(problem_types))):
+        per_run_positions = positions[run_i * len(problem_types) : (run_i+1) * len(problem_types)]
+        per_run_means = means[run_i * len(problem_types) : (run_i+1) * len(problem_types)]
+        ax.plot(per_run_positions, per_run_means, color='grey', linewidth=0.5, ls='dashed')
+
+    ax.set_xticks([2, 6, 10, 14])
+    ax.set_xticklabels([1, 2, 3, 4])
+    ax.set_yticks([0, 0.05, 0.1, 0.15])
+    ax.set_yticklabels([0, 0.05, 0.1, 0.15])
+    ax.set_ylim([-0.005, 0.15])
+    ax.set_xlabel('Learning Blocks')
+    ax.set_ylabel(f'Attention Compression')
+    plt.legend(loc='upper right')
+    plt.tight_layout()
     plt.savefig(f'compression_results/{repr_level}.png')
 
 

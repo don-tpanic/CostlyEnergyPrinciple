@@ -357,7 +357,7 @@ def compression_plotter_V2(compression_results):
     plt.legend(loc='upper right')
     plt.tight_layout()
     plt.savefig(f'compression_results/{repr_level}.png')
-    plt.savefig(f'figs/{repr_level}.png')
+    plt.savefig(f'figs/compression_{repr_level}.png')
 
 
 ##### repetition level #####

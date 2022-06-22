@@ -2305,7 +2305,7 @@ def examine_high_attn_and_modal_solutions(attn_config_version, canonical_runs_on
                 textprops=dict(color="k")
             )
 
-    labels = ['modal solutions', 'other solutions']
+    labels = ['Modal solutions', 'Other solutions']
     plt.legend(wedges, labels, bbox_to_anchor=(0.6, 0.1))
     # plt.tight_layout()
     plt.savefig(f'figs/modal_solution_proportion_{attn_config_version}.png')

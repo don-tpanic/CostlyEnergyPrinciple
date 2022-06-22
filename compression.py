@@ -345,7 +345,7 @@ def compression_plotter_V2(compression_results):
     for run_i in range(int(len(positions)/len(problem_types))):
         per_run_positions = positions[run_i * len(problem_types) : (run_i+1) * len(problem_types)]
         per_run_means = means[run_i * len(problem_types) : (run_i+1) * len(problem_types)]
-        ax.plot(per_run_positions, per_run_means, color='grey', linewidth=0.5, ls='dashed')
+        ax.plot(per_run_positions, per_run_means, color='grey', ls='dashed')
 
     ax.set_xticks([2, 6, 10, 14])
     ax.set_xticklabels([1, 2, 3, 4])

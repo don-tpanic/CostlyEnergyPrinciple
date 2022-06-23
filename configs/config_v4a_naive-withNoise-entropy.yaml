@@ -1,7 +1,7 @@
 config_version: config_v4a_naive-withNoise-entropy
 
 # --- training ---
-num_runs: 50
+num_runs: 500
 num_blocks: 32
 random_seed: 999
 

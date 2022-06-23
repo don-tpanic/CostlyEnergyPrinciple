@@ -2216,7 +2216,7 @@ def examine_high_attn_and_modal_solutions(attn_config_version, canonical_runs_on
         print(f'------------ problem_type = {problem_type} ------------')
 
         # collect type-level all alphas
-        alphas_per_type = np.empty((num_runs, num_dims))
+        alphas_per_type = np.empty((len(type2runs[z]), num_dims))
 
         for i in range(len(type2runs[z])):
             run = type2runs[z][i]
@@ -2269,7 +2269,8 @@ def examine_high_attn_and_modal_solutions(attn_config_version, canonical_runs_on
         ax[row_idx, col_idx].set_yticklabels([0, 0.5, 1])
         ax[1, 0].set_ylabel(f'Attention Strength')
         ax[row_idx, col_idx].set_title(f'Type {problem_type}')
-    
+        ax[row_idx, col_idx].axhline(0.333, color='grey', ls='dashed')
+
     plt.tight_layout()
     plt.savefig(f'figs/alphas_{attn_config_version}.png')
     plt.close()
@@ -2287,10 +2288,6 @@ def examine_high_attn_and_modal_solutions(attn_config_version, canonical_runs_on
         sizes = [type_proportions[z], 1-type_proportions[z]]
         explode = (0.15, 0)
 
-        # ax[row_idx, col_idx].pie(
-        #     sizes, explode=explode, labels=labels, autopct='%1.1f%%',
-        #     shadow=True, startangle=90, colors=['grey', 'orange']
-        # )
         # Equal aspect ratio ensures that pie is drawn as a circle.
         ax[row_idx, col_idx].axis('equal')
         ax[row_idx, col_idx].set_title(f'Type {problem_type}')
@@ -2316,10 +2313,10 @@ def examine_high_attn_and_modal_solutions(attn_config_version, canonical_runs_on
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
     
-    attn_config_version = 'v4_naive-withNoise'
+    attn_config_version = 'v4c_naive-withNoise-entropy'
     dcnn_config_version = 't1.vgg16.block4_pool.None.run1'
     
-    # examine_clustering_learning_curves(attn_config_version)
+    examine_clustering_learning_curves(attn_config_version)
     
     # compare_across_types_V3(
     #     attn_config_version,

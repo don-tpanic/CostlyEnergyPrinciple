@@ -8,9 +8,9 @@ from tensorflow.python.ops import gen_math_ops
 from tensorflow.python.keras import activations
 
 try:
-    from clustering.keras_custom import constraints
+    from clustering.keras_custom import constraints, regularizers
 except ModuleNotFoundError:
-    from keras_custom import constraints
+    from keras_custom import constraints, regularizers
 
 """
 Custom layers used in the clustering model.
@@ -96,29 +96,39 @@ class DimensionWiseAttn(Layer):
     """
     def __init__(
             self, output_dim,
-            r, attn_constraint,
+            r, 
+            high_attn_constraint,
+            high_attn_regularizer,
+            high_attn_reg_strength,
             **kwargs):
         self.output_dim = output_dim
         self.r = r
-        self.attn_constraint = attn_constraint
+        self.high_attn_constraint = high_attn_constraint
+        self.high_attn_regularizer = high_attn_regularizer
+        self.high_attn_reg_strength = high_attn_reg_strength
         super(DimensionWiseAttn, self).__init__(**kwargs)
 
     def build(self, input_shape):
 
-        if self.attn_constraint == 'nonneg':
+        if self.high_attn_constraint == 'nonneg':
             # checked: will infer based on shape.
             initializer = tf.keras.initializers.Constant([1/input_shape[1]])  
             constraint = constraints.GreaterEqualEpsilon()
 
-        elif self.attn_constraint == 'sumtoone':
+        elif self.high_attn_constraint == 'sumtoone':
             initializer = tf.keras.initializers.Constant([1/input_shape[1]])
             constraint = constraints.SumToOne()
+            
+        if self.high_attn_regularizer == 'entropy':
+            regularizer = regularizers.EntropyMinimizer(
+                strength=self.high_attn_reg_strength)
         
         self.ALPHAS = self.add_weight(
             name='ALPHAS',
             shape=(input_shape[1],),
             initializer=initializer,                       
-            constraint=constraint,         
+            constraint=constraint,      
+            regularizer=regularizer,   
             trainable=True
         )
         super(DimensionWiseAttn, self).build(input_shape)

@@ -201,21 +201,21 @@ def train_model(
         del joint_model
 
         # Save one run's, all steps' losses, % zero attn weights, alphas, centers..
-        np.save(
-            os.path.join(
-                results_path, f'all_recon_loss_type{problem_type}_run{run}_{recon_level}.npy'),
-                all_recon_loss
-        )
+        # np.save(
+        #     os.path.join(
+        #         results_path, f'all_recon_loss_type{problem_type}_run{run}_{recon_level}.npy'),
+        #         all_recon_loss
+        # )
         np.save(
             os.path.join(
                 results_path, f'all_recon_loss_ideal_type{problem_type}_run{run}_{recon_level}.npy'),
                 all_recon_loss_ideal
         )
-        np.save(
-            os.path.join(
-                results_path, f'all_reg_loss_type{problem_type}_run{run}_{recon_level}.npy'), 
-                all_reg_loss
-        )
+        # np.save(
+        #     os.path.join(
+        #         results_path, f'all_reg_loss_type{problem_type}_run{run}_{recon_level}.npy'), 
+        #         all_reg_loss
+        # )
         np.save(
             os.path.join(
                 results_path, f'all_percent_zero_attn_type{problem_type}_run{run}_{recon_level}.npy'),
@@ -226,11 +226,11 @@ def train_model(
                 results_path, f'all_alphas_type{problem_type}_run{run}_{recon_level}.npy'),
                 all_alphas
         )
-        np.save(
-            os.path.join(
-                results_path, f'all_centers_type{problem_type}_run{run}_{recon_level}.npy'),
-                all_centers
-        )
+        # np.save(
+        #     os.path.join(
+        #         results_path, f'all_centers_type{problem_type}_run{run}_{recon_level}.npy'),
+        #         all_centers
+        # )
     
     # Save average lc across all runs
     assert num_runs * num_blocks * len(dataset) == ct, f'got incorrect ct = {ct}'
@@ -289,10 +289,10 @@ if __name__ == '__main__':
             )
         # Do multi-GPU for all when there is no problem_type specified.
         else:
-            versions = range(8, 47)
+            versions = ['4d', '4e']
             attn_configs = []
             for v in versions:
-                attn_configs.append(f'v{v}_naive-withNoise')
+                attn_configs.append(f'v{v}_naive-withNoise-entropy')
 
             multicuda_execute(
                 target_func=train_model, 

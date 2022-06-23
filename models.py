@@ -187,6 +187,8 @@ class JointModel(Model):
         specificity = attn_config['specificity']
         trainable_specificity = attn_config['trainable_specificity']
         high_attn_constraint = attn_config['high_attn_constraint']
+        high_attn_regularizer = attn_config['high_attn_regularizer']
+        high_attn_reg_strength = attn_config['high_attn_reg_strength']
         Phi = attn_config['Phi']
         actv_func = attn_config['actv_func']
         beta = attn_config['beta']
@@ -206,7 +208,9 @@ class JointModel(Model):
         self.DimensionWiseAttnLayer = DimensionWiseAttn(
             output_dim=output_dim,
             r=r, 
-            attn_constraint=high_attn_constraint,
+            high_attn_constraint=high_attn_constraint,
+            high_attn_regularizer=high_attn_regularizer,
+            high_attn_reg_strength=high_attn_reg_strength,
             name='dimensionwise_attn_layer'
         )
 

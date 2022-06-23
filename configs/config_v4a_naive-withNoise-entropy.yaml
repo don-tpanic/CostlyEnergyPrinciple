@@ -1,0 +1,46 @@
+config_version: config_v4a_naive-withNoise-entropy
+
+# --- training ---
+num_runs: 50
+num_blocks: 32
+random_seed: 999
+
+# --- DCNN attn layer ---
+attn_initializer: ones-withNoise
+noise_distribution: uniform
+noise_level: 0.5
+low_attn_constraint: nonneg
+attn_regularizer: l1 
+reg_strength: 0.001
+attn_positions: block4_pool
+lr_attn: 0.00092
+recon_level: cluster
+inner_loop_epochs: 5
+noise_const:
+dcnn_end_actv:
+recon_clusters_weighting: 1000
+
+# --- clustering model ---
+Phi: 10.0
+actv_func: softmax
+asso_lr_multiplier: 1.0
+high_attn_constraint: sumtoone
+high_attn_regularizer: entropy
+high_attn_reg_strength: 0.0001
+attn_lr_multiplier: 1.0
+beta: 3.0
+center_lr_multiplier: 1.0
+from_logits: true
+lr: 0.1
+num_clusters: 8
+q: 1
+r: 2
+specificity: 0.25
+temp1: equivalent
+temp2: 0.012
+thr: -0.4
+trainable_specificity: false
+unsup_rule: threshold
+
+# stimulus set and finetuned DCNN.
+dcnn_config_version: t1.vgg16.block4_pool.None.run1

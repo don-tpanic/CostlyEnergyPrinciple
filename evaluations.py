@@ -2272,6 +2272,7 @@ def examine_high_attn_and_modal_solutions(attn_config_version, canonical_runs_on
         ax[row_idx, col_idx].axhline(0.333, color='grey', ls='dashed')
 
     plt.tight_layout()
+    plt.suptitle('(B)')
     plt.savefig(f'figs/alphas_{attn_config_version}.png')
     plt.close()
 
@@ -2304,16 +2305,14 @@ def examine_high_attn_and_modal_solutions(attn_config_version, canonical_runs_on
 
     labels = ['Modal solutions', 'Other solutions']
     plt.legend(wedges, labels, bbox_to_anchor=(0.6, 0.1))
-    # plt.tight_layout()
+    plt.suptitle('(A)')
     plt.savefig(f'figs/modal_solution_proportion_{attn_config_version}.png')
 
-
-                    
                         
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
     
-    attn_config_version = 'v4c_naive-withNoise-entropy'
+    attn_config_version = 'v4_naive-withNoise'
     dcnn_config_version = 't1.vgg16.block4_pool.None.run1'
     
     examine_clustering_learning_curves(attn_config_version)

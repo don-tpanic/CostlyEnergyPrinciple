@@ -51,7 +51,7 @@ def per_subj_compression(repr_level, sub, problem_type, run, config_version):
     Mack 2020, subject's per run compression is the average over trials
     (i.e. repetitions).
     """
-    config_version = f'{config_version}_sub{sub}_fit-human'
+    config_version = f'{config_version}_sub{sub}_fit-human-entropy-fast-nocarryover'
     results_path = f'results/{config_version}'
     compression_scores = []
     for rp in range(1, num_repetitions_per_run+1):
@@ -75,7 +75,7 @@ def per_subj_compression(repr_level, sub, problem_type, run, config_version):
                 f'all_alphas_type{problem_type}_sub{sub}_cluster_rp{repetition}.npy')[-3:]
         
             score = attn_compression(attn_weights)
-        # print(f'[{sub}], rp={repetition}, type={problem_type}, score={score:.3f}')
+        print(f'[{sub}], rp={repetition}, type={problem_type}, score={score:.3f}')
         compression_scores.append(score)
     
     return np.mean(compression_scores)
@@ -370,7 +370,7 @@ def per_subj_compression_repetition_level(
     """
     Compute compression score of a given model (per sub, task, rep).
     """
-    config_version = f'{config_version}_sub{sub}_fit-human'
+    config_version = f'{config_version}_sub{sub}_fit-human-entropy-fast-nocarryover'
     results_path = f'results/{config_version}'
     if repr_level == 'low_attn':
         config = load_config(component=None, config_version=config_version)
@@ -558,22 +558,22 @@ if __name__ == '__main__':
     num_repetitions_per_run = 4
     num_repetitions = 16
     
-    compression_execute(
-        config_version=config_version, 
-        repr_level=repr_level, 
-        subs=subs, 
-        runs=runs, 
-        tasks=tasks, 
-        num_processes=num_processes
-    )
-    
-    mixed_effects_analysis(repr_level)
-    
-    # compression_execute_repetition_level(
+    # compression_execute(
     #     config_version=config_version, 
     #     repr_level=repr_level, 
     #     subs=subs, 
-    #     num_repetitions=num_repetitions,
+    #     runs=runs, 
     #     tasks=tasks, 
     #     num_processes=num_processes
     # )
+    
+    # mixed_effects_analysis(repr_level)
+    
+    compression_execute_repetition_level(
+        config_version=config_version, 
+        repr_level=repr_level, 
+        subs=subs, 
+        num_repetitions=num_repetitions,
+        tasks=tasks, 
+        num_processes=num_processes
+    )

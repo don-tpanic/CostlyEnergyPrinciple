@@ -17,12 +17,7 @@ from data import data_loader_V2
 from losses import binary_crossentropy
 
 
-def train_model(
-        problem_type, 
-        attn_config_version,
-        intermediate_input=False
-    ):
-
+def train_model(problem_type, attn_config_version):
     # ------------------ load configs ------------------
     # load top-level config
     attn_config = load_config(
@@ -154,30 +149,24 @@ def train_model(
                 )
 
                 # record losses related to attn.
-                if epoch > 0:
-                    all_recon_loss.extend(recon_loss_collector)
-                    all_recon_loss_ideal.extend(recon_loss_ideal_collector)
-                    all_reg_loss.extend(reg_loss_collector)
-                    all_percent_zero_attn.extend(percent_zero_attn_collector)
-                    all_alphas.extend(alpha_collector)
-                    all_centers.extend(center_collector)
-
-                    # save trial-level (epoch,i) DCNN attn_weights (all positions)
-                    # np.save(
-                    #     os.path.join(
-                    #         results_path, 
-                    #         f'attn_weights_type{problem_type}_run{run}_epoch{epoch}_i{i}_{recon_level}.npy'
-                    #     ),
-                    #     attn_weights
-                    # )
+                all_recon_loss.extend(recon_loss_collector)
+                all_recon_loss_ideal.extend(recon_loss_ideal_collector)
+                all_reg_loss.extend(reg_loss_collector)
+                all_percent_zero_attn.extend(percent_zero_attn_collector)
+                all_alphas.extend(alpha_collector)
+                all_centers.extend(center_collector)
 
                 # record item-level prob error
                 print(f'[Check] item_proberror = {item_proberror}')
                 lc[epoch] += item_proberror
                 ct += 1
-            print(f'>> run=[{run}], epoch=[{epoch}]')
-            print('---------\n')
-            
+
+            # save one sub's per repetition high_attn weights
+            np.save(
+                os.path.join(
+                    results_path, f'all_alphas_type{problem_type}_run{run}_{recon_level}_rp{epoch}.npy'),
+                    all_alphas
+            )
             
         # ===== Saving stuff at the end of each run =====
         # save one run's trained joint model.

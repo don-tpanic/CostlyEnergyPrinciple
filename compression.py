@@ -31,7 +31,6 @@ def attn_compression(attn_weights):
     
     The more selective the higher compression.
     """
-    attn_weights = softmax(attn_weights)   # sum to one.
     ent = - np.sum( attn_weights * np.log2(attn_weights) )
     compression = 1 + ent / ( np.log2( 1/len(attn_weights) ) )
     return compression
@@ -75,7 +74,6 @@ def per_subj_compression(repr_level, sub, problem_type, run, config_version):
                 f'all_alphas_type{problem_type}_sub{sub}_cluster_rp{repetition}.npy')[-3:]
         
             score = attn_compression(attn_weights)
-        print(f'[{sub}], rp={repetition}, type={problem_type}, score={score:.3f}')
         compression_scores.append(score)
     
     return np.mean(compression_scores)
@@ -349,9 +347,9 @@ def compression_plotter_V2(compression_results):
 
     ax.set_xticks([2, 6, 10, 14])
     ax.set_xticklabels([1, 2, 3, 4])
-    ax.set_yticks([0, 0.05, 0.1, 0.15])
-    ax.set_yticklabels([0, 0.05, 0.1, 0.15])
-    ax.set_ylim([-0.005, 0.15])
+    # ax.set_yticks([0, 0.05, 0.1, 0.15])
+    # ax.set_yticklabels([0, 0.05, 0.1, 0.15])
+    # ax.set_ylim([-0.005, 0.15])
     ax.set_xlabel('Learning Blocks')
     ax.set_ylabel(f'Attention Compression')
     plt.legend(loc='upper right')
@@ -558,16 +556,16 @@ if __name__ == '__main__':
     num_repetitions_per_run = 4
     num_repetitions = 16
     
-    # compression_execute(
-    #     config_version=config_version, 
-    #     repr_level=repr_level, 
-    #     subs=subs, 
-    #     runs=runs, 
-    #     tasks=tasks, 
-    #     num_processes=num_processes
-    # )
+    compression_execute(
+        config_version=config_version, 
+        repr_level=repr_level, 
+        subs=subs, 
+        runs=runs, 
+        tasks=tasks, 
+        num_processes=num_processes
+    )
     
-    # mixed_effects_analysis(repr_level)
+    mixed_effects_analysis(repr_level)
     
     compression_execute_repetition_level(
         config_version=config_version, 

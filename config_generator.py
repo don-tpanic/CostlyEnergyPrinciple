@@ -40,7 +40,7 @@ def per_subject_hyperparams_ranges(sub, v, DCNN_config_version):
     
     lr_ = [lr]
     center_lr_multiplier_ = [center_lr_multiplier]
-    attn_lr_multiplier_ = [attn_lr_multiplier]
+    # attn_lr_multiplier_ = [attn_lr_multiplier]
     asso_lr_multiplier_ = [asso_lr_multiplier]
     Phi_ = [Phi]
     specificity_ = [specificity]
@@ -48,38 +48,45 @@ def per_subject_hyperparams_ranges(sub, v, DCNN_config_version):
     beta_ = [beta]
     temp2_ = [temp2]
     high_attn_reg_strength_ = [high_attn_reg_strength]
+
+
+    # TODO: temp - search lower high-attn lr hoping for better compression results.
+    attn_lr_multiplier_ = [
+        0.0001, 0.001, 0.01, 0.1
+    ]
+
     
     lr_attn_ = [
-        lr_attn*0.1,
-        lr_attn*0.5,
-        lr_attn*0.75,
+        # lr_attn*0.1,
+        # lr_attn*0.5,
+        # lr_attn*0.75,
         lr_attn, 
-        lr_attn*1.25,
-        lr_attn*1.5,
+        # lr_attn*1.25,
+        # lr_attn*1.5,
     ]
     
     inner_loop_epochs_ = [
-        int(inner_loop_epochs*0.5),
-        int(inner_loop_epochs*0.75),
+        # int(inner_loop_epochs*0.5),
+        # int(inner_loop_epochs*0.75),
         inner_loop_epochs,
-        int(inner_loop_epochs*1.25),
-        int(inner_loop_epochs*1.5),
+        # int(inner_loop_epochs*1.25),
+        # int(inner_loop_epochs*1.5),
 
     ]
     
     recon_clusters_weighting_ = [
-        recon_clusters_weighting*0.75,
+        # recon_clusters_weighting*0.75,
         recon_clusters_weighting,
-        recon_clusters_weighting*1.25,
-        recon_clusters_weighting*1.5,
-        recon_clusters_weighting*5,
+        # recon_clusters_weighting*1.25,
+        # recon_clusters_weighting*1.5,
+        # recon_clusters_weighting*5,
     ]
     
     noise_level_ = [
-        noise_level*0.75,
+        # noise_level*0.75,
         noise_level, 
-        noise_level*1.25,
-        noise_level*1.5,
+        # noise_level*1.25,
+        # noise_level*1.5,
     ]
         
     return lr_, center_lr_multiplier_, \
@@ -239,7 +246,7 @@ if __name__ == '__main__':
     for sub in subs:
         per_subject_generate_candidate_configs(
             DCNN_config_version='hyper89',
-            ct=3412, 
+            ct=4012, 
             v='fit-human-entropy-fast-nocarryover', 
             sub=sub,
         )
@@ -275,4 +282,6 @@ if __name__ == '__main__':
 
     # [3412, 4012): Building on the best joint config from hyper[0, 450) which is hyper89,
             # we re-search hypers of DCNN in a subject-specific manner.
-        # best overall: 
+        # best overall: hyper3808
+    
+    # [4012, 4016)

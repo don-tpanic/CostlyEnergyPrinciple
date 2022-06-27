@@ -52,7 +52,7 @@ def per_subject_hyperparams_ranges(sub, v, DCNN_config_version):
 
     # TODO: temp - search lower high-attn lr hoping for better compression results.
     attn_lr_multiplier_ = [
-        0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9
+        0.91, 0.95, 0.97, 0.99
     ]
 
     
@@ -246,7 +246,7 @@ if __name__ == '__main__':
     for sub in subs:
         per_subject_generate_candidate_configs(
             DCNN_config_version='hyper89',
-            ct=4016, 
+            ct=4024, 
             v='fit-human-entropy-fast-nocarryover', 
             sub=sub,
         )
@@ -284,8 +284,9 @@ if __name__ == '__main__':
             # we re-search hypers of DCNN in a subject-specific manner.
         # best overall: hyper3808
     
-    # [4012, 4024): To get better compression results, we try to use lower lr for 
+    # [4012, 4028): To get better compression results, we try to use lower lr for 
             # high-attn update.
             # attn_lr_multiplier_ = [
-            #     0.0001, 0.001, 0.01, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9
+            #     0.0001, 0.001, 0.01, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9,
+            # 0.91, 0.95, 0.97, 0.99
             # ]

@@ -130,7 +130,7 @@ def hyperparams_ranges(sub, clustering_config_version):
     high_attn_reg_strength_ = [high_attn_reg_strength]
     
     # DCNN
-    lr_attn_ = [0.00092, 0.0092]
+    lr_attn_ = [0.00092]
     inner_loop_epochs_ = [10, 15, 20, 25, 30]
     recon_clusters_weighting_ = [1000, 10000, 100000, 1000000, 10000000]
     noise_level_ = [0.4, 0.5, 0.6]
@@ -182,23 +182,24 @@ def per_subject_generate_candidate_configs(DCNN_config_version, ct, v, sub):
         else:
             template[key] = clustering_config[key]
 
+    # lr_, center_lr_multiplier_, \
+    #     attn_lr_multiplier_, asso_lr_multiplier_, \
+    #         Phi_, specificity_, thr_, beta_, temp2_, high_attn_reg_strength_, \
+    #             lr_attn_, inner_loop_epochs_, recon_clusters_weighting_, noise_level_ = \
+    #                 per_subject_hyperparams_ranges(
+    #                     sub=sub, 
+    #                     v=v,
+    #                     DCNN_config_version=DCNN_config_version)
+    
+    # NOTE, only used for the first search.
     lr_, center_lr_multiplier_, \
         attn_lr_multiplier_, asso_lr_multiplier_, \
             Phi_, specificity_, thr_, beta_, temp2_, high_attn_reg_strength_, \
                 lr_attn_, inner_loop_epochs_, recon_clusters_weighting_, noise_level_ = \
-                    per_subject_hyperparams_ranges(
-                        sub=sub, 
-                        v=v,
-                        DCNN_config_version=DCNN_config_version)
-    
-    # NOTE, only used for the first search.
-    # lr_, attn_lr_multiplier_, \
-    #     Phi_, specificity_, thr_, beta_, temp2_, high_attn_reg_strength_, \
-    #         lr_attn_, inner_loop_epochs_, recon_clusters_weighting_, noise_level_ = \
-    #             hyperparams_ranges(
-    #                 sub=sub, 
-    #                 clustering_config_version=clustering_config_version
-    #             )
+        hyperparams_ranges(
+            sub=sub, 
+            clustering_config_version=clustering_config_version
+        )
     
     # update all searchable entries in template
     for lr in lr_:        
@@ -246,7 +247,7 @@ if __name__ == '__main__':
     for sub in subs:
         per_subject_generate_candidate_configs(
             DCNN_config_version='hyper89',
-            ct=4024, 
+            ct=4028, 
             v='fit-human-entropy-fast-nocarryover', 
             sub=sub,
         )
@@ -290,3 +291,13 @@ if __name__ == '__main__':
             #     0.0001, 0.001, 0.01, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9,
             # 0.91, 0.95, 0.97, 0.99
             # ]
+
+    # [4028, 4103): Building on the best subject-specific config from searching clustering independently,
+            # in hyper[62016, 103866). This was to search more widely to use lower lr for high-attn
+            # but try to get good lc to eventually have better compression results.
+            # Here we fix clustering module hypers and search DCNN hypers in a subject-general manner.
+            # lr_attn_ = [0.00092]
+            # inner_loop_epochs_ = [10, 15, 20, 25, 30]
+            # recon_clusters_weighting_ = [1000, 10000, 100000, 1000000, 10000000]
+            # noise_level_ = [0.4, 0.5, 0.6]
+        # best overall: 

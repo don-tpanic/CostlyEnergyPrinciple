@@ -545,7 +545,7 @@ def compression_execute_repetition_level(
 
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
-    config_version = 'hyper89'
+    config_version = 'hyper4100'
     repr_level = 'high_attn'
     num_subs = 23
     subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
@@ -567,11 +567,11 @@ if __name__ == '__main__':
     
     mixed_effects_analysis(repr_level)
     
-    compression_execute_repetition_level(
-        config_version=config_version, 
-        repr_level=repr_level, 
-        subs=subs, 
-        num_repetitions=num_repetitions,
-        tasks=tasks, 
-        num_processes=num_processes
-    )
+    # compression_execute_repetition_level(
+    #     config_version=config_version, 
+    #     repr_level=repr_level, 
+    #     subs=subs, 
+    #     num_repetitions=num_repetitions,
+    #     tasks=tasks, 
+    #     num_processes=num_processes
+    # )

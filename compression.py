@@ -567,11 +567,11 @@ if __name__ == '__main__':
     
     mixed_effects_analysis(repr_level)
     
-    # compression_execute_repetition_level(
-    #     config_version=config_version, 
-    #     repr_level=repr_level, 
-    #     subs=subs, 
-    #     num_repetitions=num_repetitions,
-    #     tasks=tasks, 
-    #     num_processes=num_processes
-    # )
+    compression_execute_repetition_level(
+        config_version=config_version, 
+        repr_level=repr_level, 
+        subs=subs, 
+        num_repetitions=num_repetitions,
+        tasks=tasks, 
+        num_processes=num_processes
+    )

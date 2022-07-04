@@ -31,6 +31,7 @@ def examine_clustering_learning_curves(
     of types are expected.
     """
     num_types = 6
+    TypeConverter = {1: 'I', 2: 'II', 3: 'III', 4: 'IV', 5: 'V', 6: 'VI'}
     fig, ax = plt.subplots()
     for i in range(num_types):
         problem_type = i + 1
@@ -41,7 +42,7 @@ def examine_clustering_learning_curves(
             range(lc.shape[0]), 
             lc, 
             color=colors[i],
-            label=f'Type {problem_type}',
+            label=f'Type {TypeConverter[problem_type]}',
         )
 
     ax.set_xticks(range(0, lc.shape[0], 8))
@@ -49,6 +50,7 @@ def examine_clustering_learning_curves(
     ax.set_xlabel('Learning Blocks')
     ax.set_ylabel('Probability Error')
     plt.legend()
+    plt.suptitle('(A)')
     plt.tight_layout()
     plt.savefig(f'results/{attn_config_version}/lc.png')
     plt.savefig(f'figs/lc_{attn_config_version}.png')
@@ -347,6 +349,7 @@ def examine_high_attn_and_modal_solutions(attn_config_version, canonical_runs_on
     )
     num_runs = attn_config['num_runs']
     problem_types = [1, 2, 3, 4, 5, 6]
+    TypeConverter = {1: 'I', 2: 'II', 3: 'III', 4: 'IV', 5: 'V', 6: 'VI'}
     num_dims = 3
     results_path = f'results/{attn_config_version}'
     type2runs, type_proportions = find_canonical_runs(
@@ -412,11 +415,11 @@ def examine_high_attn_and_modal_solutions(attn_config_version, canonical_runs_on
         ax[row_idx, col_idx].set_yticks([0, 0.5, 1])
         ax[row_idx, col_idx].set_yticklabels([0, 0.5, 1])
         ax[1, 0].set_ylabel(f'Attention Strength')
-        ax[row_idx, col_idx].set_title(f'Type {problem_type}')
+        ax[row_idx, col_idx].set_title(f'Type {TypeConverter[problem_type]}')
         ax[row_idx, col_idx].axhline(0.333, color='grey', ls='dashed')
 
     plt.tight_layout()
-    plt.suptitle('(B)')
+    plt.suptitle('(C)')
     plt.savefig(f'figs/alphas_{attn_config_version}.png')
     plt.close()
 
@@ -435,7 +438,7 @@ def examine_high_attn_and_modal_solutions(attn_config_version, canonical_runs_on
 
         # Equal aspect ratio ensures that pie is drawn as a circle.
         ax[row_idx, col_idx].axis('equal')
-        ax[row_idx, col_idx].set_title(f'Type {problem_type}')
+        ax[row_idx, col_idx].set_title(f'Type {TypeConverter[problem_type]}')
     
         wedges, _, _ = \
             ax[row_idx, col_idx].pie(
@@ -449,7 +452,7 @@ def examine_high_attn_and_modal_solutions(attn_config_version, canonical_runs_on
 
     labels = ['Modal solutions', 'Other solutions']
     plt.legend(wedges, labels, bbox_to_anchor=(0.6, 0.1))
-    plt.suptitle('(A)')
+    plt.suptitle('(B)')
     plt.savefig(f'figs/modal_solution_proportion_{attn_config_version}.png')
 
                         

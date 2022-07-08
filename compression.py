@@ -488,6 +488,11 @@ def compression_execute_repetition_level(
             allow_pickle=True
         ).ravel()[0]
 
+    # compression_plotter_repetition_level(compression_results)
+    compression_plotter_repetition_level_V2(compression_results)
+
+
+def compression_plotter_repetition_level(compression_results):
     # plot violinplots / stripplots
     fig, ax = plt.subplots()
     x = compression_results['x']
@@ -543,6 +548,73 @@ def compression_execute_repetition_level(
     plt.savefig(f'compression_results_repetition_level/{repr_level}.png')
 
 
+def compression_plotter_repetition_level_V2(compression_results):
+    fig, ax = plt.subplots()
+    reps = compression_results['x']       
+    scores = compression_results['y']       
+    types = compression_results['hue']
+    color_palette = sns.color_palette("bright")
+    palette = {'Type 1': color_palette[1], 'Type 2': color_palette[6], 'Type 6': color_palette[9]}
+    problem_types = [1, 2, 6]
+    num_bars = int(len(scores) / (num_subs))  # 48 = 16 * 3
+
+    # create positions for errorbars, a repetition has 3 bars; each
+    # repetition is separated by a margin of 2; each bar within a rep
+    # is separated by 1.
+    position = 1
+    positions = []
+    counter = 0
+    for i in range(num_bars):
+        positions.append(position)
+        if counter == 2:
+            counter = 0
+            position += 2
+        else:
+            counter += 1
+            position += 1
+            
+    means = []
+    for i in range(len(positions)):
+        position = positions[i]
+
+        problem_type = problem_types[i % 3]
+
+        per_rep_n_type_data = scores[i * num_subs : (i+1) * num_subs]
+
+        if position >= positions[-3]:
+            label = f'Type {problem_type}'
+        else:
+            label = None
+        
+        mean = np.mean(per_rep_n_type_data)
+        means.append(mean)
+        sem = stats.sem(per_rep_n_type_data)
+        ax.errorbar(
+            position,
+            mean,
+            yerr=sem,
+            fmt='o',
+            capsize=3,
+            color=palette[f'Type {problem_type}'],
+            label=label
+        )
+    
+    # plot curve of means for each run
+    for rep_i in range(int(len(positions)/len(problem_types))):
+        per_rep_positions = positions[rep_i * len(problem_types) : (rep_i+1) * len(problem_types)]
+        per_rep_means = means[rep_i * len(problem_types) : (rep_i+1) * len(problem_types)]
+        ax.plot(per_rep_positions, per_rep_means, color='grey', ls='dashed')
+
+    ax.set_xticks([2, 6, 10, 14, 18, 22, 26, 30, 34, 38, 42, 46, 50, 54, 58, 62])
+    ax.set_xticklabels(range(int(num_bars/len(problem_types))))
+    ax.set_xlabel('Learning Trial')
+    ax.set_ylabel(f'Attention Compression')
+    plt.legend(loc='upper right')
+    plt.tight_layout()
+    plt.savefig(f'compression_results_repetition_level/{repr_level}.png')
+    plt.savefig(f'figs/compression_{repr_level}.png')
+
+
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
     config_version = 'hyper4100'
@@ -556,16 +628,16 @@ if __name__ == '__main__':
     num_repetitions_per_run = 4
     num_repetitions = 16
     
-    compression_execute(
-        config_version=config_version, 
-        repr_level=repr_level, 
-        subs=subs, 
-        runs=runs, 
-        tasks=tasks, 
-        num_processes=num_processes
-    )
+    # compression_execute(
+    #     config_version=config_version, 
+    #     repr_level=repr_level, 
+    #     subs=subs, 
+    #     runs=runs, 
+    #     tasks=tasks, 
+    #     num_processes=num_processes
+    # )
     
-    mixed_effects_analysis(repr_level)
+    # mixed_effects_analysis(repr_level)
     
     compression_execute_repetition_level(
         config_version=config_version, 

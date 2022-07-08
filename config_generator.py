@@ -247,7 +247,7 @@ if __name__ == '__main__':
     for sub in subs:
         per_subject_generate_candidate_configs(
             DCNN_config_version='hyper89',
-            ct=4028, 
+            ct=4103, 
             v='fit-human-entropy-fast-nocarryover', 
             sub=sub,
         )
@@ -300,4 +300,14 @@ if __name__ == '__main__':
             # inner_loop_epochs_ = [10, 15, 20, 25, 30]
             # recon_clusters_weighting_ = [1000, 10000, 100000, 1000000, 10000000]
             # noise_level_ = [0.4, 0.5, 0.6]
-        # best overall: 
+        # best overall: 4100
+    
+    # [4103, 4178): Building on the best subject-specific config from searching clustering independently,
+            # in hyper[103866, 136266). This was to search more widely to use lower lr for high-attn
+            # but try to get good lc to eventually have better compression results.
+            # Here we fix clustering module hypers and search DCNN hypers in a subject-general manner.
+            # lr_attn_ = [0.00092]
+            # inner_loop_epochs_ = [10, 15, 20, 25, 30]
+            # recon_clusters_weighting_ = [1000, 10000, 100000, 1000000, 10000000]
+            # noise_level_ = [0.4, 0.5, 0.6]
+        # best overall:

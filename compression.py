@@ -358,6 +358,54 @@ def compression_plotter_V2(compression_results):
     plt.savefig(f'figs/compression_{repr_level}.png')
 
 
+def regression_fit():
+    """
+    Fitting linear regression models to per subject compression 
+    for each type over trials. This way, we can read off the 
+    regression coefficient on whether there is a clear trend for 
+    each type. Specifically, we want to see Type 1 has the highest
+    beta, Type 2 second, and Type 6 flat.
+    """
+    import pingouin as pg
+
+    compression_results = np.load(
+        f'compression_results/{repr_level}.npy', 
+        allow_pickle=True).ravel()[0]
+    y = compression_results['y']
+    num_bars = int(len(y) / (num_subs))  # 48
+    problem_types = [1, 2, 6]
+    num_types = len(problem_types)
+    num_repetitions = num_bars // num_types  # 16
+    
+    group_results = np.ones((num_subs, num_repetitions, num_types))
+    for global_index in range(num_bars):
+        run = global_index // num_types
+        within_run_index = global_index % len(problem_types) 
+        
+        # data
+        per_type_data = y[ global_index * num_subs : (global_index+1) * num_subs ]
+        t = range(num_types)[within_run_index]
+
+        for s in range(num_subs):
+            # print(f's={s}, rep={rep}, t={t}', per_type_data[s])
+            group_results[s, run, t] = per_type_data[s]
+
+    for t in range(num_types):
+        print(f'\n\nProblem Type {problem_types[t]}')
+        all_coefs = []
+        for s in range(num_subs):
+            X_sub = range(num_runs)
+            y_sub = group_results[s, :, t]
+            coef = pg.linear_regression(X=X_sub, y=y_sub, coef_only=True)
+            # print(f'sub{subs[s]}, {y_sub}, coef={coef[-1]:.3f}')
+            all_coefs.append(coef[-1])
+        
+        average_coef = np.mean(all_coefs)
+        print(f'average_coef={average_coef:.3f}')
+        t, p = stats.ttest_1samp(all_coefs, popmean=0)
+        print(f't={t:.3f}, one-tailed p={p/2:.3f}')
+
+
 ##### repetition level #####
 def per_subj_compression_repetition_level(
         repr_level,
@@ -684,6 +732,54 @@ def compression_plotter_repetition_level_V2(compression_results):
     plt.savefig(f'figs/compression_{repr_level}.png')
 
 
+def regression_fit_repetition_level():
+    """
+    Fitting linear regression models to per subject compression 
+    for each type over trials. This way, we can read off the 
+    regression coefficient on whether there is a clear trend for 
+    each type. Specifically, we want to see Type 1 has the highest
+    beta, Type 2 second, and Type 6 flat.
+    """
+    import pingouin as pg
+
+    compression_results = np.load(
+        f'compression_results_repetition_level/{repr_level}.npy', 
+        allow_pickle=True).ravel()[0]
+    y = compression_results['y']
+    num_bars = int(len(y) / (num_subs))  # 48
+    problem_types = [1, 2, 6]
+    num_types = len(problem_types)
+    num_repetitions = num_bars // num_types  # 16
+    
+    group_results = np.ones((num_subs, num_repetitions, num_types))
+    for global_index in range(num_bars):
+        rep = global_index // num_types
+        within_rep_index = global_index % len(problem_types) 
+        
+        # data
+        per_type_data = y[ global_index * num_subs : (global_index+1) * num_subs ]
+        t = range(num_types)[within_rep_index]
+
+        for s in range(num_subs):
+            # print(f's={s}, rep={rep}, t={t}', per_type_data[s])
+            group_results[s, rep, t] = per_type_data[s]
+
+    for t in range(num_types):
+        print(f'\n\nProblem Type {problem_types[t]}')
+        all_coefs = []
+        for s in range(num_subs):
+            X_sub = range(num_repetitions)
+            y_sub = group_results[s, :, t]
+            coef = pg.linear_regression(X=X_sub, y=y_sub, coef_only=True)
+            # print(f'sub{subs[s]}, {y_sub}, coef={coef[-1]:.3f}')
+            all_coefs.append(coef[-1])
+        
+        average_coef = np.mean(all_coefs)
+        print(f'average_coef={average_coef:.3f}')
+        t, p = stats.ttest_1samp(all_coefs, popmean=0)
+        print(f't={t:.3f}, one-tailed p={p/2:.3f}')
+
+            
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
     config_version = 'hyper4100'
@@ -696,6 +792,7 @@ if __name__ == '__main__':
     num_processes = 72
     num_repetitions_per_run = 4
     num_repetitions = 16
+    num_runs = len(runs)
     
     # compression_execute(
     #     config_version=config_version, 
@@ -707,6 +804,10 @@ if __name__ == '__main__':
     # )
     
     # mixed_effects_analysis(repr_level)
+
+    # regression_fit()
+
+    #####
     
     # compression_execute_repetition_level(
     #     config_version=config_version, 
@@ -718,3 +819,5 @@ if __name__ == '__main__':
     # )
 
     # mixed_effects_analysis_repetition_level(repr_level)
+
+    # regression_fit_repetition_level()

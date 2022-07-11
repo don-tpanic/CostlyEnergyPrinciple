@@ -32,23 +32,50 @@ def examine_clustering_learning_curves(
     """
     num_types = 6
     TypeConverter = {1: 'I', 2: 'II', 3: 'III', 4: 'IV', 5: 'V', 6: 'VI'}
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(1, 2, figsize=(10, 5))
+
+    shj = [
+        [0.211, 0.025, 0.003, 0., 0., 0., 0., 0.,
+          0., 0., 0., 0., 0., 0., 0., 0.],
+        [0.378, 0.156, 0.083, 0.056, 0.031, 0.027, 0.028, 0.016,
+        0.016, 0.008, 0., 0.002, 0.005, 0.003, 0.002, 0.],
+        [0.459, 0.286, 0.223, 0.145, 0.081, 0.078, 0.063, 0.033,
+        0.023, 0.016, 0.019, 0.009, 0.008, 0.013, 0.009, 0.013],
+        [0.422, 0.295, 0.222, 0.172, 0.148, 0.109, 0.089, 0.062,
+        0.025, 0.031, 0.019, 0.025, 0.005, 0., 0., 0.],
+        [0.472, 0.331, 0.23, 0.139, 0.106, 0.081, 0.067,
+        0.078, 0.048, 0.045, 0.05, 0.036, 0.031, 0.027, 0.016, 0.014],
+        [0.498, 0.341, 0.284, 0.245, 0.217, 0.192, 0.192, 0.177,
+        0.172, 0.128, 0.139, 0.117, 0.103, 0.098, 0.106, 0.106]]
+    
+    for i in range(num_types):
+        problem_type = i + 1
+        ax[0].plot(shj[i], label=TypeConverter[problem_type], color=colors[i])
+
     for i in range(num_types):
         problem_type = i + 1
         lc = np.load(
             f'results/{attn_config_version}/lc_type{problem_type}_{recon_level}.npy'
         )
-        ax.errorbar(
+        ax[1].errorbar(
             range(lc.shape[0]), 
             lc, 
             color=colors[i],
             label=f'Type {TypeConverter[problem_type]}',
         )
 
-    ax.set_xticks(range(0, lc.shape[0], 8))
-    ax.set_xticklabels([1, 2, 3, 4])
-    ax.set_xlabel('Learning Blocks')
-    ax.set_ylabel('Probability Error')
+    ax[0].set_title('Human')
+    ax[0].set_xticks(range(0, len(shj[0]), 4))
+    ax[0].set_xticklabels([1, 2, 3, 4])
+    ax[0].set_xlabel('Learning Blocks')
+    ax[0].set_ylabel('Probability of Error')
+
+    ax[1].set_title('Model')
+    ax[1].set_xticks(range(0, lc.shape[0], 8))
+    ax[1].set_xticklabels([1, 2, 3, 4])
+    ax[1].set_xlabel('Learning Blocks')    
+    ax[1].get_yaxis().set_visible(False)
+
     plt.legend()
     plt.suptitle('(A)')
     plt.tight_layout()
@@ -463,5 +490,5 @@ if __name__ == '__main__':
     dcnn_config_version = 't1.vgg16.block4_pool.None.run1'
     
     examine_clustering_learning_curves(attn_config_version)
-    compare_across_types_V3(attn_config_version)
-    examine_high_attn_and_modal_solutions(attn_config_version)
+    # compare_across_types_V3(attn_config_version)
+    # examine_high_attn_and_modal_solutions(attn_config_version)

@@ -293,7 +293,7 @@ def compression_plotter(compression_results):
     # hacky way getting legend
     ax.scatter(position, mean, marker='^', color='k', s=33, zorder=3, label='mean')
     plt.legend()
-    ax.set_xlabel('Learning Blocks')
+    ax.set_xlabel('Learning Block')
     ax.set_ylabel(f'Compression')
     if repr_level == 'low_attn':
         title = 'Low-level attn (DCNN)'
@@ -730,7 +730,7 @@ def compression_plotter_repetition_level_V2(compression_results):
     plt.legend(loc='upper right')
     plt.tight_layout()
     plt.savefig(f'compression_results_repetition_level/{repr_level}.png')
-    plt.savefig(f'figs/compression_{repr_level}.png')
+    plt.savefig(f'figs/compression_{repr_level}_trialwise.png')
 
 
 def regression_fit_repetition_level():

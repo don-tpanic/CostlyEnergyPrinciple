@@ -354,10 +354,10 @@ def Fig_recon_n_decoding(attn_config_version, v):
             axes[i].plot(range(len(problem_types)), means, color='grey', linestyle='dashed')
             axes[i].set_xticks([])
             if i == 0:
-                axes[i].set_ylabel(f'{roi} Neural Stimulus Reconstruction Loss\n(1 - decoding accuracy)')
+                axes[i].set_ylabel(f'{roi} Neural Stimulus Information Loss\n(1 - decoding accuracy)')
                 axes[i].set_title(f'Brain')
             else:
-                axes[i].set_ylabel('Model Stimulus Reconstruction Loss')
+                axes[i].set_ylabel('Model Stimulus Information Loss')
                 axes[i].set_title(f'Model')
         
         plt.legend()
@@ -487,7 +487,7 @@ def Fig_binary_recon(attn_config_version, v, threshold=[0, 0, 0]):
         axes[row_idx].set_ylim([-0.1, 2])
         axes[row_idx].set_title(f'Type {TypeConverter[problem_type]}')
     
-    axes[1].set_ylabel('Reconstruction Loss')
+    axes[1].set_ylabel('Information Loss')
     axes[-1].set_xlabel('Abstract Dimension')
     # plt.tight_layout()
     plt.suptitle('(A)')

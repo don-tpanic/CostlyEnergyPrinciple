@@ -428,7 +428,7 @@ def compare_pre_and_post_attn_actv_RSA(problem_type, distance='pearson'):
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
     
-    config_version = 'hyper89'
+    config_version = 'hyper4100'
     repr_levels = ['LOC', 'cluster', 'LOC_no_attn']
     problem_types = [1, 2, 6]
     runs = [1, 2, 3, 4]
@@ -448,14 +448,14 @@ if __name__ == '__main__':
     #     repr_levels=repr_levels, 
     #     num_processes=num_processes)
 
-    # repr_level = 'LOC_no_attn'
-    # rois = ['LOC']
-    # problem_type = 1
-    # run_level_RSA(
-    #     repr_level=repr_level,
-    #     rois=rois, 
-    #     distance=distance, 
-    #     problem_type=problem_type,
-    #     num_shuffles=1)
+    repr_level = 'cluster'
+    rois = ['LHHPC']
+    problem_type = 1
+    run_level_RSA(
+        repr_level=repr_level,
+        rois=rois, 
+        distance=distance, 
+        problem_type=problem_type,
+        num_shuffles=1)
     
-    compare_pre_and_post_attn_actv_RSA(problem_type=1)
+    # compare_pre_and_post_attn_actv_RSA(problem_type=1)

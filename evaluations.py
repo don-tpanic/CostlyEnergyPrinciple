@@ -236,6 +236,7 @@ def compare_across_types_V3(
             colors = ['green', 'red', 'brown', 'orange', 'cyan', 'blue']
             average_metrics = []
             std_metrics = []
+            sem_metrics = []
             for z in range(num_types):
                 problem_type = z + 1
                 print(f'--------- Type {problem_type} ---------')
@@ -256,26 +257,31 @@ def compare_across_types_V3(
                     metrics = strategy2metric[strategy]
                     temp_collector.extend(metrics)
                     # plot bar of a single strategy
-                    ax.errorbar(
-                        x=x_ticks[i],
-                        y=np.mean(metrics),
-                        yerr=np.std(metrics),
-                        fmt='o',
-                        color=colors[z],
-                    )
+                    # ax.errorbar(
+                    #     x=x_ticks[i],
+                    #     y=np.mean(metrics),
+                    #     # yerr=np.std(metrics),
+                    #     yerr=stats.sem(metrics),
+                    #     fmt='o',
+                    #     color=colors[z],
+                    # )
+
                 # NOTE: Hacky way of getting legend correct.
-                ax.errorbar(
-                    x=x_ticks[i],
-                    y=np.mean(metrics),
-                    yerr=np.std(metrics),
-                    fmt='o',
-                    color=colors[z],
-                    label=f'single strategy, type {problem_type}'
-                )
+                # ax.errorbar(
+                #     x=x_ticks[i],
+                #     y=np.mean(metrics),
+                #     # yerr=np.std(metrics),
+                #     yerr=stats.sem(metrics),
+                #     fmt='o',
+                #     color=colors[z],
+                #     label=f'single strategy, type {problem_type}'
+                # )
+
                 print(len(temp_collector))
                 np.save(f'{results_path}/{comparison}_type{problem_type}_allStrategies.npy', temp_collector)
                 average_metrics.append(np.mean(temp_collector))
                 std_metrics.append(np.std(temp_collector))
+                sem_metrics.append(stats.sem(temp_collector))
 
             # plot bar of averaged over strategies.
             print(f'average_metrics = {average_metrics}')
@@ -283,7 +289,8 @@ def compare_across_types_V3(
             ax.errorbar(
                 x=x_axis[:num_types]+0.5,
                 y=average_metrics,
-                yerr=std_metrics,
+                # yerr=std_metrics,
+                yerr=sem_metrics,
                 fmt='*',
                 color='k',
                 ls='-',
@@ -332,38 +339,51 @@ def compare_across_types_V3(
                         x_right = x_axis[dim+1] - 1
                         x_ticks = np.linspace(x_left, x_right, num_strategies)
 
-                        ax[row_idx, col_idx].errorbar(
-                            x=x_ticks[i],
-                            y=np.mean(metrics[:, dim]),
-                            yerr=np.std(metrics[:, dim]),
-                            fmt='o',
-                            color=colors[dim],
-                            label=f'single strategy, dim{dim}')
+                        # ax[row_idx, col_idx].errorbar(
+                        #     x=x_ticks[i],
+                        #     y=np.mean(metrics[:, dim]),
+                        #     # yerr=np.std(metrics[:, dim]),
+                        #     yerr=stats.sem(metrics[:, dim]),
+                        #     fmt='o',
+                        #     color=colors[dim],
+                        #     label=f'single strategy, dim{dim}')
 
+                all_strategies_collector = np.array(all_strategies_collector)
                 average_metric = np.mean(
-                    np.array(all_strategies_collector), axis=0)
+                    all_strategies_collector, axis=0)
                 std_metric = np.std(
-                    np.array(all_strategies_collector), axis=0
+                    all_strategies_collector, axis=0
                 )
-                ax[row_idx, col_idx].errorbar(
-                    x=x_axis[:num_dims],
-                    y=average_metric,
-                    yerr=std_metric,
-                    fmt='*',
-                    color='k',
-                    label='overall'
+                sem_metric = stats.sem(
+                    all_strategies_collector, axis=0
                 )
+
+                # ax[row_idx, col_idx].errorbar(
+                #     x=x_axis[:num_dims],
+                #     y=average_metric,
+                #     # yerr=std_metric,
+                #     yerr=sem_metric,
+                #     fmt='*',
+                #     color='k',
+                #     label='overall'
+                # )
+
+                sns.barplot(
+                    data=all_strategies_collector, 
+                    ax=ax[row_idx, col_idx], 
+                    palette=colors
+                )
+
                 ax[row_idx, col_idx].set_xticks([])
-                ax[num_rows-1, col_idx].set_xticks(x_axis[:num_dims]+0.5)
+                ax[num_rows-1, col_idx].set_xticks(range(num_dims))
                 ax[num_rows-1, col_idx].set_xticklabels([f'dim{i+1}' for i in range(num_dims)])
-                ax[row_idx, col_idx].set_ylim([-0.5, 9.5])
+                ax[row_idx, col_idx].set_ylim([-0.5, 5])
                 ax[row_idx, 0].set_ylabel('binary recon loss')
                 ax[row_idx, col_idx].set_title(f'Type {problem_type}')
             
-            plt.legend(fontsize=7)
+            # plt.legend(fontsize=7)
             plt.tight_layout()
-            plt.savefig(
-                f'{results_path}/compare_types_dimension_binary_recon_canonical_runs_only{canonical_runs_only}.png')
+            plt.savefig(f'{results_path}/compare_types_dimension_binary_recon_canonical_runs_only{canonical_runs_only}.png')
                                             
 
 def examine_high_attn_and_modal_solutions(attn_config_version, canonical_runs_only=True):
@@ -427,15 +447,21 @@ def examine_high_attn_and_modal_solutions(attn_config_version, canonical_runs_on
         # plot
         row_idx = z // num_cols
         col_idx = z % num_cols
-        ax[row_idx, col_idx].errorbar(
-            range(num_dims), 
-            mean_alphas, 
-            yerr=std_alphas, 
-            color=colors[z],
-            capsize=3,
-            fmt='o',
-            ls='none')
-        
+
+        # ax[row_idx, col_idx].errorbar(
+        #     range(num_dims), 
+        #     mean_alphas, 
+        #     yerr=std_alphas, 
+        #     color=colors[z],
+        #     capsize=3,
+        #     fmt='o',
+        #     ls='none')
+
+        sns.barplot(
+            data=alphas_per_type,
+            ax=ax[row_idx, col_idx], 
+            palette=colors,
+        )
         ax[row_idx, col_idx].set_xticks([])
         ax[-1, col_idx].set_xlabel('Abstract Dimensions')
         ax[row_idx, col_idx].set_ylim([-0.1, 1.2])
@@ -482,6 +508,62 @@ def examine_high_attn_and_modal_solutions(attn_config_version, canonical_runs_on
     plt.suptitle('(B)')
     plt.savefig(f'figs/modal_solution_proportion_{attn_config_version}.png')
 
+
+def consistency_alphas_vs_recon(attn_config_version):
+    """
+    Look at overall how consistent are alphas corresponding to recon loss.
+    Ideally, the reverse rank of alphas should be the same as the rank of recon
+    because the higher the alppha, the lower the recon for this dimension.
+    """
+    problem_types=[1, 2, 6]
+    num_types = len(problem_types)
+    TypeConverter = {1: 'I', 2: 'II', 3: 'III', 4: 'IV', 5: 'V', 6: 'VI'}
+    num_dims = 3
+    results_path = f'results/{attn_config_version}'
+    type2runs, type_proportions = find_canonical_runs(
+        attn_config_version, canonical_runs_only=True)
+
+    all_rhos = []
+    all_alphas = []
+    all_recon = []
+    for z in range(num_types):
+        problem_type = z + 1
+
+        for run in type2runs[z]:
+            all_types_alphas = []
+            all_types_recon = []
+            for idx in range(len(problem_types)):
+                problem_type = problem_types[idx]
+
+                alphas = np.round(
+                    np.load(
+                    f'{results_path}/' \
+                    f'all_alphas_type{problem_type}_run{run}_cluster.npy')[-3:], 3)
+                
+                binary_recon = np.round(
+                    np.load(
+                    f'{results_path}/' \
+                    f'all_recon_loss_ideal_type{problem_type}_run{run}_cluster.npy')[-3:], 3)
+                
+                all_types_alphas.extend(alphas)
+                all_types_recon.extend(binary_recon)
+                all_alphas.extend(alphas)
+                all_recon.extend(binary_recon)
+
+            rho, _ = stats.spearmanr(all_types_alphas, all_types_recon)
+            # print(np.round(all_types_alphas, 3), np.round(all_types_recon, 3), f'rho={rho:.3f}')
+            if str(rho) == 'nan':
+                pass
+            else:
+                all_rhos.append(rho)
+    
+    print(np.round(all_rhos, 3))
+    print(np.mean(all_rhos))
+    print(stats.mode(all_rhos))
+
+    t, p = stats.ttest_1samp(all_rhos, popmean=0)
+    print(f't={t:.3f}, p={p/2:.3f}')
+
                         
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
@@ -489,6 +571,8 @@ if __name__ == '__main__':
     attn_config_version = 'v4_naive-withNoise'
     dcnn_config_version = 't1.vgg16.block4_pool.None.run1'
     
-    examine_clustering_learning_curves(attn_config_version)
+    # examine_clustering_learning_curves(attn_config_version)
+    examine_high_attn_and_modal_solutions(attn_config_version)
+
+    # consistency_alphas_vs_recon(attn_config_version)
     # compare_across_types_V3(attn_config_version)
-    # examine_high_attn_and_modal_solutions(attn_config_version)

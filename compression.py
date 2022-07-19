@@ -52,31 +52,20 @@ def per_subj_compression(repr_level, sub, problem_type, run, config_version):
     """
     config_version = f'{config_version}_sub{sub}_fit-human-entropy-fast-nocarryover'
     results_path = f'results/{config_version}'
-    compression_scores = []
-    for rp in range(1, num_repetitions_per_run+1):
 
-        # convert per run rp to global repetition 
-        repetition = (run-1) * num_repetitions_per_run + rp - 1
-        
-        if repr_level == 'low_attn':
-            config = load_config(component=None, config_version=config_version)
-            attn_position = config['attn_positions'].split(',')[0]
-            attn_weights = np.load(
-                f'{results_path}/' \
-                f'attn_weights_type{problem_type}_sub{sub}_cluster_rp{repetition}.npy',
-                allow_pickle=True).ravel()[0][attn_position]
-            # score = attn_compression(attn_weights)
-            score = attn_sparsity(attn_weights)
-        
-        elif repr_level == 'high_attn':
-            attn_weights = np.load(
-                f'{results_path}/' \
-                f'all_alphas_type{problem_type}_sub{sub}_cluster_rp{repetition}.npy')[-3:]
-        
-            score = attn_compression(attn_weights)
-        compression_scores.append(score)
+    rp = 4  # the final rp of a run
+    repetition = (run-1) * num_repetitions_per_run + rp - 1
+
+    # all attn weights of a run (since we use rp=4)
+    attn_weights = np.load(
+        f'{results_path}/' \
+        f'all_alphas_type{problem_type}_sub{sub}_cluster_rp{repetition}.npy'
+    )[(run-1)*8*3*4 : (run)*8*3*4].reshape((-1, 3))
+
+    # take the average over all trials in this run
+    attn_weights = np.mean(attn_weights, axis=0)
     
-    return np.mean(compression_scores)
+    return attn_compression(attn_weights)
 
 
 def compression_execute(config_version, repr_level, subs, runs, tasks, num_processes):
@@ -430,9 +419,22 @@ def per_subj_compression_repetition_level(
         score = attn_sparsity(attn_weights)
     
     elif repr_level == 'high_attn':
+        # One rp has 8 trials,
+        # here we compute the average alphas over 8 trials,
+        # then compute the compression score of that average alphas.
+        # Note, attn_weights is a list growing in length per rp,
+        # that is, after each rp, it grows by 8*3
         attn_weights = np.load(
             f'{results_path}/' \
-            f'all_alphas_type{problem_type}_sub{sub}_cluster_rp{repetition}.npy')[-3:]
+            f'all_alphas_type{problem_type}_sub{sub}_cluster_rp{repetition}.npy')
+        # So to get alphas of a rp, we extract the 8*3
+        # of that rp
+        attn_weights = \
+            np.mean(
+                attn_weights[repetition*8*3 : (repetition+1)*8*3].reshape((8, 3)),
+                axis=0
+            )
+
         score = attn_compression(attn_weights)
         
     return score
@@ -725,7 +727,7 @@ def compression_plotter_repetition_level_V2(compression_results):
 
     ax.set_xticks([2, 6, 10, 14, 18, 22, 26, 30, 34, 38, 42, 46, 50, 54, 58, 62])
     ax.set_xticklabels(range(int(num_bars/len(problem_types))))
-    ax.set_xlabel('Learning Trial')
+    ax.set_xlabel('Learning Block')
     ax.set_ylabel(f'Attention Compression')
     plt.legend(loc='upper right')
     plt.tight_layout()

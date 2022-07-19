@@ -124,9 +124,9 @@ def find_canonical_runs(
             else:
                 canonical_runs[i].append(run)
         
-        proportion = np.round(len(canonical_runs[i]) / num_runs, 3)
+        proportion = np.round(len(canonical_runs[i]) / num_runs, 4)
         type_proportions[i] = proportion
-        print(f'Type {problem_type}, has {len(canonical_runs[i])}/{num_runs} canonical solutions')
+        print(f'Type {problem_type}, has {proportion*100:.2f}% canonical solutions')
 
     return canonical_runs, type_proportions
   
@@ -509,6 +509,40 @@ def examine_high_attn_and_modal_solutions(attn_config_version, canonical_runs_on
     plt.savefig(f'figs/modal_solution_proportion_{attn_config_version}.png')
 
 
+def all_solutions_proportions(attn_config_version):
+    """
+    Return distribution of all solution proportions for each problem type.
+    """
+    num_types = 6
+    results_path = f'results/{attn_config_version}'
+    attn_config = load_config(
+        component=None,
+        config_version=attn_config_version
+    )
+    num_runs = attn_config['num_runs']
+    type2cluster = {
+        1: 2, 2: 4,
+        3: 6, 4: 6, 5: 6,
+        6: 8}
+
+    for i in range(num_types):
+        problem_type = i + 1
+
+        per_type_proportions = {2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0}
+        for run in range(num_runs):
+
+            mask_non_recruit = np.load(
+                f'results/{attn_config_version}/mask_non_recruit_type{problem_type}_run{run}_cluster.npy')
+            num_nonzero = len(np.nonzero(mask_non_recruit)[0])
+            num_recruited_clusters = num_nonzero
+
+            per_type_proportions[num_recruited_clusters] += 1
+        
+        print(f'\n===== Type {problem_type} =====')
+        for j in range(2, len(mask_non_recruit)+1):
+            print(f'num of clusters {j}: {per_type_proportions[j] / num_runs * 100:.2f}%')
+
+
 def consistency_alphas_vs_recon(attn_config_version):
     """
     Look at overall how consistent are alphas corresponding to recon loss.
@@ -564,7 +598,8 @@ def consistency_alphas_vs_recon(attn_config_version):
     t, p = stats.ttest_1samp(all_rhos, popmean=0)
     print(f't={t:.3f}, p={p/2:.3f}')
 
-                        
+
+
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
     
@@ -572,7 +607,9 @@ if __name__ == '__main__':
     dcnn_config_version = 't1.vgg16.block4_pool.None.run1'
     
     # examine_clustering_learning_curves(attn_config_version)
-    examine_high_attn_and_modal_solutions(attn_config_version)
+    # examine_high_attn_and_modal_solutions(attn_config_version)
 
     # consistency_alphas_vs_recon(attn_config_version)
     # compare_across_types_V3(attn_config_version)
+
+    all_solutions_proportions(attn_config_version)

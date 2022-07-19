@@ -784,9 +784,6 @@ def subject_dimension_rt_acc():
 
             subject_rt = []
             for run in runs:
-                # print(f'------ dim={dim}, subject={subject_id}, run={run} ------')
-                subject_correct = 0
-                subject_wrong = 0
             
                 fpath = f'{data_dir}/{subject_id}_study{study_id}_run{run}.txt'
                 # data is 2D array, each row is a trial
@@ -814,16 +811,29 @@ def subject_dimension_rt_acc():
                 # collect trials' RT of this run.
                 subject_rt.extend(data[:, 8])
                 
-                # count num of correct and wrong this run.
-                for acc in data[:, 9]:
-                    if acc == 0:
-                        subject_wrong += 1
-                    else:
-                        subject_correct += 1
+                # # count num of correct and wrong this run.
+                # for acc in data[:, 9]:
+                #     if acc == 0:
+                #         subject_wrong += 1
+                #     else:
+                #         subject_correct += 1
+
+                # alternatively, we could compute accuracy 
+                # over one repetition which was how human acc
+                # was computed. That is, we compute 
+                # accuracy over 8 trials of a run.
+                num_reps_per_run = data.shape[0] // 8  # 4
+                for k in range(num_reps_per_run):
+                    subject_wrong = 0
+                    subject_correct = 0
+                    for acc in data[k*8:(k+1)*8, 9]:
+                        if acc == 0:
+                            subject_wrong += 1
+                        else:
+                            subject_correct += 1
                 
-                # colect accuracy of this run.
-                dim2acc[dim].append(subject_correct / (subject_correct + subject_wrong))
-                
+                    # colect accuracy of every rep.
+                    dim2acc[dim].append(subject_correct / (subject_correct + subject_wrong))
             dim2rt[dim].extend(subject_rt)
 
     # =========================================================================
@@ -952,9 +962,9 @@ def subject_dimension_rt_acc():
 
     # sig for dim1 and dim3
     x1, x2 = 1, 2
-    y, h = 0.99 + 0.01, 0.01
+    y, h = 1.0 + 0.01, 0.01
     ax[1].plot([x1, x1, x2, x2], [y, y+h, y+h, y], lw=1.5, c='k')
-    ax[1].text((x1+x2)*.5, y+h, "*", ha='center', va='bottom', color='k')
+    ax[1].text((x1+x2)*.5, y+h, "***", ha='center', va='bottom', color='k')
 
     # sig for dim1 and dim2
     x1, x2 = 0, 1

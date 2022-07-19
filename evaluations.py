@@ -810,18 +810,10 @@ def subject_dimension_rt_acc():
                 
                 # collect trials' RT of this run.
                 subject_rt.extend(data[:, 8])
-                
-                # # count num of correct and wrong this run.
-                # for acc in data[:, 9]:
-                #     if acc == 0:
-                #         subject_wrong += 1
-                #     else:
-                #         subject_correct += 1
-
-                # alternatively, we could compute accuracy 
-                # over one repetition which was how human acc
-                # was computed. That is, we compute 
-                # accuracy over 8 trials of a run.
+            
+                # we compute accuracy over one repetition 
+                # which was how human acc was computed. 
+                # That is, we compute accuracy over 8 trials of a run.
                 num_reps_per_run = data.shape[0] // 8  # 4
                 for k in range(num_reps_per_run):
                     subject_wrong = 0

@@ -3,6 +3,7 @@ os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 import numpy as np 
+import pandas as pd
 import seaborn as sns
 from scipy import stats
 import matplotlib.pyplot as plt
@@ -599,6 +600,290 @@ def consistency_alphas_vs_recon(attn_config_version):
     print(f't={t:.3f}, p={p/2:.3f}')
 
 
+def subject_dimension_rt_acc():
+    """
+    Look at subject response time when different 
+    dimensions are being diagnostic. This is to see
+    if subjects are particularly slow when one of the 
+    dimensions is being task relevant.
+    Impl:
+    -----
+        Look at Type 1 only when we know the first dim
+        is always the diag dimension regardless of its
+        physical meaning. 
+        
+        We group subjects based on the physical dimension
+        they use to solve Type 1. So we can compare RT 
+        across different diag dimensions. 
+        
+    Conclusion:
+    -----------
+        When the 3rd physical dimension is used as the
+        diagnostic dimension, the overall subjects RT is 
+        the slowest. 
+        dim1:    1060715.5806451612
+        dim2:    1181767.4193548388
+        dim3:    1366676.3631442343
+    """
+    # study1: type 6
+    # study2: type 1
+    # study3: type 2
+    # 1. trial number (1-32)
+    # 2. task (1-3)
+    # 3. run (1-4)
+    # 4. dimension 1
+    # 5. dimension 2
+    # 6. dimension 3
+    # 7. answer (1 or 2)
+    # 8. response (1 or 2)
+    # 9. RT (ms)
+    # 10. accuracy (0 or 1)
+
+    runs = [1, 2, 3, 4]
+    # load subject's dimension assignment,
+    # i.e. each subject's dimension 1 maps to different physical dims.
+    subject2dimension = pd.read_csv('brain_data/Mack-Data/featureinfo.txt', header=None).to_numpy()
+    subject_ids_temp = subject2dimension[:, 0]
+
+    # convert `1` to `01` etc.
+    subject_ids = []
+    for subject_id in subject_ids_temp:
+        if len(f'{subject_id}') == 1:
+            subject_ids.append(f'0{subject_id}')
+        else:
+            subject_ids.append(f'{subject_id}')
+
+    # For Type 1, diagnostic dimension is always dimenson 1
+    # only its physical meaning changes.
+    diagnostic_dimension = subject2dimension[:, 1]
+
+    # int here is idx of physical dim not dim1,2,3
+    dim2meaning = {
+        '1': 'leg',
+        '2': 'mouth',
+        '3': 'manible'
+    }
+
+    # group subjects that use the same physical dim as 
+    # the diagnostic dimension.
+    # dict = {1: ['02', '03'], 2: [], 3: []}
+    dim2subject = defaultdict(list)
+    for i in range(subject2dimension.shape[0]):
+        dim = diagnostic_dimension[i]
+        subject_id = subject_ids[i]
+        dim2subject[dim].append(subject_id)
+
+    # for each diag dim, subjects who use that dim 
+    # will be used to sum up their RT and accuracy through trials and runs,
+    dim2rt = defaultdict(list)
+    dim2acc = defaultdict(list)
+    for dim in [1, 2, 3]:
+        subject_ids = dim2subject[dim]
+        
+        for subject_id in subject_ids:
+            data_dir = f'brain_data/Mack-Data/behaviour/subject_{subject_id}'
+            
+            # even subject Type 1 - study_2
+            # odd subject Type 1 - study_3
+            if int(subject_id) % 2 == 0:
+                study_id = 2
+            else:
+                study_id = 3
+
+            subject_rt = []
+            for run in runs:
+            
+                fpath = f'{data_dir}/{subject_id}_study{study_id}_run{run}.txt'
+                # data is 2D array, each row is a trial
+                data = pd.read_csv(fpath, sep = "\t", header=None).to_numpy()
+                    
+                # locate nan RT within a run
+                nan_i = []
+                has_nan = False 
+                data_exc_nan = []
+
+                # iterate one trial at a time & collect RT    
+                for i in range(data.shape[0]):
+                    rt = data[i, 8]
+                    if np.isnan(rt):
+                        nan_i.append(i)
+                        has_nan = True
+                    else:
+                        data_exc_nan.append(rt)
+                        
+                # replace nan to the average RT of the rest of the trials.
+                if has_nan:
+                    for j in nan_i:
+                        data[j, 8] = np.mean(data_exc_nan)
+                
+                # collect trials' RT of this run.
+                subject_rt.extend(data[:, 8])
+            
+                # we compute accuracy over one repetition 
+                # which was how human acc was computed. 
+                # That is, we compute accuracy over 8 trials of a run.
+                num_reps_per_run = data.shape[0] // 8  # 4
+                for k in range(num_reps_per_run):
+                    subject_wrong = 0
+                    subject_correct = 0
+                    for acc in data[k*8:(k+1)*8, 9]:
+                        if acc == 0:
+                            subject_wrong += 1
+                        else:
+                            subject_correct += 1
+                
+                    # colect accuracy of every rep.
+                    dim2acc[dim].append(subject_correct / (subject_correct + subject_wrong))
+            dim2rt[dim].extend(subject_rt)
+
+    # =========================================================================
+    # plot dim2rt
+    fig, ax = plt.subplots(2)
+    data_RT = []
+    data_ACC = []
+    RT_medians = []
+    RT_means = []
+    ACC_medians = []
+    ACC_means = []
+    for dim in [1, 2, 3]:
+        rt = dim2rt[dim]  # rt = [32 * 4 * 8] or [32 * 4 * 7]
+        acc = dim2acc[dim]
+        data_RT.append(rt)
+        data_ACC.append(acc)
+        RT_medians.append(np.median(rt))
+        RT_means.append(np.mean(rt))
+        ACC_medians.append(np.median(acc))
+        ACC_means.append(np.mean(acc)) 
+    assert len(data_RT) == 3
+    
+    # store results as a dataframe
+    dims_RTs = ['Dimension']
+    dims_ACCs = ['Dimension']
+    RTs = ['RT']
+    ACCs = ['Accuracy']
+    for dim in [1, 2, 3]:
+        rt = dim2rt[dim]
+        acc = dim2acc[dim]
+        dims_RTs.extend(f'{dim}' * len(rt))
+        dims_ACCs.extend(f'{dim}' * len(acc))
+        RTs.extend(rt)
+        ACCs.extend(acc)
+    
+    # save results as a csv file
+    dims_RTs = np.array(dims_RTs)
+    dims_ACCs = np.array(dims_ACCs)
+    RTs = np.array(RTs)
+    ACCs = np.array(ACCs)
+
+    df_RTs = np.vstack((dims_RTs, RTs)).T
+    pd.DataFrame(df_RTs).to_csv(
+        f"brain_data/Mack-Data/RTs.csv", 
+        index=False, header=False
+    )
+    df_RTs = pd.read_csv('brain_data/Mack-Data/RTs.csv', usecols=['Dimension', 'RT'])
+
+    df_ACCs = np.vstack((dims_ACCs, ACCs)).T
+    pd.DataFrame(df_ACCs).to_csv(
+        f"brain_data/Mack-Data/ACCs.csv", 
+        index=False, header=False
+    )
+    df_ACCs = pd.read_csv('brain_data/Mack-Data/ACCs.csv', usecols=['Dimension', 'Accuracy'])
+
+    # ------ statistic testing ------
+    from scipy.stats import median_test, ttest_ind
+    print(f'------ RT statistic testing ------')
+    # stats, p = median_test(data_RT[0], data_RT[1])[:2]
+    # print('dim1 vs dim2: ', f'stats={stats}, p={p}')
+    
+    # stats, p = median_test(data_RT[0], data_RT[2])[:2]
+    # print('dim1 vs dim3: ', f'stats={stats}, p={p}')
+    
+    # stats, p = median_test(data_RT[1], data_RT[2])[:2]
+    # print('dim2 vs dim3: ', f'stats={stats}, p={p}')
+
+    stats, p = ttest_ind(data_RT[0], data_RT[1])[:2]
+    print('dim1 vs dim2: ', f'stats={stats}, p={p}')
+    
+    stats, p = ttest_ind(data_RT[0], data_RT[2])[:2]
+    print('dim1 vs dim3: ', f'stats={stats}, p={p}')
+    
+    stats, p = ttest_ind(data_RT[1], data_RT[2])[:2]
+    print('dim2 vs dim3: ', f'stats={stats}, p={p}')
+    
+    print(f'median RT = {RT_medians}')
+    print(f'mean RT = {RT_means}')
+    
+    print(f'\n ------ Acc statistic testing ------')
+    stats, p = ttest_ind(data_ACC[0], data_ACC[1])[:2]
+    print('dim1 vs dim2: ', f'stats={stats}, p={p}')
+    
+    stats, p = ttest_ind(data_ACC[0], data_ACC[2])[:2]
+    print('dim1 vs dim3: ', f'stats={stats}, p={p}')
+    
+    stats, p = ttest_ind(data_ACC[1], data_ACC[2])[:2]
+    print('dim2 vs dim3: ', f'stats={stats}, p={p}')
+
+    print(f'median Acc = {ACC_medians}')
+    print(f'mean Acc = {ACC_means}')
+
+    print(data_ACC[0], '\n')
+    print(data_ACC[1], '\n')
+    print(data_ACC[2], '\n')
+
+    # ------ plotting ------
+    # ### subplot 1: RT ###
+    sns.barplot(x='Dimension', y='RT', data=df_RTs, ax=ax[0])
+    ax[0].set_xticks(range(len(data_RT)))
+    ax[0].set_xticklabels(['Leg', 'Antenna', 'Mandible'])
+    ax[0].set_ylabel('Subject RT (ms)')
+    ax[0].set_ylim(800, 1550)
+    ax[0].set(xlabel=None)
+
+    # sig for dim1 and dim3
+    x1, x2 = 0, 2
+    y, h = 1450 + 10, 10
+    ax[0].plot([x1, x1, x2, x2], [y, y+h, y+h, y], lw=1.5, c='k')
+    ax[0].text((x1+x2)*.5, y+h, "***", ha='center', va='bottom', color='k')
+    # sig for dim1 and dim2
+    x1, x2 = 0, 1
+    y, h = 1250 + 20, 20
+    ax[0].plot([x1, x1, x2, x2], [y, y+h, y+h, y], lw=1.5, c='k')
+    ax[0].text((x1+x2)*.5, y+h, "ns", ha='center', va='bottom', color='k')
+    # sig for dim2 and dim3
+    x1, x2 = 1, 2
+    y, h = 1390 + 4, 4
+    ax[0].plot([x1, x1, x2, x2], [y, y+h, y+h, y], lw=1.5, c='k')
+    ax[0].text((x1+x2)*.5, y+h, "***", ha='center', va='bottom', color='k')
+    
+    # ### subplot 2: ACC ###
+    sns.barplot(x='Dimension', y='Accuracy', data=df_ACCs, ax=ax[1])
+    ax[1].set_xticks(range(len(data_RT)))
+    ax[1].set_xticklabels(['Leg', 'Antenna', 'Mandible'])
+    ax[1].set_ylabel('Subject Accuracy')
+    ax[1].set_yticks([0.8, 0.9, 1, 1.08])
+    ax[1].set_yticklabels(['0.8', '0.9', '1.0', ''])
+    ax[1].set_ylim(0.8, 1.08)
+    ax[1].set(xlabel=None)
+
+    # sig for dim1 and dim3
+    x1, x2 = 1, 2
+    y, h = 0.97 + 0.01, 0.01
+    ax[1].plot([x1, x1, x2, x2], [y, y+h, y+h, y], lw=1.5, c='k')
+    ax[1].text((x1+x2)*.5, y+h, "***", ha='center', va='bottom', color='k')
+    # sig for dim1 and dim2
+    x1, x2 = 0, 1
+    y, h = 0.99 + 0.01, 0.01
+    ax[1].plot([x1, x1, x2, x2], [y, y+h, y+h, y], lw=1.5, c='k')
+    ax[1].text((x1+x2)*.5, y+h, "ns", ha='center', va='bottom', color='k')
+    # sig for dim1 and dim2
+    x1, x2 = 0, 2
+    y, h = 1.03 + 0.01, 0.01
+    ax[1].plot([x1, x1, x2, x2], [y, y+h, y+h, y], lw=1.5, c='k')
+    ax[1].text((x1+x2)*.5, y+h, "***", ha='center', va='bottom', color='k')
+
+    plt.tight_layout()
+    plt.savefig('figs/subject_dimension_rt_acc.png')
+
 
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
@@ -612,4 +897,6 @@ if __name__ == '__main__':
     # consistency_alphas_vs_recon(attn_config_version)
     # compare_across_types_V3(attn_config_version)
 
-    all_solutions_proportions(attn_config_version)
+    # all_solutions_proportions(attn_config_version)
+
+    subject_dimension_rt_acc()

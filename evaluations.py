@@ -1149,7 +1149,8 @@ def compare_across_types_V3(
                 ax[row_idx, 0].set_ylabel('binary recon loss')
                 ax[row_idx, col_idx].set_title(f'Type {problem_type}')
             
-            plt.legend(fontsize=7)
+            # plt.legend(fontsize=7)
+            ax[2, 0].legend(fontsize=7)
             plt.tight_layout()
             plt.savefig(
                 f'{results_path}/compare_types_dimension_binary_recon_canonical_runs_only{canonical_runs_only}.png')
@@ -2057,7 +2058,7 @@ def post_attn_actv_thru_time(attn_config_version):
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
     
-    attn_config_version = 'v5_naive-withNoise-e2e'
+    attn_config_version = 'v1_naive-withNoise-e2e'
     dcnn_config_version = 't1.vgg16.block4_pool.None.run1'
     
     # how_low_can_att_weights(

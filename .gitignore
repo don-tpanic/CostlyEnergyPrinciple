@@ -3,9 +3,12 @@ dcnn_models*/
 results
 finetune/results/
 finetune/configs/
+brain_data
+model_RDMs/
 
 # Ignore content from clustering/
 clustering/results/
+configs/*hyper*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

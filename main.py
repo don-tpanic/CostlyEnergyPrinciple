@@ -279,7 +279,7 @@ if __name__ == '__main__':
             versions = ['4a']
             attn_configs = []
             for v in versions:
-                attn_configs.append(f'v{v}_naive-withNoise-entropy')
+                attn_configs.append(f'v{v}_naive-withNoise-entropy-e2e')
 
             multicuda_execute(
                 target_func=train_model, 

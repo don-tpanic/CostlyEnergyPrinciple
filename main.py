@@ -63,7 +63,7 @@ def train_model(
     np.random.seed(random_seed)
 
     # --- initialize models, optimizers, losses, training loops ----
-    lc = np.empty(num_blocks)
+    lc = np.zeros(num_blocks)
     ct = 0
     for run in range(num_runs):
         print(f'[Check] Beginning run {run}')
@@ -290,9 +290,9 @@ if __name__ == '__main__':
             multicuda_execute(
                 target_func=train_model, 
                 attn_configs=[
-                    'v0_naive-withNoise-e2e',
-                    'v1_naive-withNoise-e2e',
-                    # 'v4_naive-withNoise-e2e'
+                    # 'v0_naive-withNoise-e2e',
+                    # 'v1_naive-withNoise-e2e',
+                    'v4_naive-withNoise-e2e'
                 ]
             )
 

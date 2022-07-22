@@ -291,6 +291,52 @@ def load_X_only(dataset,
     return batch_x
         
 
+def load_XY_only(dataset, 
+                attn_config_version,
+                dcnn_config_version):
+    """
+    Given a dataset, extract and return 
+    only the (X, Y) part. This is for evaluating 
+    model final classification on batch.
+    """
+    attn_config = load_config(
+        component=None,
+        config_version=attn_config_version
+    )
+    dcnn_config = load_config(
+        component='finetune',
+        config_version=dcnn_config_version
+    )
+    dcnn_model_name = dcnn_config['model_name']
+    layer2attn_size = dict_layer2attn_size(
+        model_name=dcnn_model_name
+    )
+    
+    # image -> [(N, 224, 224, 3)]
+    image_batch = np.empty( (len(dataset), ) + dataset[0][0][0].shape[1:])
+    batch_y = np.empty( (len(dataset), 2) )
+    for i in range(len(dataset)):
+        dp = dataset[i]
+        image = dp[0][0]
+        ones = dp[0][1]
+        y = dp[1]
+        image_batch[i] = image
+        batch_y[i] = y
+
+    batch_x = [image_batch]
+
+    # fake inputs -> [(1, 64), (1, 256), (1, 512)]
+    attn_positions = attn_config['attn_positions'].split(',')
+    for attn_position in attn_positions:
+        attn_size = layer2attn_size[attn_position]
+        fake_input = np.ones((1, attn_size))
+
+        # batch_x finally is [(image batch), (fake input 1), (fake input 2), ...]
+        batch_x.extend([fake_input])
+    
+    return batch_x, batch_y
+
+    
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
     # data_loader_V2(

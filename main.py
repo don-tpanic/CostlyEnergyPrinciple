@@ -66,10 +66,8 @@ def train_model(problem_type, attn_config_version):
         optimizer_clus = tf.keras.optimizers.SGD(learning_rate=lr)
         optimizer_attn = tf.keras.optimizers.Adam(learning_rate=lr_attn)
         loss_fn_clus = tf.keras.losses.BinaryCrossentropy(from_logits=from_logits)
-        
-        # different level of recon uses different loss func
-        if recon_level == 'cluster':
-            loss_fn_attn = tf.keras.losses.MeanSquaredError()
+        # enable e2e, CE loss is used also for low-attn.
+        loss_fn_attn = tf.keras.losses.BinaryCrossentropy(from_logits=from_logits)
         
         joint_model = JointModel(
             attn_config_version=attn_config_version,

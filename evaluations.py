@@ -78,10 +78,15 @@ def examine_clustering_learning_curves(
     ax[1].get_yaxis().set_visible(False)
 
     plt.legend()
-    plt.suptitle('(A)')
+    # plt.suptitle('(A)')
     plt.tight_layout()
+    # Hide the right and top spines
+    ax[0].spines.right.set_visible(False)
+    ax[0].spines.top.set_visible(False)
+    ax[1].spines.right.set_visible(False)
+    ax[1].spines.top.set_visible(False)
     plt.savefig(f'results/{attn_config_version}/lc.png')
-    plt.savefig(f'figs/lc_{attn_config_version}.png')
+    plt.savefig(f'figs/lc_{attn_config_version}.pdf')
 
 
 def find_canonical_runs(
@@ -405,7 +410,7 @@ def examine_high_attn_and_modal_solutions(attn_config_version, canonical_runs_on
 
     num_cols = 2
     num_rows = 3
-    fig, ax = plt.subplots(num_rows, num_cols, figsize=(8, 5))
+    fig, ax = plt.subplots(num_rows, num_cols, figsize=(10, 5))
     for z in range(len(problem_types)):
         problem_type = problem_types[z]
         print(f'------------ problem_type = {problem_type} ------------')
@@ -433,8 +438,8 @@ def examine_high_attn_and_modal_solutions(attn_config_version, canonical_runs_on
             # this is to be consistent with later Mack et al. dataset.
             # in simulation results, we had the first 2 dims as the relevant dims
             # for Type 2.
-            if problem_type == 2:
-                alphas = alphas[::-1]
+            # if problem_type == 2:
+            #     alphas = alphas[::-1]
 
             alphas_per_type[i, :] = alphas
                 
@@ -458,10 +463,16 @@ def examine_high_attn_and_modal_solutions(attn_config_version, canonical_runs_on
         #     fmt='o',
         #     ls='none')
 
+        color_palette = sns.color_palette("bright")
+        colors = [
+            color_palette[2],   # dim1
+            color_palette[5],   # dim2
+            color_palette[7],   # dim3
+        ]
         sns.barplot(
             data=alphas_per_type,
             ax=ax[row_idx, col_idx], 
-            palette=colors,
+            palette=colors
         )
         ax[row_idx, col_idx].set_xticks([])
         ax[-1, col_idx].set_xlabel('Abstract Dimensions')
@@ -471,10 +482,16 @@ def examine_high_attn_and_modal_solutions(attn_config_version, canonical_runs_on
         ax[1, 0].set_ylabel(f'Attention Strength')
         ax[row_idx, col_idx].set_title(f'Type {TypeConverter[problem_type]}')
         ax[row_idx, col_idx].axhline(0.333, color='grey', ls='dashed')
+        # hide the right and top spines
+        ax[row_idx, col_idx].spines.right.set_visible(False)
+        ax[row_idx, col_idx].spines.top.set_visible(False)
+        # ax[row_idx, col_idx].yaxis.set_ticks_position('left')
+        # ax[row_idx, col_idx].xaxis.set_ticks_position('bottom')
+
 
     plt.tight_layout()
-    plt.suptitle('(B)')
-    plt.savefig(f'figs/alphas_{attn_config_version}.png')
+    # plt.suptitle('(B)')
+    plt.savefig(f'figs/alphas_{attn_config_version}.pdf')
     plt.close()
 
     # plot modal solution proportion as pie chart
@@ -506,8 +523,8 @@ def examine_high_attn_and_modal_solutions(attn_config_version, canonical_runs_on
 
     labels = ['Modal solutions', 'Other solutions']
     plt.legend(wedges, labels, bbox_to_anchor=(0.6, 0.1))
-    plt.suptitle('(B)')
-    plt.savefig(f'figs/modal_solution_proportion_{attn_config_version}.png')
+    # plt.suptitle('(B)')
+    # plt.savefig(f'figs/modal_solution_proportion_{attn_config_version}.pdf')
 
 
 def all_solutions_proportions(attn_config_version):
@@ -891,7 +908,7 @@ if __name__ == '__main__':
     attn_config_version = 'v4a_naive-withNoise-entropy'
     dcnn_config_version = 't1.vgg16.block4_pool.None.run1'
     
-    # examine_clustering_learning_curves(attn_config_version)
+    examine_clustering_learning_curves(attn_config_version)
     examine_high_attn_and_modal_solutions(attn_config_version)
 
     # consistency_alphas_vs_recon(attn_config_version)

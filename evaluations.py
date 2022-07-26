@@ -78,10 +78,14 @@ def examine_clustering_learning_curves(
     ax[1].get_yaxis().set_visible(False)
 
     plt.legend()
-    plt.suptitle('(A)')
+    # plt.suptitle('(A)')
     plt.tight_layout()
+    ax[0].spines.right.set_visible(False)
+    ax[0].spines.top.set_visible(False)
+    ax[1].spines.right.set_visible(False)
+    ax[1].spines.top.set_visible(False)
     plt.savefig(f'results/{attn_config_version}/lc.png')
-    plt.savefig(f'figs/lc_{attn_config_version}.png')
+    plt.savefig(f'figs/lc_{attn_config_version}.pdf')
 
 
 def find_canonical_runs(
@@ -892,7 +896,7 @@ if __name__ == '__main__':
     dcnn_config_version = 't1.vgg16.block4_pool.None.run1'
     
     examine_clustering_learning_curves(attn_config_version)
-    examine_high_attn_and_modal_solutions(attn_config_version)
+    # examine_high_attn_and_modal_solutions(attn_config_version)
 
     # consistency_alphas_vs_recon(attn_config_version)
     # compare_across_types_V3(attn_config_version)

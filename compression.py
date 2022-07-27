@@ -729,10 +729,12 @@ def compression_plotter_repetition_level_V2(compression_results):
     ax.set_xticklabels(range(int(num_bars/len(problem_types))))
     ax.set_xlabel('Learning Block')
     ax.set_ylabel(f'Attention Compression')
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
     plt.legend(loc='upper right')
     plt.tight_layout()
-    plt.savefig(f'compression_results_repetition_level/{repr_level}.png')
-    plt.savefig(f'figs/compression_{repr_level}_trialwise.png')
+    plt.savefig(f'compression_results_repetition_level/{repr_level}.pdf')
+    plt.savefig(f'figs/compression_{repr_level}_trialwise.pdf')
 
 
 def regression_fit_repetition_level():
@@ -797,18 +799,18 @@ if __name__ == '__main__':
     num_repetitions = 16
     num_runs = len(runs)
     
-    compression_execute(
-        config_version=config_version, 
-        repr_level=repr_level, 
-        subs=subs, 
-        runs=runs, 
-        tasks=tasks, 
-        num_processes=num_processes
-    )
+    # compression_execute(
+    #     config_version=config_version, 
+    #     repr_level=repr_level, 
+    #     subs=subs, 
+    #     runs=runs, 
+    #     tasks=tasks, 
+    #     num_processes=num_processes
+    # )
     
-    mixed_effects_analysis(repr_level)
+    # mixed_effects_analysis(repr_level)
 
-    regression_fit()
+    # regression_fit()
 
     #####
     

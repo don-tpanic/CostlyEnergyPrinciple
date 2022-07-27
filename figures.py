@@ -408,7 +408,9 @@ def Fig_binary_recon(attn_config_version, v, threshold=[0, 0, 0]):
     num_dims = 3
     results_path = 'results'
     fig, axes = plt.subplots(3, figsize=(5, 7))
-    
+    colors = sns.color_palette("bright").as_hex()
+    colors = [colors[i] for i in [2, 5, 7]]
+
     # {'02': [2, 1, 3, 12, 12, 12], '03': ...}
     sub2assignment_n_scheme = human.Mappings().sub2assignment_n_scheme
     
@@ -445,7 +447,6 @@ def Fig_binary_recon(attn_config_version, v, threshold=[0, 0, 0]):
                     conversion_order[1:], size=num_dims-1, replace=False
                 )
 
-
             alphas = alphas[conversion_order]
             metric = metric[conversion_order]
             
@@ -480,14 +481,24 @@ def Fig_binary_recon(attn_config_version, v, threshold=[0, 0, 0]):
             average_metric = average_metric[::-1]
             sem_metric = sem_metric[::-1]
 
-        axes[row_idx].errorbar(
-            x=range(num_dims),
-            y=average_metric,
-            yerr=sem_metric,
-            fmt='o',
-            capsize=3,
-            color=colors[z],
-        )
+        for c in range(num_dims):
+            axes[row_idx].errorbar(
+                x=c, 
+                y=average_metric[c], 
+                yerr=sem_metric[c],
+                color=colors[c], 
+                marker='o',
+                capsize=3
+            )
+
+        # axes[row_idx].errorbar(
+        #     x=range(num_dims),
+        #     y=average_metric,
+        #     yerr=sem_metric,
+        #     fmt='o',
+        #     capsize=3,
+        #     color=colors[0]
+        # )
 
         axes[row_idx].set_xticks([])
         axes[row_idx].set_ylim([-0.1, 2])
@@ -502,6 +513,91 @@ def Fig_binary_recon(attn_config_version, v, threshold=[0, 0, 0]):
     print('plotted binary recon')
 
 
+def Fig_high_attn(attn_config_version, v):
+    """
+    Final high-attn in clustering module across types and runs.
+    """
+    problem_types = [1, 2, 6]
+    num_subs = 23
+    subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
+    TypeConverter = {1: 'I', 2: 'II', 6: 'VI'}
+    num_dims = 3
+    results_path = f'results'
+    sub2assignment_n_scheme = human.Mappings().sub2assignment_n_scheme
+
+    num_cols = 1
+    num_rows = 3
+    fig, ax = plt.subplots(num_rows, num_cols, figsize=(10, 5))
+    for z in range(len(problem_types)):
+        problem_type = problem_types[z]
+        print(f'------------ problem_type = {problem_type} ------------')
+
+        # collect type-level all alphas
+        alphas_per_type = np.empty((len(subs), num_dims))
+
+        for s in range(len(subs)):
+            sub = subs[s]
+            alphas_fpath = f'{results_path}/{attn_config_version}_sub{sub}_{v}/' \
+                            f'all_alphas_type{problem_type}_sub{sub}_cluster.npy'
+            # get the final 3 alphas
+            alphas = np.load(alphas_fpath)[-3:]
+            
+            # get order of physical meaning
+            # e.g. [2, 1, 3] means for this subject, the first dim of the abstract 
+            # coding is antenna. And since the original recon vector is fixed in 
+            # the order of DCNN coding, which are [leg, antenna, mouth], we need
+            # to sort the antenna dim into the first dim.
+            sub_physical_order = np.array(sub2assignment_n_scheme[sub][:3])-1
+            conversion_order = sub_physical_order
+            if problem_type == 1:
+                conversion_order[1:] = np.random.choice(
+                    conversion_order[1:], size=num_dims-1, replace=False
+                )
+            alphas = alphas[conversion_order]
+
+            if problem_type == 2:
+                alphas = alphas[::-1]
+
+            alphas_per_type[s, :] = alphas
+                
+        # get mean and sem across runs
+        mean_alphas = np.mean(alphas_per_type, axis=0)
+        sem_alphas = stats.sem(alphas_per_type, axis=0)
+        std_alphas = np.std(alphas_per_type, axis=0)
+        print(f'mean_alphas = {mean_alphas}')
+        print(f'sem_alphas = {sem_alphas}')
+
+        # plot
+        row_idx = z // num_cols
+        color_palette = sns.color_palette("bright")
+        colors = [
+            color_palette[2],   # dim1
+            color_palette[5],   # dim2
+            color_palette[7],   # dim3
+        ]
+        sns.barplot(
+            data=alphas_per_type,
+            ax=ax[row_idx], 
+            palette=colors
+        )
+        ax[row_idx].set_xticks([])
+        # ax[-1].set_xlabel('Abstract Dimensions')
+        ax[row_idx].set_ylim([-0.1, 1.2])
+        ax[row_idx].set_yticks([0, 0.5, 1])
+        ax[row_idx].set_yticklabels([0, 0.5, 1])
+        # ax[1].set_ylabel(f'Attention Strength')
+        # ax[row_idx].set_title(f'Type {TypeConverter[problem_type]}')
+        # ax[row_idx].axhline(0.333, color='grey', ls='dashed')
+        # hide the right and top spines
+        ax[row_idx].spines.right.set_visible(False)
+        ax[row_idx].spines.top.set_visible(False)
+        ax[row_idx].set_xlabel(f'Attention Strength')
+
+    plt.tight_layout()
+    plt.savefig(f'figs/alphas_{attn_config_version}.pdf')
+    plt.close()
+
+
 if __name__ == '__main__':
     attn_config_version='hyper4100'
     v='fit-human-entropy-fast-nocarryover'
@@ -510,4 +606,6 @@ if __name__ == '__main__':
 
     # Fig_recon_n_decoding(attn_config_version, v)
 
-    Fig_binary_recon(attn_config_version, v)
+    # Fig_binary_recon(attn_config_version, v)
+
+    Fig_high_attn(attn_config_version, v)

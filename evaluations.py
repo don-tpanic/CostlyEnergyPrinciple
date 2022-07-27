@@ -66,14 +66,14 @@ def examine_clustering_learning_curves(
         )
 
     ax[0].set_title('Human')
-    ax[0].set_xticks(range(0, len(shj[0]), 4))
-    ax[0].set_xticklabels([1, 2, 3, 4])
+    ax[0].set_xticks(range(len(shj[0])))
+    ax[0].set_xticklabels(range(1, len(shj[0]) + 1))
     ax[0].set_xlabel('Learning Block')
     ax[0].set_ylabel('Probability of Error')
 
     ax[1].set_title('Model')
-    ax[1].set_xticks(range(0, lc.shape[0], 8))
-    ax[1].set_xticklabels([1, 2, 3, 4])
+    ax[1].set_xticks(range(0, lc.shape[0], 2))
+    ax[1].set_xticklabels(range(1, len(shj[0]) + 1))
     ax[1].set_xlabel('Learning Block')    
     ax[1].get_yaxis().set_visible(False)
 
@@ -909,7 +909,7 @@ if __name__ == '__main__':
     dcnn_config_version = 't1.vgg16.block4_pool.None.run1'
     
     examine_clustering_learning_curves(attn_config_version)
-    examine_high_attn_and_modal_solutions(attn_config_version)
+    # examine_high_attn_and_modal_solutions(attn_config_version)
 
     # consistency_alphas_vs_recon(attn_config_version)
     # compare_across_types_V3(attn_config_version)

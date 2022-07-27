@@ -66,14 +66,14 @@ def examine_clustering_learning_curves(
         )
 
     ax[0].set_title('Human')
-    ax[0].set_xticks(range(0, len(shj[0]), 4))
-    ax[0].set_xticklabels([1, 2, 3, 4])
+    ax[0].set_xticks(range(len(shj[0])))
+    ax[0].set_xticklabels(range(1, len(shj[0])+1))
     ax[0].set_xlabel('Learning Block')
     ax[0].set_ylabel('Probability of Error')
 
     ax[1].set_title('Model')
-    ax[1].set_xticks(range(0, lc.shape[0], 8))
-    ax[1].set_xticklabels([1, 2, 3, 4])
+    ax[1].set_xticks(range(0, lc.shape[0], 2))
+    ax[1].set_xticklabels(range(1, len(shj[0])+1))
     ax[1].set_xlabel('Learning Block')    
     ax[1].get_yaxis().set_visible(False)
 

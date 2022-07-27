@@ -407,7 +407,7 @@ def Fig_binary_recon(attn_config_version, v, threshold=[0, 0, 0]):
     num_subs = len(subs)
     num_dims = 3
     results_path = 'results'
-    fig, axes = plt.subplots(3, figsize=(5, 5))
+    fig, axes = plt.subplots(3, figsize=(5, 7))
     
     # {'02': [2, 1, 3, 12, 12, 12], '03': ...}
     sub2assignment_n_scheme = human.Mappings().sub2assignment_n_scheme
@@ -444,6 +444,8 @@ def Fig_binary_recon(attn_config_version, v, threshold=[0, 0, 0]):
                 conversion_order[1:] = np.random.choice(
                     conversion_order[1:], size=num_dims-1, replace=False
                 )
+
+
             alphas = alphas[conversion_order]
             metric = metric[conversion_order]
             
@@ -474,6 +476,10 @@ def Fig_binary_recon(attn_config_version, v, threshold=[0, 0, 0]):
         average_metric = np.mean(np.array(all_strategies_collector), axis=0)
         sem_metric = stats.sem(np.array(all_strategies_collector), axis=0)
 
+        if problem_type == 2:
+            average_metric = average_metric[::-1]
+            sem_metric = sem_metric[::-1]
+
         axes[row_idx].errorbar(
             x=range(num_dims),
             y=average_metric,
@@ -486,12 +492,13 @@ def Fig_binary_recon(attn_config_version, v, threshold=[0, 0, 0]):
         axes[row_idx].set_xticks([])
         axes[row_idx].set_ylim([-0.1, 2])
         axes[row_idx].set_title(f'Type {TypeConverter[problem_type]}')
+        axes[row_idx].spines.right.set_visible(False)
+        axes[row_idx].spines.top.set_visible(False)
     
     axes[1].set_ylabel('Information Loss')
     axes[-1].set_xlabel('Abstract Dimension')
-    # plt.tight_layout()
-    plt.suptitle('(A)')
-    plt.savefig(f'figs/binary_recon.png')
+    plt.tight_layout()
+    plt.savefig(f'figs/binary_recon.pdf')
     print('plotted binary recon')
 
 

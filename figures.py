@@ -136,9 +136,8 @@ def Fig_zero_attn(attn_config_version, v, threshold=[0, 0, 0]):
 
     regression(collector, num_subs, problem_types)
 
-    # plt.tight_layout()
+    plt.tight_layout()
     plt.legend()
-    plt.suptitle('(C)')
     plt.savefig(f'figs/zero_attn.png')
     plt.close()
     print('plotted zero attn')
@@ -220,84 +219,6 @@ def Fig_recon_n_decoding(attn_config_version, v):
         t, p = stats.ttest_1samp(all_coefs, popmean=0)
         return average_coef, t, p/2
 
-    def relate_recon_loss_to_decoding_error_errorbar(attn_config_version, num_runs, roi, v):
-        """Relate binary reconstruction loss at the final layer
-        of DCNN to the decoding error of the problem types 
-        in the brain given ROI. For brain decoding, see `brain_data/`
-        
-        Impl:
-        -----
-            For brain decoding, we have produced results which are 
-            in `brain_data/decoding.py` and `brain_data/decoding_results/`.
-
-            For model recon, we obtain results in `recon_loss_by_type`
-            following conventions of how we save decoding results.
-        """
-        problem_types = [1, 2, 6]
-        
-        recon_loss_collector = np.load(
-            f'results/recon_loss_{attn_config_version}_{v}.npy', 
-            allow_pickle=True).ravel()[0]
-        
-        decoding_error_collector = np.load(
-            f'brain_data/decoding_results/decoding_error_{num_runs}runs_{roi}.npy', 
-            allow_pickle=True).ravel()[0]
-        
-        results_collectors = [decoding_error_collector, recon_loss_collector]
-        fig, axes = plt.subplots(1, 2)
-
-        for i in range(len(results_collectors)):
-            results_collector = results_collectors[i]
-            xs = []
-            ys = []
-            yerrs = []
-            for j in range(len(problem_types)):
-                problem_type = problem_types[j]
-                data_perType = results_collector[problem_type]
-                xs.append(j)
-                ys.append(np.mean(data_perType))
-                yerrs.append(stats.sem(data_perType))
-                
-            axes[i].errorbar(
-                x=xs,
-                y=ys,
-                yerr=yerrs,
-                fmt='o',
-                capsize=3,
-                linestyle='dashed'
-            )
-
-            axes[i].set_xlabel('Problem Types')
-            axes[i].set_xticks(range(len(problem_types)))
-            axes[i].set_xticklabels(problem_types)
-            if i == 0:
-                axes[i].set_ylabel(f'{roi} Neural Stimulus Reconstruction Loss\n(1 - decoding accuracy)')
-                axes[i].set_title(f'(A)')
-            else:
-                axes[i].set_ylabel('Model Stimulus Reconstruction Loss')
-                axes[i].set_title(f'(B)')
-
-        # for i in range(len(results_collectors)):
-        #     results_collector = results_collectors[i]
-        #     data = []
-        #     for problem_type in problem_types:
-        #         per_type_data = np.array(results_collector[problem_type])
-        #         data.append(per_type_data)
-            
-        #     sns.violinplot(data=data, ax=axes[i], inner='point')
-        #     axes[i].set_xlabel('Problem Types')
-        #     axes[i].set_xticks(range(len(problem_types)))
-        #     axes[i].set_xticklabels(problem_types)
-        #     if i == 0:
-        #         axes[i].set_ylabel(f'{roi} Neural Stimulus Reconstruction Loss\n(1 - decoding accuracy)')
-        #         axes[i].set_title(f'(A)')
-        #     else:
-        #         axes[i].set_ylabel('Model Stimulus Reconstruction Loss')
-        #         axes[i].set_title(f'(B)')
-        
-        plt.tight_layout()
-        plt.savefig(f'figs/recon_loss_decoding_error.png')
-
     def relate_recon_loss_to_decoding_error_errorbar_V2(attn_config_version, num_runs, roi, v):
         """Relate binary reconstruction loss at the final layer
         of DCNN to the decoding error of the problem types 
@@ -322,7 +243,7 @@ def Fig_recon_n_decoding(attn_config_version, v):
             allow_pickle=True).ravel()[0]
         
         results_collectors = [decoding_error_collector, recon_loss_collector]
-        fig, axes = plt.subplots(1, 2, figsize=(9, 5))
+        fig, axes = plt.subplots(2, figsize=(5, 9))
 
         for i in range(len(results_collectors)):
             results_collector = results_collectors[i]
@@ -359,22 +280,18 @@ def Fig_recon_n_decoding(attn_config_version, v):
             else:
                 axes[i].set_ylabel('Model Stimulus Information Loss')
                 axes[i].set_title(f'Model')
-        
+            axes[i].spines.right.set_visible(False)
+            axes[i].spines.top.set_visible(False)
         plt.legend()
-        # plt.tight_layout()
-        plt.suptitle('(B)')
+        plt.tight_layout()
         plt.savefig(f'figs/recon_loss_decoding_error.png')
 
     recon_loss_by_type(
         attn_config_version=attn_config_version, v=v
     )
-    # relate_recon_loss_to_decoding_error_errorbar(
-    #     attn_config_version=attn_config_version, num_runs=3, roi='LOC', v=v
-    # )
     relate_recon_loss_to_decoding_error_errorbar_V2(
         attn_config_version=attn_config_version, num_runs=3, roi='LOC', v=v
     )
-
     print('plotted recon and decoding')
 
 
@@ -407,7 +324,7 @@ def Fig_binary_recon(attn_config_version, v, threshold=[0, 0, 0]):
     num_subs = len(subs)
     num_dims = 3
     results_path = 'results'
-    fig, axes = plt.subplots(3, figsize=(5, 7))
+    fig, axes = plt.subplots(1,3, figsize=(5, 7))
     colors = sns.color_palette("bright").as_hex()
     colors = [colors[i] for i in [2, 5, 7]]
 
@@ -598,6 +515,130 @@ def Fig_high_attn(attn_config_version, v):
     plt.close()
 
 
+def Fig_recon_n_decoding_n_zero_attn(attn_config_version, v, threshold=[0, 0, 0]):
+
+    num_subs = 23
+    problem_types = [1, 2, 6]
+    subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
+    num_subs = len(subs)
+    num_runs = 3
+    roi = 'LOC'
+    
+    recon_loss_collector = np.load(
+        f'results/recon_loss_{attn_config_version}_{v}.npy', 
+        allow_pickle=True).ravel()[0]
+    
+    decoding_error_collector = np.load(
+        f'brain_data/decoding_results/decoding_error_{num_runs}runs_{roi}.npy', 
+        allow_pickle=True).ravel()[0]
+    
+    results_path = 'results'
+    # e.g. { problem_type: {(True, False, False): [metric1, metric2, ... ]} }
+    type2strategy2metric = defaultdict(lambda: defaultdict(list))
+    
+    for z in range(len(problem_types)):
+        problem_type = problem_types[z]
+
+        # for sub in subs:
+        for s in range(num_subs):
+            sub = subs[s]
+            
+            # For %attn, we grab the last item
+            metric_fpath = f'{results_path}/{attn_config_version}_sub{sub}_{v}/' \
+                            f'all_percent_zero_attn_type{problem_type}_sub{sub}_cluster.npy'
+            metric = np.load(metric_fpath)[-1]
+
+            # Second group metric based on attn strategy
+            alphas_fpath = f'{results_path}/{attn_config_version}_sub{sub}_{v}/' \
+                            f'all_alphas_type{problem_type}_sub{sub}_cluster.npy'
+            # get the final 3 alphas
+            alphas = np.load(alphas_fpath)[-3:]
+                            
+            # 1e-6 is the lower bound of alpha constraint.
+            # use tuple instead of list because tuple is not mutable.                    
+            alphas = alphas - np.array(threshold)
+            strategy = tuple(alphas > 1.0e-6)
+            type2strategy2metric[problem_type][strategy].append(metric)    
+
+
+    results_collectors = [decoding_error_collector, recon_loss_collector, type2strategy2metric]
+    fig, axes = plt.subplots(3, figsize=(5, 9))
+    for i in range(len(results_collectors)):
+        results_collector = results_collectors[i]
+
+        if i == 2:
+            means = []
+            for z in range(len(problem_types)):
+                problem_type = problem_types[z]
+                # e.g. {(True, False, False): [metric]}
+                strategy2metric = type2strategy2metric[problem_type]
+                strategies = list(strategy2metric.keys())
+                num_strategies = len(strategies)
+
+                temp_collector = []
+                for n in range(num_strategies):
+                    strategy = strategies[n]
+                    metrics = strategy2metric[strategy]
+                    temp_collector.extend(metrics)
+
+                mean = np.mean(temp_collector)
+                means.append(mean)
+                sem = stats.sem(temp_collector)
+                axes[i].errorbar(
+                    x=z,
+                    y=mean,
+                    yerr=sem,
+                    fmt='o',
+                    capsize=3,
+                    color=colors[z],
+                    label=f'Type {TypeConverter[problem_type]}')
+        
+        else:
+            means = []
+            for j in range(len(problem_types)):
+                problem_type = problem_types[j]
+                data_perType = results_collector[problem_type]
+
+                mean = np.mean(data_perType)
+                means.append(mean)
+                sem =  stats.sem(data_perType)
+
+                if i == 2:
+                    label = f'Type {TypeConverter[problem_type]}'
+                else:
+                    label = None
+
+                axes[i].errorbar(
+                    x=j,
+                    y=mean,
+                    yerr=sem,
+                    fmt='o',
+                    capsize=3,
+                    color=colors[j],
+                    label=label
+                )
+            
+        # plot curve of means
+        axes[i].plot(range(len(problem_types)), means, color='grey', linestyle='dashed')
+        axes[i].set_xticks([])
+        if i == 0:
+            axes[i].set_ylabel(f'LOC Neural Stimulus Information Loss\n(1 - decoding accuracy)')
+            axes[i].set_title(f'Brain')
+        elif i == 1:
+            axes[i].set_ylabel('Model Stimulus Information Loss')
+            axes[i].set_title(f'Model')
+        elif i == 2:
+            axes[i].set_ylabel('Percentage of Zero Attention')
+            axes[i].set_title(f'Model')
+            axes[i].set_ylim([0, 0.6])
+        axes[i].spines.right.set_visible(False)
+        axes[i].spines.top.set_visible(False)
+
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(f'figs/recon_loss_decoding_error_n_zero_attn.pdf')
+
+    
 if __name__ == '__main__':
     attn_config_version='hyper4100'
     v='fit-human-entropy-fast-nocarryover'
@@ -608,4 +649,6 @@ if __name__ == '__main__':
 
     # Fig_binary_recon(attn_config_version, v)
 
-    Fig_high_attn(attn_config_version, v)
+    # Fig_high_attn(attn_config_version, v)
+
+    Fig_recon_n_decoding_n_zero_attn(attn_config_version, v)

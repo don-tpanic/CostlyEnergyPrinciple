@@ -511,7 +511,7 @@ def consistency_alphas_vs_recon(attn_config_version, v):
     """
     Look at overall how consistent are alphas corresponding to recon loss.
     Ideally, the reverse rank of alphas should be the same as the rank of recon
-    because the higher the alppha, the lower the recon for this dimension.
+    because the higher the alpha, the lower the recon for this dimension.
     """
     problem_types=[1, 2, 6]
     num_subs = 23
@@ -543,7 +543,8 @@ def consistency_alphas_vs_recon(attn_config_version, v):
             all_recon.extend(binary_recon)
 
         rho, _ = stats.spearmanr(all_types_alphas, all_types_recon)
-        # print(np.round(all_types_alphas, 3), np.round(all_types_recon, 3), f'rho={rho:.3f}')
+        print(np.round(all_types_alphas, 3), np.round(all_types_recon, 3))
+
         if str(rho) == 'nan':
             pass
         else:
@@ -552,7 +553,7 @@ def consistency_alphas_vs_recon(attn_config_version, v):
     ax.set_xlabel('Attention Strength')
     ax.set_ylabel('Reconstruction Loss')
     ax.scatter(all_alphas, all_recon)
-    plt.savefig(f'results/correlation_highAttn_vs_reconLoss_{v}.png')
+    # plt.savefig(f'results/correlation_highAttn_vs_reconLoss_{v}.png')
     
     print(np.round(all_rhos, 3))
     t, p = stats.ttest_1samp(all_rhos, popmean=0)

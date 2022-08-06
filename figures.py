@@ -562,7 +562,7 @@ def Fig_recon_n_decoding_n_zero_attn(attn_config_version, v, threshold=[0, 0, 0]
 
 
     results_collectors = [decoding_error_collector, recon_loss_collector, type2strategy2metric]
-    fig, axes = plt.subplots(3, figsize=(5, 9))
+    fig, axes = plt.subplots(3, figsize=(5, 7))
     for i in range(len(results_collectors)):
         results_collector = results_collectors[i]
 

@@ -622,14 +622,14 @@ def Fig_recon_n_decoding_n_zero_attn(attn_config_version, v, threshold=[0, 0, 0]
         axes[i].plot(range(len(problem_types)), means, color='grey', linestyle='dashed')
         axes[i].set_xticks([])
         if i == 0:
-            axes[i].set_ylabel(f'LOC Neural Stimulus Information Loss\n(1 - decoding accuracy)')
-            axes[i].set_title(f'Brain')
+            # axes[i].set_ylabel(f'LOC Neural Stimulus Information Loss\n(1 - decoding accuracy)')
+            axes[i].set_title(f'Information Loss (Brain)')
         elif i == 1:
-            axes[i].set_ylabel('Model Stimulus Information Loss')
-            axes[i].set_title(f'Model')
+            # axes[i].set_ylabel('Model Stimulus Information Loss')
+            axes[i].set_title(f'Information Loss (Model)')
         elif i == 2:
-            axes[i].set_ylabel('Percentage of Zero Attention')
-            axes[i].set_title(f'Model')
+            # axes[i].set_ylabel('Percentage of Zero Attention')
+            axes[i].set_title(f'Percentage of Zero Attention (Model)')
             axes[i].set_ylim([0, 0.6])
         axes[i].spines.right.set_visible(False)
         axes[i].spines.top.set_visible(False)

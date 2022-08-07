@@ -698,7 +698,6 @@ def subject_dimension_rt_acc():
     dimensions are being diagnostic. This is to see
     if subjects are particularly slow when one of the 
     dimensions is being task relevant.
-
     Impl:
     -----
         Look at Type 1 only when we know the first dim
@@ -929,12 +928,12 @@ def subject_dimension_rt_acc():
     ax[0].set_xticks(range(len(data_RT)))
     ax[0].set_xticklabels(['Leg', 'Antenna', 'Mandible'])
     ax[0].set_ylabel('Subject RT (ms)')
-    ax[0].set_ylim(800, 1500)
+    ax[0].set_ylim(800, 1550)
     ax[0].set(xlabel=None)
 
     # sig for dim1 and dim3
     x1, x2 = 0, 2
-    y, h = 1400 + 10, 10
+    y, h = 1450 + 10, 10
     ax[0].plot([x1, x1, x2, x2], [y, y+h, y+h, y], lw=1.5, c='k')
     ax[0].text((x1+x2)*.5, y+h, "***", ha='center', va='bottom', color='k')
     # sig for dim1 and dim2
@@ -942,31 +941,45 @@ def subject_dimension_rt_acc():
     y, h = 1250 + 20, 20
     ax[0].plot([x1, x1, x2, x2], [y, y+h, y+h, y], lw=1.5, c='k')
     ax[0].text((x1+x2)*.5, y+h, "ns", ha='center', va='bottom', color='k')
+    # sig for dim2 and dim3
+    x1, x2 = 1, 2
+    y, h = 1390 + 4, 4
+    ax[0].plot([x1, x1, x2, x2], [y, y+h, y+h, y], lw=1.5, c='k')
+    ax[0].text((x1+x2)*.5, y+h, "***", ha='center', va='bottom', color='k')
+    ax[0].spines.right.set_visible(False)
+    ax[0].spines.top.set_visible(False)
+
     
     # ### subplot 2: ACC ###
     sns.barplot(x='Dimension', y='Accuracy', data=df_ACCs, ax=ax[1])
     ax[1].set_xticks(range(len(data_RT)))
     ax[1].set_xticklabels(['Leg', 'Antenna', 'Mandible'])
     ax[1].set_ylabel('Subject Accuracy')
-    ax[1].set_yticks([0.8, 0.9, 1, 1.05])
+    ax[1].set_yticks([0.8, 0.9, 1, 1.08])
     ax[1].set_yticklabels(['0.8', '0.9', '1.0', ''])
-    ax[1].set_ylim(0.8, 1.05)
+    ax[1].set_ylim(0.8, 1.08)
     ax[1].set(xlabel=None)
 
     # sig for dim1 and dim3
     x1, x2 = 1, 2
-    y, h = 1.0 + 0.01, 0.01
+    y, h = 0.97 + 0.01, 0.01
     ax[1].plot([x1, x1, x2, x2], [y, y+h, y+h, y], lw=1.5, c='k')
     ax[1].text((x1+x2)*.5, y+h, "***", ha='center', va='bottom', color='k')
-
     # sig for dim1 and dim2
     x1, x2 = 0, 1
-    y, h = 0.98 + 0.01, 0.01
+    y, h = 0.99 + 0.01, 0.01
     ax[1].plot([x1, x1, x2, x2], [y, y+h, y+h, y], lw=1.5, c='k')
     ax[1].text((x1+x2)*.5, y+h, "ns", ha='center', va='bottom', color='k')
+    # sig for dim1 and dim2
+    x1, x2 = 0, 2
+    y, h = 1.03 + 0.01, 0.01
+    ax[1].plot([x1, x1, x2, x2], [y, y+h, y+h, y], lw=1.5, c='k')
+    ax[1].text((x1+x2)*.5, y+h, "***", ha='center', va='bottom', color='k')
+    ax[1].spines.right.set_visible(False)
+    ax[1].spines.top.set_visible(False)
 
     plt.tight_layout()
-    plt.savefig('figs/subject_dimension_rt_acc.png')
+    plt.savefig('figs/subject_dimension_rt_acc.pdf')
 
 
 if __name__ == '__main__':

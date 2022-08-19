@@ -10,16 +10,26 @@ import matplotlib.pyplot as plt
 from collections import defaultdict
 from utils import load_config
 
-color_palette = sns.color_palette("bright")
+# color_palette = sns.color_palette("bright")
+# colors = [
+#     color_palette[1],   # 1
+#     color_palette[6],   # 2
+#     color_palette[3],   # 3
+#     color_palette[4],   # 4
+#     color_palette[8],   # 5
+#     color_palette[9],   # 6
+# ]
+color_palette = sns.color_palette("flare")
 colors = [
-    color_palette[1],   # 1
-    color_palette[6],   # 2
-    color_palette[3],   # 3
-    color_palette[4],   # 4
-    color_palette[8],   # 5
-    color_palette[9],   # 6
+    color_palette[0],   # 1
+    color_palette[1],   # 2
+    color_palette[2],   # 3
+    color_palette[3],   # 4
+    color_palette[4],   # 5
+    color_palette[5],   # 6
 ]
-plt.rcParams.update({'font.size': 12})
+plt.rcParams.update({'font.size': 12, 'font.weight': "bold"})
+plt.rcParams["font.family"] = "Helvetica"
 
 """
 Evaluation routines.
@@ -51,7 +61,15 @@ def examine_clustering_learning_curves(
     
     for i in range(num_types):
         problem_type = i + 1
-        ax[0].plot(shj[i], label=TypeConverter[problem_type], color=colors[i])
+        ax[0].errorbar(
+            range(len(shj[i])), 
+            shj[i],
+            fmt='o',
+            color=colors[i],
+            markersize=5,
+            label=f'Type {TypeConverter[problem_type]}',
+        )
+        ax[0].plot(range(len(shj[i])), shj[i], color=colors[i])
 
     for i in range(num_types):
         problem_type = i + 1
@@ -60,21 +78,22 @@ def examine_clustering_learning_curves(
         )
         ax[1].errorbar(
             range(lc.shape[0]), 
-            lc, 
+            lc,
+            fmt='o',
             color=colors[i],
+            markersize=5,
             label=f'Type {TypeConverter[problem_type]}',
         )
+        ax[1].plot(range(lc.shape[0]), lc, color=colors[i])
 
-    ax[0].set_title('Human')
     ax[0].set_xticks(range(len(shj[0])))
     ax[0].set_xticklabels(range(1, len(shj[0]) + 1))
-    ax[0].set_xlabel('Learning Block')
-    ax[0].set_ylabel('Probability of Error')
+    ax[0].set_xlabel('Learning Block', fontweight='bold')
+    ax[0].set_ylabel('Probability of Error', fontweight='bold')
 
-    ax[1].set_title('Model')
     ax[1].set_xticks(range(0, lc.shape[0], 2))
     ax[1].set_xticklabels(range(1, len(shj[0]) + 1))
-    ax[1].set_xlabel('Learning Block')    
+    ax[1].set_xlabel('Learning Block', fontweight='bold')
     ax[1].get_yaxis().set_visible(False)
 
     plt.legend()

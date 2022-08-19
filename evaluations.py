@@ -473,20 +473,11 @@ def examine_high_attn_and_modal_solutions(attn_config_version, canonical_runs_on
         row_idx = z // num_cols
         col_idx = z % num_cols
 
-        # ax[row_idx, col_idx].errorbar(
-        #     range(num_dims), 
-        #     mean_alphas, 
-        #     yerr=std_alphas, 
-        #     color=colors[z],
-        #     capsize=3,
-        #     fmt='o',
-        #     ls='none')
-
-        color_palette = sns.color_palette("bright")
+        color_palette = sns.color_palette("crest")
         colors = [
-            color_palette[2],   # dim1
-            color_palette[5],   # dim2
-            color_palette[7],   # dim3
+            color_palette[1],   # dim1
+            color_palette[3],   # dim2
+            color_palette[5],   # dim3
         ]
         sns.barplot(
             data=alphas_per_type,
@@ -494,22 +485,18 @@ def examine_high_attn_and_modal_solutions(attn_config_version, canonical_runs_on
             palette=colors
         )
         ax[row_idx, col_idx].set_xticks([])
-        ax[-1, col_idx].set_xlabel('Abstract Dimensions')
+        ax[-1, col_idx].set_xlabel('Abstract Dimension', fontweight='bold')
         ax[row_idx, col_idx].set_ylim([-0.1, 1.2])
         ax[row_idx, col_idx].set_yticks([0, 0.5, 1])
         ax[row_idx, col_idx].set_yticklabels([0, 0.5, 1])
-        ax[1, 0].set_ylabel(f'Attention Strength')
-        ax[row_idx, col_idx].set_title(f'Type {TypeConverter[problem_type]}')
+        ax[1, 0].set_ylabel(f'Attention Strength', fontweight='bold')
+        ax[row_idx, col_idx].set_title(f'Type {TypeConverter[problem_type]}', fontweight='bold')
         ax[row_idx, col_idx].axhline(0.333, color='grey', ls='dashed')
         # hide the right and top spines
         ax[row_idx, col_idx].spines.right.set_visible(False)
         ax[row_idx, col_idx].spines.top.set_visible(False)
-        # ax[row_idx, col_idx].yaxis.set_ticks_position('left')
-        # ax[row_idx, col_idx].xaxis.set_ticks_position('bottom')
-
 
     plt.tight_layout()
-    # plt.suptitle('(B)')
     plt.savefig(f'figs/alphas_{attn_config_version}.pdf')
     plt.close()
 
@@ -927,8 +914,8 @@ if __name__ == '__main__':
     attn_config_version = 'v4a_naive-withNoise-entropy'
     dcnn_config_version = 't1.vgg16.block4_pool.None.run1'
     
-    examine_clustering_learning_curves(attn_config_version)
-    # examine_high_attn_and_modal_solutions(attn_config_version)
+    # examine_clustering_learning_curves(attn_config_version)
+    examine_high_attn_and_modal_solutions(attn_config_version)
 
     # consistency_alphas_vs_recon(attn_config_version)
     # compare_across_types_V3(attn_config_version)

@@ -15,7 +15,8 @@ import tensorflow as tf
 from tensorflow.keras import backend as K
 
 from utils import load_config
-plt.rcParams.update({'font.size': 12})
+plt.rcParams.update({'font.size': 12, 'font.weight': "bold"})
+plt.rcParams["font.family"] = "Helvetica"
 
 """This script does two main things.
 1. Replicate attn compression results in Mack 2020;
@@ -673,8 +674,9 @@ def compression_plotter_repetition_level_V2(compression_results):
     reps = compression_results['x']       
     scores = compression_results['y']       
     types = compression_results['hue']
-    color_palette = sns.color_palette("bright")
-    palette = {'Type 1': color_palette[1], 'Type 2': color_palette[6], 'Type 6': color_palette[9]}
+    color_palette = sns.color_palette("flare")
+    print(color_palette.as_hex())
+    palette = {'Type 1': color_palette[0], 'Type 2': color_palette[2], 'Type 6': color_palette[5]}
     problem_types = [1, 2, 6]
     num_bars = int(len(scores) / (num_subs))  # 48 = 16 * 3
     TypeConverter = {1: 'I', 2: 'II', 6: 'VI'}
@@ -719,16 +721,10 @@ def compression_plotter_repetition_level_V2(compression_results):
             label=label
         )
     
-    # # plot curve of means for each run
-    # for rep_i in range(int(len(positions)/len(problem_types))):
-    #     per_rep_positions = positions[rep_i * len(problem_types) : (rep_i+1) * len(problem_types)]
-    #     per_rep_means = means[rep_i * len(problem_types) : (rep_i+1) * len(problem_types)]
-    #     ax.plot(per_rep_positions, per_rep_means, color='grey', ls='dashed')
-
     ax.set_xticks([2, 6, 10, 14, 18, 22, 26, 30, 34, 38, 42, 46, 50, 54, 58, 62])
     ax.set_xticklabels(range(int(num_bars/len(problem_types))))
-    ax.set_xlabel('Learning Block')
-    ax.set_ylabel(f'Attention Compression')
+    ax.set_xlabel('Learning Block', fontweight='bold')
+    ax.set_ylabel(f'Attention Compression', fontweight='bold')
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     plt.legend(loc='upper right')

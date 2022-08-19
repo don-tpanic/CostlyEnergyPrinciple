@@ -10,16 +10,18 @@ import matplotlib.pyplot as plt
 from collections import defaultdict
 from utils import load_config
 
-color_palette = sns.color_palette("bright")
+color_palette = sns.color_palette("flare")
+print(color_palette.as_hex())
 colors = [
-    color_palette[1],   # 1
-    color_palette[6],   # 2
-    color_palette[3],   # 3
-    color_palette[4],   # 4
-    color_palette[8],   # 5
-    color_palette[9],   # 6
+    color_palette[0],   # 1
+    color_palette[1],   # 2
+    color_palette[2],   # 3
+    color_palette[3],   # 4
+    color_palette[4],   # 5
+    color_palette[5],   # 6
 ]
-plt.rcParams.update({'font.size': 12})
+plt.rcParams.update({'font.size': 12, 'font.weight': "bold"})
+plt.rcParams["font.family"] = "Helvetica"
 
 """
 Evaluation routines.
@@ -51,7 +53,15 @@ def examine_clustering_learning_curves(
     
     for i in range(num_types):
         problem_type = i + 1
-        ax[0].plot(shj[i], label=TypeConverter[problem_type], color=colors[i])
+        ax[0].errorbar(
+            range(len(shj[i])), 
+            shj[i],
+            fmt='o',
+            color=colors[i],
+            markersize=5,
+            label=f'Type {TypeConverter[problem_type]}',
+        )
+        ax[0].plot(range(len(shj[i])), shj[i], color=colors[i])
 
     for i in range(num_types):
         problem_type = i + 1
@@ -60,26 +70,28 @@ def examine_clustering_learning_curves(
         )
         ax[1].errorbar(
             range(lc.shape[0]), 
-            lc, 
+            lc,
+            fmt='o',
             color=colors[i],
+            markersize=5,
             label=f'Type {TypeConverter[problem_type]}',
         )
+        ax[1].plot(range(lc.shape[0]), lc, color=colors[i])
 
-    ax[0].set_title('Human')
     ax[0].set_xticks(range(len(shj[0])))
-    ax[0].set_xticklabels(range(1, len(shj[0])+1))
-    ax[0].set_xlabel('Learning Block')
-    ax[0].set_ylabel('Probability of Error')
+    ax[0].set_xticklabels(range(1, len(shj[0]) + 1))
+    ax[0].set_xlabel('Learning Block', fontweight='bold')
+    ax[0].set_ylabel('Probability of Error', fontweight='bold')
 
-    ax[1].set_title('Model')
     ax[1].set_xticks(range(0, lc.shape[0], 2))
-    ax[1].set_xticklabels(range(1, len(shj[0])+1))
-    ax[1].set_xlabel('Learning Block')    
+    ax[1].set_xticklabels(range(1, len(shj[0]) + 1))
+    ax[1].set_xlabel('Learning Block', fontweight='bold')
     ax[1].get_yaxis().set_visible(False)
 
     plt.legend()
     # plt.suptitle('(A)')
     plt.tight_layout()
+    # Hide the right and top spines
     ax[0].spines.right.set_visible(False)
     ax[0].spines.top.set_visible(False)
     ax[1].spines.right.set_visible(False)
@@ -95,7 +107,6 @@ def find_canonical_runs(
     Record the runs that produce canonical solutions
     for each problem type. 
     Specificially, we check the saved `mask_non_recruit`
-
     if canonical_solutions:
         only return runs that yield canonical solutions.
     """
@@ -144,15 +155,12 @@ def compare_across_types_V3(
     """
     For each type's results, here we split them 
     based on the attention solutions.
-
     E.g. Type1 has two attn solutions by focusing on
     dim1 and dim2 or just focusing on dim1. We will plot
     the results separately for each case.
-
     NOTE: we do not consider non-canonical vs canonical 
     for now. One reason being that the difference causing 
     by different attention solutions seem bigger.
-
     NOTE: there are cases where some dimensions are not 
     fully attended, we use a `threshold` parameter to guard 
     these dimensions. 
@@ -409,7 +417,7 @@ def examine_high_attn_and_modal_solutions(attn_config_version, canonical_runs_on
 
     num_cols = 2
     num_rows = 3
-    fig, ax = plt.subplots(num_rows, num_cols, figsize=(8, 5))
+    fig, ax = plt.subplots(num_rows, num_cols, figsize=(10, 5))
     for z in range(len(problem_types)):
         problem_type = problem_types[z]
         print(f'------------ problem_type = {problem_type} ------------')
@@ -437,8 +445,8 @@ def examine_high_attn_and_modal_solutions(attn_config_version, canonical_runs_on
             # this is to be consistent with later Mack et al. dataset.
             # in simulation results, we had the first 2 dims as the relevant dims
             # for Type 2.
-            if problem_type == 2:
-                alphas = alphas[::-1]
+            # if problem_type == 2:
+            #     alphas = alphas[::-1]
 
             alphas_per_type[i, :] = alphas
                 
@@ -453,32 +461,31 @@ def examine_high_attn_and_modal_solutions(attn_config_version, canonical_runs_on
         row_idx = z // num_cols
         col_idx = z % num_cols
 
-        # ax[row_idx, col_idx].errorbar(
-        #     range(num_dims), 
-        #     mean_alphas, 
-        #     yerr=std_alphas, 
-        #     color=colors[z],
-        #     capsize=3,
-        #     fmt='o',
-        #     ls='none')
-
+        color_palette = sns.color_palette("crest")
+        colors = [
+            color_palette[1],   # dim1
+            color_palette[3],   # dim2
+            color_palette[5],   # dim3
+        ]
         sns.barplot(
             data=alphas_per_type,
             ax=ax[row_idx, col_idx], 
-            palette=colors,
+            palette=colors
         )
         ax[row_idx, col_idx].set_xticks([])
-        ax[-1, col_idx].set_xlabel('Abstract Dimensions')
+        ax[-1, col_idx].set_xlabel('Abstract Dimension', fontweight='bold')
         ax[row_idx, col_idx].set_ylim([-0.1, 1.2])
         ax[row_idx, col_idx].set_yticks([0, 0.5, 1])
         ax[row_idx, col_idx].set_yticklabels([0, 0.5, 1])
-        ax[1, 0].set_ylabel(f'Attention Strength')
-        ax[row_idx, col_idx].set_title(f'Type {TypeConverter[problem_type]}')
+        ax[1, 0].set_ylabel(f'Attention Strength', fontweight='bold')
+        ax[row_idx, col_idx].set_title(f'Type {TypeConverter[problem_type]}', fontweight='bold')
         ax[row_idx, col_idx].axhline(0.333, color='grey', ls='dashed')
+        # hide the right and top spines
+        ax[row_idx, col_idx].spines.right.set_visible(False)
+        ax[row_idx, col_idx].spines.top.set_visible(False)
 
     plt.tight_layout()
-    plt.suptitle('(B)')
-    plt.savefig(f'figs/alphas_{attn_config_version}.png')
+    plt.savefig(f'figs/alphas_{attn_config_version}.pdf')
     plt.close()
 
     # plot modal solution proportion as pie chart
@@ -510,8 +517,8 @@ def examine_high_attn_and_modal_solutions(attn_config_version, canonical_runs_on
 
     labels = ['Modal solutions', 'Other solutions']
     plt.legend(wedges, labels, bbox_to_anchor=(0.6, 0.1))
-    plt.suptitle('(B)')
-    plt.savefig(f'figs/modal_solution_proportion_{attn_config_version}.png')
+    # plt.suptitle('(B)')
+    # plt.savefig(f'figs/modal_solution_proportion_{attn_config_version}.pdf')
 
 
 def all_solutions_proportions(attn_config_version):

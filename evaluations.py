@@ -10,16 +10,8 @@ import matplotlib.pyplot as plt
 from collections import defaultdict
 from utils import load_config
 
-# color_palette = sns.color_palette("bright")
-# colors = [
-#     color_palette[1],   # 1
-#     color_palette[6],   # 2
-#     color_palette[3],   # 3
-#     color_palette[4],   # 4
-#     color_palette[8],   # 5
-#     color_palette[9],   # 6
-# ]
 color_palette = sns.color_palette("flare")
+print(color_palette.as_hex())
 colors = [
     color_palette[0],   # 1
     color_palette[1],   # 2

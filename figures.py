@@ -11,11 +11,12 @@ from collections import defaultdict
 from matplotlib import rc
 from clustering import human
 
-# rc('text', usetex=True)
-# plt.rcParams['text.usetex']=True
-color_palette = sns.color_palette("bright")
-colors = [color_palette[1], color_palette[6], color_palette[9]]
-plt.rcParams.update({'font.size': 11})
+
+color_palette = sns.color_palette("flare")
+colors = [color_palette[0], color_palette[2], color_palette[5]]
+print(color_palette.as_hex())
+plt.rcParams.update({'font.size': 12, 'font.weight': "bold"})
+plt.rcParams["font.family"] = "Helvetica"
 TypeConverter = {1: 'I', 2: 'II', 6: 'VI'}
 
 """
@@ -324,9 +325,13 @@ def Fig_binary_recon(attn_config_version, v, threshold=[0, 0, 0]):
     num_subs = len(subs)
     num_dims = 3
     results_path = 'results'
-    fig, axes = plt.subplots(1,3, figsize=(5, 7))
-    colors = sns.color_palette("bright").as_hex()
-    colors = [colors[i] for i in [2, 5, 7]]
+    fig, axes = plt.subplots(3, figsize=(5, 7))
+    color_palette = sns.color_palette("crest")
+    colors = [
+        color_palette[1],   # dim1
+        color_palette[3],   # dim2
+        color_palette[5],   # dim3
+    ]
 
     # {'02': [2, 1, 3, 12, 12, 12], '03': ...}
     sub2assignment_n_scheme = human.Mappings().sub2assignment_n_scheme
@@ -419,12 +424,12 @@ def Fig_binary_recon(attn_config_version, v, threshold=[0, 0, 0]):
 
         axes[row_idx].set_xticks([])
         axes[row_idx].set_ylim([-0.1, 2])
-        axes[row_idx].set_title(f'Type {TypeConverter[problem_type]}')
+        axes[row_idx].set_title(f'Type {TypeConverter[problem_type]}', fontweight='bold')
         axes[row_idx].spines.right.set_visible(False)
         axes[row_idx].spines.top.set_visible(False)
     
-    axes[1].set_ylabel('Information Loss')
-    axes[-1].set_xlabel('Abstract Dimension')
+    axes[1].set_ylabel('Information Loss', fontweight='bold')
+    axes[-1].set_xlabel('Abstract Dimension', fontweight='bold')
     plt.tight_layout()
     plt.savefig(f'figs/binary_recon.pdf')
     print('plotted binary recon')
@@ -486,11 +491,11 @@ def Fig_high_attn(attn_config_version, v):
 
         # plot
         row_idx = z // num_cols
-        color_palette = sns.color_palette("bright")
+        color_palette = sns.color_palette("crest")
         colors = [
-            color_palette[2],   # dim1
-            color_palette[5],   # dim2
-            color_palette[7],   # dim3
+            color_palette[1],   # dim1
+            color_palette[3],   # dim2
+            color_palette[5],   # dim3
         ]
         sns.barplot(
             data=alphas_per_type,
@@ -508,7 +513,7 @@ def Fig_high_attn(attn_config_version, v):
         # hide the right and top spines
         ax[row_idx].spines.right.set_visible(False)
         ax[row_idx].spines.top.set_visible(False)
-        ax[row_idx].set_xlabel(f'Attention Strength')
+        ax[row_idx].set_title(f'Attention Strength', fontweight='bold')
 
     plt.tight_layout()
     plt.savefig(f'figs/alphas_{attn_config_version}.pdf')
@@ -623,13 +628,13 @@ def Fig_recon_n_decoding_n_zero_attn(attn_config_version, v, threshold=[0, 0, 0]
         axes[i].set_xticks([])
         if i == 0:
             # axes[i].set_ylabel(f'LOC Neural Stimulus Information Loss\n(1 - decoding accuracy)')
-            axes[i].set_title(f'Information Loss (Brain)')
+            axes[i].set_title(f'Information Loss (Brain)', fontweight='bold')
         elif i == 1:
             # axes[i].set_ylabel('Model Stimulus Information Loss')
-            axes[i].set_title(f'Information Loss (Model)')
+            axes[i].set_title(f'Information Loss (Model)', fontweight='bold')
         elif i == 2:
             # axes[i].set_ylabel('Percentage of Zero Attention')
-            axes[i].set_title(f'Percentage of Zero Attention (Model)')
+            axes[i].set_title(f'Percentage of Zero Attention (Model)', fontweight='bold')
             axes[i].set_ylim([0, 0.6])
         axes[i].spines.right.set_visible(False)
         axes[i].spines.top.set_visible(False)
@@ -647,8 +652,8 @@ if __name__ == '__main__':
 
     # Fig_recon_n_decoding(attn_config_version, v)
 
-    # Fig_binary_recon(attn_config_version, v)
+    Fig_binary_recon(attn_config_version, v)
 
     # Fig_high_attn(attn_config_version, v)
 
-    Fig_recon_n_decoding_n_zero_attn(attn_config_version, v)
+    # Fig_recon_n_decoding_n_zero_attn(attn_config_version, v)

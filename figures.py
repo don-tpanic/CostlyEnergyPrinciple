@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from collections import defaultdict
 from matplotlib import rc
 from clustering import human
-
+from utils import load_config
 
 color_palette = sns.color_palette("flare")
 colors = [color_palette[0], color_palette[2], color_palette[5]]
@@ -71,12 +71,15 @@ def Fig_zero_attn(attn_config_version, v, threshold=[0, 0, 0]):
     subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
     num_subs = len(subs)
     results_path = 'results'
-    fig, ax = plt.subplots(figsize=(6, 4))
+    fig, ax = plt.subplots(1, 2, figsize=(5, 2))
     
     collector = defaultdict(list)
     # e.g. { problem_type: {(True, False, False): [metric1, metric2, ... ]} }
     type2strategy2metric = defaultdict(lambda: defaultdict(list))
     
+    type1_attn_weights = []
+    type2_attn_weights = []
+    type6_attn_weights = []
     for z in range(len(problem_types)):
         problem_type = problem_types[z]
 
@@ -100,12 +103,52 @@ def Fig_zero_attn(attn_config_version, v, threshold=[0, 0, 0]):
             alphas = alphas - np.array(threshold)
             strategy = tuple(alphas > 1.0e-6)
             type2strategy2metric[problem_type][strategy].append(metric)
-
             collector[problem_type].append(metric)
+            
+            # collect attn_weights themselves
+            attn_config = load_config(
+                component=None, 
+                config_version=f'{attn_config_version}_sub{sub}_{v}'
+            )
+            attn_position = attn_config['attn_positions'].split(',')[0]   
+            attn_weights = np.load(
+                f'{results_path}/{attn_config_version}_sub{sub}_{v}/' \
+                f'attn_weights_type{problem_type}_sub{sub}_cluster.npy',
+                allow_pickle=True
+                ).ravel()[0][attn_position]
+
+            if problem_type == 1:
+                type1_attn_weights.extend(attn_weights)
+            elif problem_type == 2:
+                type2_attn_weights.extend(attn_weights)
+            elif problem_type == 6:
+                type6_attn_weights.extend(attn_weights)
     
+    # plot hist and kde
+    attn_weights_all = [type1_attn_weights, type2_attn_weights, type6_attn_weights]
+    for z in range(len(problem_types)):
+        sns.histplot(
+            attn_weights_all[z], 
+            ax=ax[0], 
+            color=colors[z], 
+            edgecolor=None, 
+            bins=3,
+            alpha=0.24,
+            stat='density',
+        )
+
+        sns.kdeplot(
+            attn_weights_all[z], 
+            ax=ax[0], 
+            color=colors[z], 
+            label=f'Type{problem_types[z]}'
+        )
+
+    # plot %zero attn errorbars
     means = []
     for z in range(len(problem_types)):
         problem_type = problem_types[z]
+        print('problem_type', problem_type)
         # e.g. {(True, False, False): [metric]}
         strategy2metric = type2strategy2metric[problem_type]
         strategies = list(strategy2metric.keys())
@@ -120,7 +163,9 @@ def Fig_zero_attn(attn_config_version, v, threshold=[0, 0, 0]):
         mean = np.mean(temp_collector)
         means.append(mean)
         sem = stats.sem(temp_collector)
-        ax.errorbar(
+        print(problem_type, mean, sem, z)
+        print(np.max(temp_collector), np.min(temp_collector))
+        ax[1].errorbar(
             x=z,
             y=mean,
             yerr=sem,
@@ -129,17 +174,24 @@ def Fig_zero_attn(attn_config_version, v, threshold=[0, 0, 0]):
             color=colors[z],
             label=f'Type {TypeConverter[problem_type]}')
 
-    # plot curve of means
-    ax.plot(range(len(problem_types)), means, color='grey', ls='dashed')       
-    ax.set_ylabel('Percentage of \nZero Attention Weights')
-    ax.set_xticks([])
-    ax.set_ylim([0, 0.6])
+    # info
+    ax[0].set_xlabel('Attention Value')
+    ax[0].set_ylabel('Density')
+    ax[0].spines.right.set_visible(False)
+    ax[0].spines.top.set_visible(False)
+    ax[0].legend()
+
+    ax[1].plot(range(len(problem_types)), means, color='grey', ls='dashed')       
+    ax[1].set_ylabel('Zero Attention \nPercentage')
+    ax[1].set_xticks([])
+    ax[1].set_ylim([0, 0.6])
+    ax[1].spines.right.set_visible(False)
+    ax[1].spines.top.set_visible(False)
+    ax[1].legend()
 
     regression(collector, num_subs, problem_types)
-
     plt.tight_layout()
-    plt.legend()
-    plt.savefig(f'figs/zero_attn.png')
+    plt.savefig(f'figs/zero_attn.pdf')
     plt.close()
     print('plotted zero attn')
     
@@ -506,141 +558,15 @@ def Fig_high_attn(attn_config_version, v):
     plt.savefig(f'figs/alphas_{attn_config_version}.pdf')
     plt.close()
 
-
-def Fig_recon_n_decoding_n_zero_attn(attn_config_version, v, threshold=[0, 0, 0]):
-
-    num_subs = 23
-    problem_types = [1, 2, 6]
-    subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
-    num_subs = len(subs)
-    num_runs = 3
-    roi = 'LOC'
-    
-    recon_loss_collector = np.load(
-        f'results/recon_loss_{attn_config_version}_{v}.npy', 
-        allow_pickle=True).ravel()[0]
-    
-    decoding_error_collector = np.load(
-        f'brain_data/decoding_results/decoding_error_{num_runs}runs_{roi}.npy', 
-        allow_pickle=True).ravel()[0]
-    
-    results_path = 'results'
-    # e.g. { problem_type: {(True, False, False): [metric1, metric2, ... ]} }
-    type2strategy2metric = defaultdict(lambda: defaultdict(list))
-    
-    for z in range(len(problem_types)):
-        problem_type = problem_types[z]
-
-        # for sub in subs:
-        for s in range(num_subs):
-            sub = subs[s]
-            
-            # For %attn, we grab the last item
-            metric_fpath = f'{results_path}/{attn_config_version}_sub{sub}_{v}/' \
-                            f'all_percent_zero_attn_type{problem_type}_sub{sub}_cluster.npy'
-            metric = np.load(metric_fpath)[-1]
-
-            # Second group metric based on attn strategy
-            alphas_fpath = f'{results_path}/{attn_config_version}_sub{sub}_{v}/' \
-                            f'all_alphas_type{problem_type}_sub{sub}_cluster.npy'
-            # get the final 3 alphas
-            alphas = np.load(alphas_fpath)[-3:]
-                            
-            # 1e-6 is the lower bound of alpha constraint.
-            # use tuple instead of list because tuple is not mutable.                    
-            alphas = alphas - np.array(threshold)
-            strategy = tuple(alphas > 1.0e-6)
-            type2strategy2metric[problem_type][strategy].append(metric)    
-
-
-    results_collectors = [decoding_error_collector, recon_loss_collector, type2strategy2metric]
-    fig, axes = plt.subplots(3, figsize=(5, 7))
-    for i in range(len(results_collectors)):
-        results_collector = results_collectors[i]
-
-        if i == 2:
-            means = []
-            for z in range(len(problem_types)):
-                problem_type = problem_types[z]
-                # e.g. {(True, False, False): [metric]}
-                strategy2metric = type2strategy2metric[problem_type]
-                strategies = list(strategy2metric.keys())
-                num_strategies = len(strategies)
-
-                temp_collector = []
-                for n in range(num_strategies):
-                    strategy = strategies[n]
-                    metrics = strategy2metric[strategy]
-                    temp_collector.extend(metrics)
-
-                mean = np.mean(temp_collector)
-                means.append(mean)
-                sem = stats.sem(temp_collector)
-                axes[i].errorbar(
-                    x=z,
-                    y=mean,
-                    yerr=sem,
-                    fmt='o',
-                    capsize=3,
-                    color=colors[z],
-                    label=f'Type {TypeConverter[problem_type]}')
-        
-        else:
-            means = []
-            for j in range(len(problem_types)):
-                problem_type = problem_types[j]
-                data_perType = results_collector[problem_type]
-
-                mean = np.mean(data_perType)
-                means.append(mean)
-                sem =  stats.sem(data_perType)
-
-                if i == 2:
-                    label = f'Type {TypeConverter[problem_type]}'
-                else:
-                    label = None
-
-                axes[i].errorbar(
-                    x=j,
-                    y=mean,
-                    yerr=sem,
-                    fmt='o',
-                    capsize=3,
-                    color=colors[j],
-                    label=label
-                )
-            
-        # plot curve of means
-        axes[i].plot(range(len(problem_types)), means, color='grey', linestyle='dashed')
-        axes[i].set_xticks([])
-        if i == 0:
-            # axes[i].set_ylabel(f'LOC Neural Stimulus Information Loss\n(1 - decoding accuracy)')
-            axes[i].set_title(f'Information Loss (Brain)', fontweight='bold')
-        elif i == 1:
-            # axes[i].set_ylabel('Model Stimulus Information Loss')
-            axes[i].set_title(f'Information Loss (Model)', fontweight='bold')
-        elif i == 2:
-            # axes[i].set_ylabel('Percentage of Zero Attention')
-            axes[i].set_title(f'Percentage of Zero Attention (Model)', fontweight='bold')
-            axes[i].set_ylim([0, 0.6])
-        axes[i].spines.right.set_visible(False)
-        axes[i].spines.top.set_visible(False)
-
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(f'figs/recon_loss_decoding_error_n_zero_attn.pdf')
-
     
 if __name__ == '__main__':
     attn_config_version='hyper4100'
     v='fit-human-entropy-fast-nocarryover'
     
-    # Fig_zero_attn(attn_config_version, v)
+    Fig_zero_attn(attn_config_version, v)
 
-    Fig_recon_n_decoding(attn_config_version, v)
+    # Fig_recon_n_decoding(attn_config_version, v)
 
     # Fig_binary_recon(attn_config_version, v)
 
     # Fig_high_attn(attn_config_version, v)
-
-    # Fig_recon_n_decoding_n_zero_attn(attn_config_version, v)

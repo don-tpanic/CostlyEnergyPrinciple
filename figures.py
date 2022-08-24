@@ -325,7 +325,7 @@ def Fig_binary_recon(attn_config_version, v, threshold=[0, 0, 0]):
     num_subs = len(subs)
     num_dims = 3
     results_path = 'results'
-    fig, axes = plt.subplots(3, figsize=(5, 7))
+    fig, axes = plt.subplots(1, 3, figsize=(5, 2))
     color_palette = sns.color_palette("crest")
     colors = [
         color_palette[1],   # dim1
@@ -378,10 +378,10 @@ def Fig_binary_recon(attn_config_version, v, threshold=[0, 0, 0]):
             strategy = tuple(alphas > 1.0e-6)
             type2strategy2metric[problem_type][strategy].append(metric)
 
-    num_rows = 3
+    num_cols = 3
     for z in range(len(problem_types)):
         problem_type = problem_types[z]
-        row_idx = z % num_rows
+        col_idx = z % num_cols
 
         # e.g. {(True, False, False): [ [metric_dim1, dim2. dim3], [dim1, dim2, dim3], .. ]}
         strategy2metric = type2strategy2metric[problem_type]
@@ -404,8 +404,8 @@ def Fig_binary_recon(attn_config_version, v, threshold=[0, 0, 0]):
             sem_metric = sem_metric[::-1]
 
         for c in range(num_dims):
-            axes[row_idx].errorbar(
-                x=c, 
+            axes[col_idx].errorbar(
+                x=c+1, 
                 y=average_metric[c], 
                 yerr=sem_metric[c],
                 color=colors[c], 
@@ -413,23 +413,14 @@ def Fig_binary_recon(attn_config_version, v, threshold=[0, 0, 0]):
                 capsize=3
             )
 
-        # axes[row_idx].errorbar(
-        #     x=range(num_dims),
-        #     y=average_metric,
-        #     yerr=sem_metric,
-        #     fmt='o',
-        #     capsize=3,
-        #     color=colors[0]
-        # )
-
-        axes[row_idx].set_xticks([])
-        axes[row_idx].set_ylim([-0.1, 2])
-        axes[row_idx].set_title(f'Type {TypeConverter[problem_type]}', fontweight='bold')
-        axes[row_idx].spines.right.set_visible(False)
-        axes[row_idx].spines.top.set_visible(False)
+        axes[col_idx].set_xticks([0, 1, 2, 3, 4])
+        axes[col_idx].set_xticklabels([])
+        axes[col_idx].set_ylim([-0.1, 2])
+        axes[col_idx].set_title(f'Type {TypeConverter[problem_type]}', fontweight='bold')
+        axes[col_idx].spines.right.set_visible(False)
+        axes[col_idx].spines.top.set_visible(False)
     
-    axes[1].set_ylabel('Information Loss', fontweight='bold')
-    axes[-1].set_xlabel('Abstract Dimension', fontweight='bold')
+    axes[0].set_ylabel('Information Loss', fontweight='bold')
     plt.tight_layout()
     plt.savefig(f'figs/binary_recon.pdf')
     print('plotted binary recon')
@@ -503,14 +494,9 @@ def Fig_high_attn(attn_config_version, v):
             palette=colors
         )
         ax[row_idx].set_xticks([])
-        # ax[-1].set_xlabel('Abstract Dimensions')
         ax[row_idx].set_ylim([-0.1, 1.2])
         ax[row_idx].set_yticks([0, 0.5, 1])
         ax[row_idx].set_yticklabels([0, 0.5, 1])
-        # ax[1].set_ylabel(f'Attention Strength')
-        # ax[row_idx].set_title(f'Type {TypeConverter[problem_type]}')
-        # ax[row_idx].axhline(0.333, color='grey', ls='dashed')
-        # hide the right and top spines
         ax[row_idx].spines.right.set_visible(False)
         ax[row_idx].spines.top.set_visible(False)
         ax[row_idx].set_title(f'Attention Strength', fontweight='bold')

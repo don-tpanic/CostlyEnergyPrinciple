@@ -244,7 +244,7 @@ def Fig_recon_n_decoding(attn_config_version, v):
             allow_pickle=True).ravel()[0]
         
         results_collectors = [decoding_error_collector, recon_loss_collector]
-        fig, axes = plt.subplots(2, figsize=(5, 9))
+        fig, axes = plt.subplots(1, 2, figsize=(5, 2))
 
         for i in range(len(results_collectors)):
             results_collector = results_collectors[i]
@@ -276,16 +276,17 @@ def Fig_recon_n_decoding(attn_config_version, v):
             axes[i].plot(range(len(problem_types)), means, color='grey', linestyle='dashed')
             axes[i].set_xticks([])
             if i == 0:
-                axes[i].set_ylabel(f'{roi} Neural Stimulus Information Loss\n(1 - decoding accuracy)')
-                axes[i].set_title(f'Brain')
+                axes[i].set_title(f'Brain', fontweight='bold')
             else:
-                axes[i].set_ylabel('Model Stimulus Information Loss')
-                axes[i].set_title(f'Model')
+                axes[i].set_title(f'Model', fontweight='bold')
             axes[i].spines.right.set_visible(False)
             axes[i].spines.top.set_visible(False)
+        
+        axes[0].set_ylabel('Decoding Error', fontweight='bold')
+        axes[1].set_ylabel('Information Loss', fontweight='bold')
         plt.legend()
         plt.tight_layout()
-        plt.savefig(f'figs/recon_loss_decoding_error.png')
+        plt.savefig(f'figs/recon_loss_decoding_error.pdf')
 
     recon_loss_by_type(
         attn_config_version=attn_config_version, v=v
@@ -636,9 +637,9 @@ if __name__ == '__main__':
     
     # Fig_zero_attn(attn_config_version, v)
 
-    # Fig_recon_n_decoding(attn_config_version, v)
+    Fig_recon_n_decoding(attn_config_version, v)
 
-    Fig_binary_recon(attn_config_version, v)
+    # Fig_binary_recon(attn_config_version, v)
 
     # Fig_high_attn(attn_config_version, v)
 

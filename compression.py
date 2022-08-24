@@ -670,7 +670,7 @@ def compression_plotter_repetition_level(compression_results):
 
 
 def compression_plotter_repetition_level_V2(compression_results):
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(5, 4))
     reps = compression_results['x']       
     scores = compression_results['y']       
     types = compression_results['hue']

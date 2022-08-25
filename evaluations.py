@@ -505,60 +505,7 @@ def examine_subject_lc_and_attn_overtime(attn_config_version, v):
         plt.tight_layout()
         plt.savefig(f'results/lc_sub{sub}_{v}.png')
         plt.close()
-    
-
-def consistency_alphas_vs_recon(attn_config_version, v):
-    """
-    Look at overall how consistent are alphas corresponding to recon loss.
-    Ideally, the reverse rank of alphas should be the same as the rank of recon
-    because the higher the alpha, the lower the recon for this dimension.
-    """
-    problem_types=[1, 2, 6]
-    num_subs = 23
-    subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
-    
-    fig, ax = plt.subplots()
-    all_rhos = []
-    all_alphas = []
-    all_recon = []
-    for sub in subs:
-        all_types_alphas = []
-        all_types_recon = []
-        for idx in range(len(problem_types)):
-            problem_type = problem_types[idx]
-
-            alphas = np.round(
-                np.load(
-                f'results/{attn_config_version}_sub{sub}_{v}/' \
-                f'all_alphas_type{problem_type}_sub{sub}_cluster.npy')[-3:], 3)
-            
-            binary_recon = np.round(
-                np.load(
-                f'results/{attn_config_version}_sub{sub}_{v}/' \
-                f'all_recon_loss_ideal_type{problem_type}_sub{sub}_cluster.npy')[-3:], 3)
-            
-            all_types_alphas.extend(alphas)
-            all_types_recon.extend(binary_recon)
-            all_alphas.extend(alphas)
-            all_recon.extend(binary_recon)
-
-        rho, _ = stats.spearmanr(all_types_alphas, all_types_recon)
-        print(np.round(all_types_alphas, 3), np.round(all_types_recon, 3))
-
-        if str(rho) == 'nan':
-            pass
-        else:
-            all_rhos.append(rho)
-    
-    ax.set_xlabel('Attention Strength')
-    ax.set_ylabel('Reconstruction Loss')
-    ax.scatter(all_alphas, all_recon)
-    # plt.savefig(f'results/correlation_highAttn_vs_reconLoss_{v}.png')
-    
-    print(np.round(all_rhos, 3))
-    t, p = stats.ttest_1samp(all_rhos, popmean=0)
-    print(f't={t:.3f}, p={p/2:.3f}')
-            
+                
 
 def recon_loss_by_type(attn_config_version, v):
     """

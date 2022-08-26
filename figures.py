@@ -3,9 +3,11 @@ os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 import numpy as np 
+import pandas as pd
 import pingouin as pg
 import seaborn as sns
 import scipy.stats as stats
+import matplotlib
 import matplotlib.pyplot as plt
 from collections import defaultdict
 from matplotlib import rc
@@ -63,6 +65,7 @@ def Fig_zero_attn(attn_config_version, v, threshold=[0, 0, 0]):
 
         average_coef = np.mean(all_coefs)
         t, p = stats.ttest_1samp(all_coefs, popmean=0)
+        print(f'all_coef={all_coefs}')
         print(f'average_coef={average_coef:.3f}', f't={t:.3f}', f'p={p}')
         return average_coef, t, p/2
     
@@ -148,7 +151,6 @@ def Fig_zero_attn(attn_config_version, v, threshold=[0, 0, 0]):
     means = []
     for z in range(len(problem_types)):
         problem_type = problem_types[z]
-        print('problem_type', problem_type)
         # e.g. {(True, False, False): [metric]}
         strategy2metric = type2strategy2metric[problem_type]
         strategies = list(strategy2metric.keys())
@@ -163,8 +165,11 @@ def Fig_zero_attn(attn_config_version, v, threshold=[0, 0, 0]):
         mean = np.mean(temp_collector)
         means.append(mean)
         sem = stats.sem(temp_collector)
-        print(problem_type, mean, sem, z)
-        print(np.max(temp_collector), np.min(temp_collector))
+        
+        print(f'\n\nType {problem_type}')
+        print('zero% = ', temp_collector)
+        print(f'mean={mean}, sem={sem}')
+
         ax[1].errorbar(
             x=z,
             y=mean,
@@ -558,15 +563,275 @@ def Fig_high_attn(attn_config_version, v):
     plt.savefig(f'figs/alphas_{attn_config_version}.pdf')
     plt.close()
 
+
+def Fig_high_attn_against_low_attn(attn_config_version, v):
+    """
+    Plot percentage zero low-attn against compression of high-attn
+    """
+    problem_types = [1, 2, 6]
+    num_subs = 23
+    subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
+    num_subs = len(subs)
+    results_path = 'results'
+    fig, ax = plt.subplots(figsize=(3, 5))
+    markers = ['o', 's', '^']
+
+    # csv - we only need the very last compression of each type
+    # which corresponds to the very last zero% low-attn
+    fname = 'compression_results_repetition_level/high_attn.csv'
+    with open(fname) as f:
+        df = pd.read_csv(f)
+
+    final_compression_scores = df.loc[df['learning_trial'] == 16]
+
+    for z in range(len(problem_types)):
+        problem_type = problem_types[z]
+
+        per_type_final_compression_scores = \
+            final_compression_scores.loc[
+                final_compression_scores['problem_type'] == problem_type
+            ]
+
+        per_type_low_attn_percentages = []
+        for s in range(num_subs):
+            sub = subs[s]
+            
+            # For %attn, we grab the last item
+            metric_fpath = f'{results_path}/{attn_config_version}_sub{sub}_{v}/' \
+                            f'all_percent_zero_attn_type{problem_type}_sub{sub}_cluster.npy'
+            per_subj_low_attn_percent = np.load(metric_fpath)[-1]
+            per_type_low_attn_percentages.append(per_subj_low_attn_percent)
+        
+        ax.scatter(
+            per_type_low_attn_percentages, 
+            per_type_final_compression_scores['compression_score'].values,
+            color=colors[z],
+            alpha=0.5,
+            edgecolors='none',
+            marker=markers[z],
+            label=f'Type {TypeConverter[problem_type]}'
+        )
+
+    ax.set_xlabel('Peripheral Attention \nZero Proportion')
+    ax.set_ylabel('Controller Attention \nCompression')
+
+    ax.legend()
+    plt.tight_layout()
+    plt.savefig('figs/high_attn_against_low_attn.png')
+    # Thoughts: 
+    # High-attn compression makes sense as we have 0, 0.4, 1 three levels to the 3 types.
+    # Low-attn seems less ideal because often a high compression corresponds to a low zero attn.
+    # However, I think this could be explained by the fact that, even controller doesn't need 
+    # that feature, the peripheral can basically do whatever it wants, not nec turning off things.
+    # Also, perhaps it is turning off things which have caused recon loss but not enough to bring
+    # attn weight to absolute zero.
+
+
+def Fig_alphas_against_recon_V1(attn_config_version, v):
+    """
+    Look at overall how consistent are alphas corresponding to recon loss.
+    Here, we focus on Type 1 and the relevant dimension. 
+    It is less interesting just looking at the final because at the end, 
+    we have relevant dim alpha=1 and recon=0 (subject to a few exceptions).
+
+    To better visualize the results, we could have look at how the relationship
+    between alpha and recon changes over time.
+
+    Implementation-wise, what is tricky is that the saved alphas and recon_loss 
+    are not in the same dimensionality because alpha is saved once every trial (or rp),
+    but recon is saved once every inner-loop iteration and not saved at the first rp. But we 
+    could use recon=0 for rp=0 because at first we know there is no recon loss.
+    """
+    import matplotlib.colors as clr
+    problem_types=[1]
+    num_subs = 23
+    num_reps = 16
+    subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
+    num_subs = len(subs)
+    sub2assignment_n_scheme = human.Mappings().sub2assignment_n_scheme
+    
+    fig, ax = plt.subplots()
+    norm = clr.Normalize(vmin=0, vmax=15)
+    colors = matplotlib.cm.get_cmap('Purples')
+
+    for rp in range(num_reps):
+        for idx in range(len(problem_types)):
+            problem_type = problem_types[idx]
+
+            relevant_dim_alphas = []
+            relevant_dim_recons = []
+            for s in range(num_subs):
+                sub = subs[s]
+                # (384, 1) -> (16*8, 3)
+                alphas = np.load(
+                    f'results/{attn_config_version}_sub{sub}_{v}/' \
+                    f'all_alphas_type{problem_type}_sub{sub}_cluster.npy')
+                alphas = alphas.reshape(-1, 3)
+                per_rp_alphas = alphas[rp*8 : (rp+1)*8, :]  # (8, 3)
+                per_rp_alphas_average = np.mean(per_rp_alphas, axis=0)  # (3)
+                
+                # (10800, 1) -> (3600, 3) -> (15*8*30, 3)
+                binary_recon = np.load(
+                    f'results/{attn_config_version}_sub{sub}_{v}/' \
+                    f'all_recon_loss_ideal_type{problem_type}_sub{sub}_cluster.npy')
+                binary_recon = binary_recon.reshape(-1, 3)
+                if rp == 0:  # because rp=0 recon not saved but we know it's zero.
+                    per_rp_binary_recon_average = np.array([0, 0, 0])
+                else:
+                    per_rp_binary_recons = binary_recon[(rp-1)*8*30 : (rp)*8*30, :]  # (8*30, 3)
+                    per_rp_binary_recon_average = np.mean(per_rp_binary_recons, axis=0)  # (3)
+                
+                # alphas and binary_recon are initially DCNN order.
+                # But to plot the relevant dim (which is in the abstract sense), we need to
+                # rearrange alphas and binary_recon such that the first dim is the relevant dim.
+                # The order of conversion is provided by the assignment_n_scheme.
+                # e.g. sub02, has [2, 1, 3] mapping which means [antenna, leg, mouth] was the 
+                # order used during learning and antenna is the relevant dim.
+                sub_physical_order = np.array(sub2assignment_n_scheme[sub][:3])-1
+                conversion_order = sub_physical_order
+                per_rp_alphas_average = per_rp_alphas_average[conversion_order]
+                per_rp_binary_recon_average = per_rp_binary_recon_average[conversion_order]
+
+                relevant_dim_alphas.append(per_rp_alphas_average[0])
+                relevant_dim_recons.append(per_rp_binary_recon_average[0])
+            
+            ax.scatter(
+                relevant_dim_alphas, 
+                np.log(relevant_dim_recons),
+                color=colors(norm(rp)),
+                alpha=0.3,
+                edgecolors='none',
+                marker='*',
+                s=100,
+            )
+            
+    ax.set_xlabel('Attention Strength')
+    ax.set_ylabel('Information Loss (log scale)')
+    plt.tight_layout()
+    plt.savefig(f'figs/correlation_highAttn_vs_reconLoss_{v}.png')
+
+
+def Fig_alphas_against_recon_V2(attn_config_version, v):
+    """
+    Look at overall how consistent are alphas corresponding to recon loss.
+    Here, we focus on Type 1 and the relevant dimension. 
+    It is less interesting just looking at the final because at the end, 
+    we have relevant dim alpha=1 and recon=0 (subject to a few exceptions).
+
+    To better visualize the results, we could have look at how the relationship
+    between alpha and recon changes over time.
+
+    Implementation-wise, what is tricky is that the saved alphas and recon_loss 
+    are not in the same dimensionality because alpha is saved once every trial (or rp),
+    but recon is saved once every inner-loop iteration and not saved at the first rp. But we 
+    could use recon=0 for rp=0 because at first we know there is no recon loss.
+    """
+    import matplotlib.colors as clr
+    problem_types=[1]
+    num_subs = 23
+    num_reps = 16
+    subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
+    num_subs = len(subs)
+    sub2assignment_n_scheme = human.Mappings().sub2assignment_n_scheme
+    
+    fig, ax1 = plt.subplots()
+    norm = clr.Normalize(vmin=0, vmax=15)
+    colors = matplotlib.cm.get_cmap('Purples')
+
+    relevant_dim_alphas = np.ones((num_reps, num_subs))
+    relevant_dim_recons = np.ones((num_reps, num_subs))
+    for rp in range(num_reps):
+        for idx in range(len(problem_types)):
+            problem_type = problem_types[idx]
+            for s in range(num_subs):
+                sub = subs[s]
+                # (384, 1) -> (16*8, 3)
+                alphas = np.load(
+                    f'results/{attn_config_version}_sub{sub}_{v}/' \
+                    f'all_alphas_type{problem_type}_sub{sub}_cluster.npy')
+                alphas = alphas.reshape(-1, 3)
+                per_rp_alphas = alphas[rp*8 : (rp+1)*8, :]  # (8, 3)
+                per_rp_alphas_average = np.mean(per_rp_alphas, axis=0)  # (3)
+                
+                # (10800, 1) -> (3600, 3) -> (15*8*30, 3)
+                binary_recon = np.load(
+                    f'results/{attn_config_version}_sub{sub}_{v}/' \
+                    f'all_recon_loss_ideal_type{problem_type}_sub{sub}_cluster.npy')
+                binary_recon = binary_recon.reshape(-1, 3)
+                if rp == 0:  # because rp=0 recon not saved but we know it's zero.
+                    per_rp_binary_recon_average = np.array([0, 0, 0])
+                else:
+                    per_rp_binary_recons = binary_recon[(rp-1)*8*30 : (rp)*8*30, :]  # (8*30, 3)
+                    per_rp_binary_recon_average = np.mean(per_rp_binary_recons, axis=0)  # (3)
+                
+                # alphas and binary_recon are initially DCNN order.
+                # But to plot the relevant dim (which is in the abstract sense), we need to
+                # rearrange alphas and binary_recon such that the first dim is the relevant dim.
+                # The order of conversion is provided by the assignment_n_scheme.
+                # e.g. sub02, has [2, 1, 3] mapping which means [antenna, leg, mouth] was the 
+                # order used during learning and antenna is the relevant dim.
+                sub_physical_order = np.array(sub2assignment_n_scheme[sub][:3])-1
+                conversion_order = sub_physical_order
+                per_rp_alphas_average = per_rp_alphas_average[conversion_order]
+                per_rp_binary_recon_average = per_rp_binary_recon_average[conversion_order]
+
+                # relevant_dim_alphas.append(per_rp_alphas_average[0])
+                # relevant_dim_recons.append(per_rp_binary_recon_average[0])
+                relevant_dim_alphas[rp, s] = per_rp_alphas_average[0]
+                relevant_dim_recons[rp, s] = per_rp_binary_recon_average[0]
+    
+    mean_alpha_over_subs = np.mean(relevant_dim_alphas, axis=1)
+    mean_recon_over_subs = np.mean(relevant_dim_recons, axis=1)
+    sem_alpha_over_subs = stats.sem(relevant_dim_alphas, axis=1)
+    sem_recon_over_subs = stats.sem(relevant_dim_recons, axis=1)
+
+    ax1.set_ylim([0.45, 1.05])
+    ax1.set_xticks(np.arange(num_reps))
+    ax1.set_xticklabels(np.arange(1, num_reps+1))
+    ax1.errorbar(
+        np.arange(num_reps),
+        mean_alpha_over_subs,
+        yerr=sem_alpha_over_subs,
+        color='k',
+        marker='o',
+        markersize=5,
+        capsize=5,
+    )
+    ax1.legend()
+    ax1.set_xlabel('Repetition')
+    ax1.set_ylabel('Attention Strength')
+
+    ax2 = ax1.twinx()
+    ax2.set_ylim([0, 0.001])
+    ax2.errorbar(
+        np.arange(num_reps),
+        mean_recon_over_subs,
+        yerr=sem_recon_over_subs,
+        color='r',
+        marker='o',
+        markersize=5,
+        capsize=5,
+    )
+    ax2.set_ylabel('Information Loss', color='r')
+    ax2.tick_params(axis='y', labelcolor='r')
+
+    plt.tight_layout()
+    plt.savefig(f'figs/correlation_highAttn_vs_reconLoss_{v}.png')
+
     
 if __name__ == '__main__':
     attn_config_version='hyper4100'
     v='fit-human-entropy-fast-nocarryover'
     
-    Fig_zero_attn(attn_config_version, v)
+    # Fig_zero_attn(attn_config_version, v)
 
     # Fig_recon_n_decoding(attn_config_version, v)
 
     # Fig_binary_recon(attn_config_version, v)
 
     # Fig_high_attn(attn_config_version, v)
+
+    # Fig_high_attn_against_low_attn(attn_config_version, v)
+
+    # Fig_alphas_against_recon_V1(attn_config_version, v)
+    Fig_alphas_against_recon_V2(attn_config_version, v)

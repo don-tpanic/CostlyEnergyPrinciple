@@ -730,91 +730,104 @@ def Fig_alphas_against_recon_V2(attn_config_version, v):
     problem_types=[1]
     num_subs = 23
     num_reps = 16
+    num_dims = 3
     subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
     num_subs = len(subs)
     sub2assignment_n_scheme = human.Mappings().sub2assignment_n_scheme
     
-    fig, ax1 = plt.subplots()
+    fig, ax1 = plt.subplots(1, 3, figsize=(10, 3))
     norm = clr.Normalize(vmin=0, vmax=15)
     colors = matplotlib.cm.get_cmap('Purples')
 
-    relevant_dim_alphas = np.ones((num_reps, num_subs))
-    relevant_dim_recons = np.ones((num_reps, num_subs))
-    for rp in range(num_reps):
-        for idx in range(len(problem_types)):
-            problem_type = problem_types[idx]
-            for s in range(num_subs):
-                sub = subs[s]
-                # (384, 1) -> (16*8, 3)
-                alphas = np.load(
-                    f'results/{attn_config_version}_sub{sub}_{v}/' \
-                    f'all_alphas_type{problem_type}_sub{sub}_cluster.npy')
-                alphas = alphas.reshape(-1, 3)
-                per_rp_alphas = alphas[rp*8 : (rp+1)*8, :]  # (8, 3)
-                per_rp_alphas_average = np.mean(per_rp_alphas, axis=0)  # (3)
-                
-                # (10800, 1) -> (3600, 3) -> (15*8*30, 3)
-                binary_recon = np.load(
-                    f'results/{attn_config_version}_sub{sub}_{v}/' \
-                    f'all_recon_loss_ideal_type{problem_type}_sub{sub}_cluster.npy')
-                binary_recon = binary_recon.reshape(-1, 3)
-                if rp == 0:  # because rp=0 recon not saved but we know it's zero.
-                    per_rp_binary_recon_average = np.array([0, 0, 0])
-                else:
-                    per_rp_binary_recons = binary_recon[(rp-1)*8*30 : (rp)*8*30, :]  # (8*30, 3)
-                    per_rp_binary_recon_average = np.mean(per_rp_binary_recons, axis=0)  # (3)
-                
-                # alphas and binary_recon are initially DCNN order.
-                # But to plot the relevant dim (which is in the abstract sense), we need to
-                # rearrange alphas and binary_recon such that the first dim is the relevant dim.
-                # The order of conversion is provided by the assignment_n_scheme.
-                # e.g. sub02, has [2, 1, 3] mapping which means [antenna, leg, mouth] was the 
-                # order used during learning and antenna is the relevant dim.
-                sub_physical_order = np.array(sub2assignment_n_scheme[sub][:3])-1
-                conversion_order = sub_physical_order
-                per_rp_alphas_average = per_rp_alphas_average[conversion_order]
-                per_rp_binary_recon_average = per_rp_binary_recon_average[conversion_order]
+    for relevant_dim_index in [0, 1, 2]:
+        relevant_dim_alphas = np.ones((num_reps, num_subs))
+        relevant_dim_recons = np.ones((num_reps, num_subs))
+        for rp in range(num_reps):
+            for idx in range(len(problem_types)):
+                problem_type = problem_types[idx]
+                for s in range(num_subs):
+                    sub = subs[s]
+                    # (384, 1) -> (16*8, 3)
+                    alphas = np.load(
+                        f'results/{attn_config_version}_sub{sub}_{v}/' \
+                        f'all_alphas_type{problem_type}_sub{sub}_cluster.npy')
+                    alphas = alphas.reshape(-1, 3)
+                    per_rp_alphas = alphas[rp*8 : (rp+1)*8, :]  # (8, 3)
+                    per_rp_alphas_average = np.mean(per_rp_alphas, axis=0)  # (3)
+                    
+                    # (10800, 1) -> (3600, 3) -> (15*8*30, 3)
+                    binary_recon = np.load(
+                        f'results/{attn_config_version}_sub{sub}_{v}/' \
+                        f'all_recon_loss_ideal_type{problem_type}_sub{sub}_cluster.npy')
+                    binary_recon = binary_recon.reshape(-1, 3)
+                    if rp == 0:  # because rp=0 recon not saved but we know it's zero.
+                        per_rp_binary_recon_average = np.array([0, 0, 0])
+                    else:
+                        per_rp_binary_recons = binary_recon[(rp-1)*8*30 : (rp)*8*30, :]  # (8*30, 3)
+                        per_rp_binary_recon_average = np.mean(per_rp_binary_recons, axis=0)  # (3)
+                    
+                    # alphas and binary_recon are initially DCNN order.
+                    # But to plot the relevant dim (which is in the abstract sense), we need to
+                    # rearrange alphas and binary_recon such that the first dim is the relevant dim.
+                    # The order of conversion is provided by the assignment_n_scheme.
+                    # e.g. sub02, has [2, 1, 3] mapping which means [antenna, leg, mouth] was the 
+                    # order used during learning and antenna is the relevant dim.
+                    sub_physical_order = np.array(sub2assignment_n_scheme[sub][:3])-1
+                    conversion_order = sub_physical_order
+                    if problem_type == 1:
+                        conversion_order[1:] = np.random.choice(
+                            conversion_order[1:], size=num_dims-1, replace=False
+                        )
 
-                # relevant_dim_alphas.append(per_rp_alphas_average[0])
-                # relevant_dim_recons.append(per_rp_binary_recon_average[0])
-                relevant_dim_alphas[rp, s] = per_rp_alphas_average[0]
-                relevant_dim_recons[rp, s] = per_rp_binary_recon_average[0]
+                    per_rp_alphas_average = per_rp_alphas_average[conversion_order]
+                    per_rp_binary_recon_average = per_rp_binary_recon_average[conversion_order]
+
+                    relevant_dim_alphas[rp, s] = per_rp_alphas_average[relevant_dim_index]
+                    relevant_dim_recons[rp, s] = per_rp_binary_recon_average[relevant_dim_index]
+        
+        mean_alpha_over_subs = np.mean(relevant_dim_alphas, axis=1)
+        mean_recon_over_subs = np.mean(relevant_dim_recons, axis=1)
+        sem_alpha_over_subs = stats.sem(relevant_dim_alphas, axis=1)
+        sem_recon_over_subs = stats.sem(relevant_dim_recons, axis=1)
+
+        alpha_color = 'k'
+        recon_color = 'r'
+
+        ax1[relevant_dim_index].errorbar(
+            np.arange(num_reps),
+            mean_alpha_over_subs,
+            yerr=sem_alpha_over_subs,
+            color=alpha_color,
+            marker='*',
+            markersize=5,
+            capsize=5,
+        )
+        ax1[relevant_dim_index].set_xlabel('Repetition')
+        ax1[relevant_dim_index].set_xticks([0, 15])
+        ax1[relevant_dim_index].set_xticklabels([1, 16])
+        if relevant_dim_index in [1, 2]:
+            ax1[relevant_dim_index].set_yticks([])
+        ax1[relevant_dim_index].set_ylim([-0.05, 1.05])
+
+        ax2 = ax1[relevant_dim_index].twinx()
+        if relevant_dim_index in [0, 1]:
+            ax2.set_yticks([])
+            pass
+        ax2.set_ylim([-0.05, 1.05])
+
+        ax2.errorbar(
+            np.arange(num_reps),
+            mean_recon_over_subs,
+            yerr=sem_recon_over_subs,
+            color=recon_color,
+            marker='o',
+            markersize=5,
+            capsize=5,
+        )
     
-    mean_alpha_over_subs = np.mean(relevant_dim_alphas, axis=1)
-    mean_recon_over_subs = np.mean(relevant_dim_recons, axis=1)
-    sem_alpha_over_subs = stats.sem(relevant_dim_alphas, axis=1)
-    sem_recon_over_subs = stats.sem(relevant_dim_recons, axis=1)
-
-    ax1.set_ylim([0.45, 1.05])
-    ax1.set_xticks(np.arange(num_reps))
-    ax1.set_xticklabels(np.arange(1, num_reps+1))
-    ax1.errorbar(
-        np.arange(num_reps),
-        mean_alpha_over_subs,
-        yerr=sem_alpha_over_subs,
-        color='k',
-        marker='o',
-        markersize=5,
-        capsize=5,
-    )
-    ax1.legend()
-    ax1.set_xlabel('Repetition')
-    ax1.set_ylabel('Attention Strength')
-
-    ax2 = ax1.twinx()
-    ax2.set_ylim([0, 0.001])
-    ax2.errorbar(
-        np.arange(num_reps),
-        mean_recon_over_subs,
-        yerr=sem_recon_over_subs,
-        color='r',
-        marker='o',
-        markersize=5,
-        capsize=5,
-    )
-    ax2.set_ylabel('Information Loss', color='r')
+    ax1[0].set_ylabel('Attention Strength')
     ax2.tick_params(axis='y', labelcolor='r')
-
+    ax2.set_ylabel('Information Loss', color='r')
     plt.tight_layout()
     plt.savefig(f'figs/correlation_highAttn_vs_reconLoss_{v}.png')
 

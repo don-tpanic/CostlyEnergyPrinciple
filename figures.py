@@ -569,6 +569,7 @@ def Fig_high_attn_against_low_attn_V1(attn_config_version, v):
     Plot percentage zero low-attn against compression of high-attn
     """
     problem_types = [1, 2, 6]
+    num_types = len(problem_types)
     num_subs = 23
     subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
     num_subs = len(subs)
@@ -584,6 +585,8 @@ def Fig_high_attn_against_low_attn_V1(attn_config_version, v):
 
     final_compression_scores = df.loc[df['learning_trial'] == 16]
 
+    all_alphas = np.zeros((num_subs, num_types))
+    all_zero_percents = np.zeros((num_subs, num_types))
     for z in range(len(problem_types)):
         problem_type = problem_types[z]
 
@@ -606,6 +609,9 @@ def Fig_high_attn_against_low_attn_V1(attn_config_version, v):
             # final compression score which uses average over 8 trials alphas.
             per_subj_low_attn_percent_average = np.mean(per_subj_low_attn_percent[-30*8:])
             per_type_low_attn_percentages.append(per_subj_low_attn_percent_average)
+
+            all_alphas[s, z] = per_type_final_compression_scores['compression_score'].values[s]
+            all_zero_percents[s, z] = per_subj_low_attn_percent_average
         
         ax.scatter(
             per_type_low_attn_percentages, 
@@ -619,10 +625,19 @@ def Fig_high_attn_against_low_attn_V1(attn_config_version, v):
 
     ax.set_xlabel('Peripheral Attention \nZero Proportion')
     ax.set_ylabel('Controller Attention \nCompression')
+    ax.spines.right.set_visible(False)
+    ax.spines.top.set_visible(False)
 
     ax.legend()
     plt.tight_layout()
-    plt.savefig('figs/high_attn_against_low_attn.png')
+    plt.savefig('figs/high_attn_against_low_attn.pdf')
+    all_correlations = []
+    for s in range(num_subs):
+        r, p_value = stats.pearsonr(all_alphas[s, :], all_zero_percents[s, :])
+        all_correlations.append(r)
+
+    t, p = stats.ttest_1samp(all_correlations, popmean=0)
+    print(f'avg corr={np.mean(all_correlations)}, t={t}, one-sided p={p/2}')
     # Thoughts: 
     # High-attn compression makes sense as we have 0, 0.4, 1 three levels to the 3 types.
     # Low-attn seems less ideal because often a high compression corresponds to a low zero attn.
@@ -958,4 +973,4 @@ if __name__ == '__main__':
     # Fig_high_attn_against_low_attn_V1(attn_config_version, v)
     # Fig_high_attn_against_low_attn_V2(attn_config_version, v)
     # Fig_alphas_against_recon_V1(attn_config_version, v)
-    Fig_alphas_against_recon_V2(attn_config_version, v)
+    # Fig_alphas_against_recon_V2(attn_config_version, v)

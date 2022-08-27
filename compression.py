@@ -31,7 +31,6 @@ def attn_compression(attn_weights):
     
     The more selective the higher compression.
     """
-    attn_weights = softmax(attn_weights)   # sum to one.
     ent = - np.sum( attn_weights * np.log2(attn_weights) )
     compression = 1 + ent / ( np.log2( 1/len(attn_weights) ) )
     return compression
@@ -66,11 +65,24 @@ def per_subj_compression_repetition_level(
         score = attn_sparsity(attn_weights)
     
     elif repr_level == 'high_attn':
+        # One rp has 8 trials,
+        # here we compute the average alphas over 8 trials,
+        # then compute the compression score of that average alphas.
+        # Note, attn_weights is a list growing in length per rp,
+        # that is, after each rp, it grows by 8*3
         attn_weights = np.load(
             f'{results_path}/' \
-            f'all_alphas_type{problem_type}_run{run}_cluster_rp{repetition}.npy')[-3:]
+            f'all_alphas_type{problem_type}_run{run}_cluster_rp{repetition}.npy')
+        # So to get alphas of a rp, we extract the 8*3
+        # of that rp
+        attn_weights = \
+            np.mean(
+                attn_weights[repetition*8*3 : (repetition+1)*8*3].reshape((8, 3)),
+                axis=0
+            )
+
         score = attn_compression(attn_weights)
-        
+
     return score
 
 
@@ -156,76 +168,158 @@ def compression_execute_repetition_level(
             f'compression_results_repetition_level/{repr_level}.npy', 
             allow_pickle=True
         ).ravel()[0]
+    
+    compression_plotter_repetition_level_V2(compression_results)
 
-    # plot violinplots / stripplots
-    fig, ax = plt.subplots()
-    x = compression_results['x']
-    y = compression_results['y']
-    hue = compression_results['hue']
-    means = compression_results['means']
-    palette = {'Type 1': 'pink', 'Type 2': 'green', 'Type 6': 'blue'}
-    colors = {1: 'pink', 2: 'green', 6: 'blue'}
-    ax = sns.stripplot(x=x, y=y, hue=hue, palette=palette, dodge=True, alpha=0.2, jitter=0.3, size=4)
-    
-    # plot mean/median
-    num_bars = int(len(y) / (num_runs))
-    positions = []
-    margin = 0.24
+
+def compression_plotter_repetition_level_V2(compression_results):
+    fig, ax = plt.subplots(figsize=(5, 4))
+    reps = compression_results['x']       
+    scores = compression_results['y']       
+    types = compression_results['hue']
+    color_palette = sns.color_palette("flare")
+    print(color_palette.as_hex())
+    palette = {'Type 1': color_palette[0], 'Type 2': color_palette[2], 'Type 6': color_palette[5]}
     problem_types = [1, 2, 6]
-    for per_repetition_center in ax.get_xticks():
-        positions.append(per_repetition_center-margin)
-        positions.append(per_repetition_center)
-        positions.append(per_repetition_center+margin)
+    num_bars = int(len(scores) / (num_runs))  # 48 = 16 * 3
+    TypeConverter = {1: 'I', 2: 'II', 6: 'VI'}
+    # create positions for errorbars, a repetition has 3 bars; each
+    # repetition is separated by a margin of 2; each bar within a rep
+    # is separated by 1.
+    position = 1
+    positions = []
+    counter = 0
+    for i in range(num_bars):
+        positions.append(position)
+        if counter == 2:
+            counter = 0
+            position += 2
+        else:
+            counter += 1
+            position += 1
+            
+    means = []
+    for i in range(len(positions)):
+        position = positions[i]
+
+        problem_type = problem_types[i % 3]
+
+        per_rep_n_type_data = scores[i * num_runs : (i+1) * num_runs]
+
+        if position >= positions[-3]:
+            label = f'Type {TypeConverter[problem_type]}'
+        else:
+            label = None
+        
+        mean = np.mean(per_rep_n_type_data)
+        means.append(mean)
+        sem = stats.sem(per_rep_n_type_data)
+        ax.errorbar(
+            position,
+            mean,
+            yerr=sem,
+            fmt='o',
+            capsize=3,
+            color=palette[f'Type {problem_type}'],
+            label=label
+        )
     
-    labels = []
-    for global_index in range(num_bars):
+    # ax.set_xticks([2, 6, 10, 14, 18, 22, 26, 30, 34, 38, 42, 46, 50, 54, 58, 62])
+    # ax.set_xticklabels(range(int(num_bars/len(problem_types))))
+    ax.set_xlabel('Learning Block', fontweight='bold')
+    ax.set_ylabel(f'Attention Compression', fontweight='bold')
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    plt.legend(loc='upper right')
+    plt.tight_layout()
+    plt.savefig(f'compression_results_repetition_level/{repr_level}.pdf')
+
+
+def mixed_effects_analysis_repetition_level(repr_level):
+    """
+    Perform a two-way ANOVA analysis as an alternative of 
+    the bayesian mixed effect analysis in Mack et al., 2020.
+    
+    Independent variable: 
+        problem_type, learning_block, interaction
+    Dependent variable:
+        compression score
+    """
+    import pingouin as pg
+    if not os.path.exists(f"compression_results_repetition_level/{repr_level}.csv"):
+        runs = ['run']
+        types = ['problem_type']
+        learning_trials = ['learning_trial']
+        compression_scores = ['compression_score']
+
+        compression_results = np.load(
+            f'compression_results_repetition_level/{repr_level}.npy', 
+            allow_pickle=True).ravel()[0]
+        y = compression_results['y']
+        num_bars = int(len(y) / (num_runs))
+        problem_types = [1, 2, 6]
         
-        # 0-15
-        repetition = global_index // len(problem_types)
-        within_repetition_index = global_index % len(problem_types)    
-        problem_type = problem_types[within_repetition_index]
+        for global_index in range(num_bars):
+            rep = global_index // len(problem_types) + 1
+            within_rep_index = global_index % len(problem_types)        
+            problem_type = problem_types[within_rep_index]
+            print(f'rep={rep}, type={problem_type}')
+            
+            # data
+            per_type_data = y[ global_index * num_runs : (global_index+1) * num_runs ]
+            
+            for r in range(num_runs):
+                run = rns[r]
+                runs.append(run)
+                types.append(problem_type)
+                learning_trials.append(rep)
+                compression_scores.append(per_type_data[r])
+            
+        runs = np.array(runs)
+        types = np.array(types)
+        learning_trials = np.array(learning_trials)
+        compression_scores = np.array(compression_scores)
         
-        # data
-        per_type_data = y[ global_index * num_runs : (global_index+1) * num_runs ]
-        position = [positions[global_index]]
+        df = np.vstack((
+            runs, 
+            types, 
+            learning_trials, 
+            compression_scores
+        )).T
+        pd.DataFrame(df).to_csv(
+            f"compression_results_repetition_level/{repr_level}.csv", 
+            index=False, 
+            header=False
+        )
         
-        q1, md, q3 = np.percentile(per_type_data, [25,50,75])
-        mean = np.mean(per_type_data)
-        std = np.std(per_type_data)
-        mean_obj = ax.scatter(position, mean, marker='^', color=colors[problem_type], s=33, zorder=3, alpha=1.)
+    df = pd.read_csv(f"compression_results_repetition_level/{repr_level}.csv")
         
-        # print out stats
-        print(f'Type=[{problem_type}], repetition=[{repetition}], mean=[{mean:.3f}], std=[{std:.3f}]')
-        if within_repetition_index == 2:
-            print('-'*60)
-                
-    # hacky way getting legend
-    # ax.scatter(position, mean, marker='^', color='k', s=33, zorder=3, label='mean')
-    plt.legend()
-    ax.set_xlabel('Repetitions')
-    ax.set_ylabel(f'Compression')
-    if repr_level == 'low_attn':
-        title = 'Low-level attn (DCNN)'
-    elif repr_level == 'high_attn':
-        title = 'High-level attn (Clustering)'
-    plt.title(f'{title}')
-    plt.savefig(f'compression_results_repetition_level/{repr_level}.png')
+    # two-way ANOVA:
+    res = pg.rm_anova(
+        dv='compression_score',
+        within=['problem_type', 'learning_trial'],
+        subject='run',
+        data=df, 
+    )
+    print(res)
 
 
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
     config_version = 'v4a_naive-withNoise-entropy'
     repr_level = 'high_attn'
-    num_runs = 50
-    runs = range(num_runs)
-    problem_types = [1, 2, 6]
+    num_runs = 500
+    rns = range(num_runs)
+    problem_types = [1,2,6]
     num_processes = 72
     num_repetitions = 32        # i.e. `num_blocks` in simulation
         
     compression_execute_repetition_level(
         config_version=config_version, 
         repr_level=repr_level, 
-        runs=runs, 
+        runs=rns, 
         num_repetitions=num_repetitions,
         problem_types=problem_types, 
         num_processes=num_processes)
+    
+    mixed_effects_analysis_repetition_level(repr_level)

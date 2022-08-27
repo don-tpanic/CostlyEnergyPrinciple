@@ -3,6 +3,7 @@ os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 import numpy as np 
+import pandas as pd
 import pingouin as pg
 import seaborn as sns
 import scipy.stats as stats
@@ -676,6 +677,108 @@ def Fig_alphas_against_recon_V2(attn_config_version):
     plt.savefig(f'figs/errorbar_type{problem_type}_highAttn_vs_reconLoss.pdf')
 
 
+def Fig_high_attn_against_low_attn_V2(attn_config_version):
+    """
+    Plot percentage zero low-attn against compression of high-attn
+    """
+    attn_config = load_config(
+        component=None,
+        config_version=attn_config_version
+    )
+    problem_types = [1]
+    num_dims = 3
+    num_reps = 16
+    results_path = f'results/{attn_config_version}'
+    type2runs, type_proportions = find_canonical_runs(
+        attn_config_version, canonical_runs_only=False)
+
+    fig, ax1 = plt.subplots(figsize=(5, 5))
+    markers = ['o', 's', '^']
+    compression_color = '#E98D6B'
+    zero_percent_color = '#AD1759'
+
+    # csv - we only need the very last compression of each type
+    # which corresponds to the very last zero% low-attn
+    fname = 'compression_results_repetition_level/high_attn.csv'
+    with open(fname) as f:
+        df = pd.read_csv(f)
+
+        for idx in range(len(problem_types)):
+
+            # problem_type = problem_types[idx]
+            # num_runs = len(type2runs[idx])
+            # runs = type2runs[idx]
+            num_runs = 500
+            runs = range(num_runs)
+
+        compression_scores_collector = np.ones((num_reps, num_runs))
+        zero_percent_collector = np.ones((num_reps, num_runs))
+        for rp in range(num_reps):
+            compression_scores = df.loc[df['learning_trial'] == rp+1]
+
+            for z in range(len(problem_types)):
+                problem_type = problem_types[z]
+
+                per_type_compression_scores = \
+                    compression_scores.loc[
+                        compression_scores['problem_type'] == problem_type
+                    ]
+
+                for r in range(num_runs):
+                    run = runs[r]
+                    metric_fpath = f'{results_path}/' \
+                                    f'all_percent_zero_attn_type{problem_type}_run{run}_cluster.npy'
+                    
+                    per_subj_low_attn_percent = np.load(metric_fpath)
+                    if rp == 0:
+                        per_subj_low_attn_percent_average = 0
+                    else:
+                        # take moving average (window=8*30), which corresponds to the 
+                        # final compression score which uses average over 8 trials alphas.
+                        per_subj_low_attn_percent_average = np.mean(per_subj_low_attn_percent[(rp-1)*5*8*2:(rp)*5*8*2])
+                    zero_percent_collector[rp, r] = per_subj_low_attn_percent_average
+                compression_scores_collector[rp, :] = per_type_compression_scores['compression_score'].values
+
+            mean_compression_scores = np.mean(compression_scores_collector, axis=1)
+            sem_compression_scores = stats.sem(compression_scores_collector, axis=1)
+            mean_zero_percent = np.mean(zero_percent_collector, axis=1)
+            sem_zero_percent = stats.sem(zero_percent_collector, axis=1)
+
+        ax1.errorbar(
+            np.arange(num_reps),
+            mean_compression_scores,
+            yerr=sem_compression_scores,
+            color=compression_color,
+            marker='*',
+            markersize=5,
+            capsize=5,
+        )
+
+        ax2 = ax1.twinx()
+        ax2.errorbar(
+            np.arange(num_reps),
+            mean_zero_percent,
+            yerr=sem_zero_percent,
+            color=zero_percent_color,
+            marker='o',
+            markersize=5,
+            capsize=5,
+        )
+        
+        ax1.set_ylim([-0.05, 1.05])
+        ax1.set_xticks([0, 15])
+        ax1.set_xticklabels(['1', '16'])
+        ax1.set_xlabel('Repetition')
+        ax1.set_ylabel('Compression Score', color=compression_color)
+        ax1.tick_params(axis='y', labelcolor=compression_color)
+        ax2.set_ylim([-0.05, 0.65])
+        ax2.set_ylabel('Peripheral Attention \nZero Proportion', color=zero_percent_color)
+        ax2.tick_params(axis='y', labelcolor=zero_percent_color)
+
+    plt.tight_layout()
+    plt.savefig(f'figs/high_attn_against_low_attn_type{problem_type}.png')
+
+
 if __name__ == '__main__':
     attn_config_version='v4a_naive-withNoise-entropy'
     
@@ -685,4 +788,5 @@ if __name__ == '__main__':
 
     # Fig_binary_recon(attn_config_version)
 
-    Fig_alphas_against_recon_V2(attn_config_version)
+    # Fig_alphas_against_recon_V2(attn_config_version)
+    Fig_high_attn_against_low_attn_V2(attn_config_version)

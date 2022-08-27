@@ -22,7 +22,8 @@ colors = [
     color_palette[8],   # 5
     color_palette[9],   # 6
 ]
-plt.rcParams.update({'font.size': 12})
+plt.rcParams.update({'font.size': 12, 'font.weight': "bold"})
+plt.rcParams["font.family"] = "Helvetica"
 
 """
 Plot equivalent figures but using simulated model (not behav fitted).
@@ -563,26 +564,27 @@ def Fig_alphas_against_recon_V2(attn_config_version):
         component=None,
         config_version=attn_config_version
     )
-    num_runs = attn_config['num_runs']
-    problem_types = [1]
+    problem_types = [6]
     num_dims = 3
     num_reps = 16
     results_path = f'results/{attn_config_version}'
     type2runs, type_proportions = find_canonical_runs(
         attn_config_version, canonical_runs_only=True)
 
-    # *** if type1 ***
-    num_runs = len(type2runs[0])
-    runs = type2runs[0]
-    relevant_dim_index = 0
     fig, ax1 = plt.subplots(1, 3, figsize=(10, 3))
+    alpha_color = '#E98D6B'
+    recon_color = '#AD1759'
 
-    for relevant_dim_index in [0, 1, 2]:
-        relevant_dim_alphas = np.ones((num_reps, num_runs))
-        relevant_dim_recons = np.ones((num_reps, num_runs))
-        for rp in range(0, 16):
-            for idx in range(len(problem_types)):
-                problem_type = problem_types[idx]
+    for idx in range(len(problem_types)):
+
+        problem_type = problem_types[idx]
+        num_runs = len(type2runs[idx])
+        runs = type2runs[idx]
+
+        for relevant_dim_index in [0, 1, 2]:
+            relevant_dim_alphas = np.ones((num_reps, num_runs))
+            relevant_dim_recons = np.ones((num_reps, num_runs))
+            for rp in range(0, 16):
                 for r in range(num_runs):
                     run = runs[r]
 
@@ -629,51 +631,49 @@ def Fig_alphas_against_recon_V2(attn_config_version):
                     # *** For type1, relevant is always `dim1`, ie [0] ***
                     relevant_dim_alphas[rp, r] = per_rp_alphas_average[relevant_dim_index]
                     relevant_dim_recons[rp, r] = per_rp_binary_recon_average[relevant_dim_index]
-        
-        mean_alpha_over_subs = np.mean(relevant_dim_alphas, axis=1)
-        mean_recon_over_subs = np.mean(relevant_dim_recons, axis=1)
-        sem_alpha_over_subs = stats.sem(relevant_dim_alphas, axis=1)
-        sem_recon_over_subs = stats.sem(relevant_dim_recons, axis=1)
+            
+            mean_alpha_over_subs = np.mean(relevant_dim_alphas, axis=1)
+            mean_recon_over_subs = np.mean(relevant_dim_recons, axis=1)
+            sem_alpha_over_subs = stats.sem(relevant_dim_alphas, axis=1)
+            sem_recon_over_subs = stats.sem(relevant_dim_recons, axis=1)
 
-        alpha_color = 'k'
-        recon_color = 'r'
+            ax1[relevant_dim_index].errorbar(
+                np.arange(num_reps),
+                mean_alpha_over_subs,
+                yerr=sem_alpha_over_subs,
+                color=alpha_color,
+                marker='*',
+                markersize=5,
+                capsize=5,
+            )
+            ax1[relevant_dim_index].set_xlabel('Repetition')
+            ax1[relevant_dim_index].set_xticks([0, 15])
+            ax1[relevant_dim_index].set_xticklabels([1, 16])
+            if relevant_dim_index in [1, 2]:
+                ax1[relevant_dim_index].set_yticks([])
+            ax1[relevant_dim_index].set_ylim([-0.05, 1.05])
 
-        ax1[relevant_dim_index].errorbar(
-            np.arange(num_reps),
-            mean_alpha_over_subs,
-            yerr=sem_alpha_over_subs,
-            color=alpha_color,
-            marker='*',
-            markersize=5,
-            capsize=5,
-        )
-        ax1[relevant_dim_index].set_xlabel('Repetition')
-        ax1[relevant_dim_index].set_xticks([0, 15])
-        ax1[relevant_dim_index].set_xticklabels([1, 16])
-        if relevant_dim_index in [1, 2]:
-            ax1[relevant_dim_index].set_yticks([])
-        ax1[relevant_dim_index].set_ylim([-0.05, 1.05])
-
-        ax2 = ax1[relevant_dim_index].twinx()
-        if relevant_dim_index in [0, 1]:
-            ax2.set_yticks([])
-        ax2.set_ylim([-0.05, 3.5])
-
-        ax2.errorbar(
-            np.arange(num_reps),
-            mean_recon_over_subs,
-            yerr=sem_recon_over_subs,
-            color=recon_color,
-            marker='o',
-            markersize=5,
-            capsize=5,
-        )
+            # 2nd y-axis
+            ax2 = ax1[relevant_dim_index].twinx()
+            if relevant_dim_index in [0, 1]:
+                ax2.set_yticks([])
+            ax2.set_ylim([-0.05, 3.5])
+            ax2.errorbar(
+                np.arange(num_reps),
+                mean_recon_over_subs,
+                yerr=sem_recon_over_subs,
+                color=recon_color,
+                marker='o',
+                markersize=5,
+                capsize=5,
+            )
     
-    ax1[0].set_ylabel('Attention Strength')
-    ax2.tick_params(axis='y', labelcolor='r')
-    ax2.set_ylabel('Information Loss', color='r')
+    ax1[0].set_ylabel('Attention Strength', color=alpha_color)
+    ax1[0].tick_params(axis='y', labelcolor=alpha_color)
+    ax2.set_ylabel('Information Loss', color=recon_color)
+    ax2.tick_params(axis='y', labelcolor=recon_color)
     plt.tight_layout()
-    plt.savefig(f'figs/correlation_highAttn_vs_reconLoss.png')
+    plt.savefig(f'figs/errorbar_type{problem_type}_highAttn_vs_reconLoss.pdf')
 
 
 if __name__ == '__main__':

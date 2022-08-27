@@ -659,6 +659,8 @@ def Fig_high_attn_against_low_attn_V2(attn_config_version, v):
     results_path = 'results'
     fig, ax1 = plt.subplots(figsize=(5, 5))
     markers = ['o', 's', '^']
+    compression_color = '#E98D6B'
+    zero_percent_color = '#AD1759'
 
     # csv - we only need the very last compression of each type
     # which corresponds to the very last zero% low-attn
@@ -702,9 +704,6 @@ def Fig_high_attn_against_low_attn_V2(attn_config_version, v):
         mean_zero_percent = np.mean(zero_percent_collector, axis=1)
         sem_zero_percent = stats.sem(zero_percent_collector, axis=1)
 
-    compression_color = 'k'
-    zero_percent_color = 'r'
-
     ax1.errorbar(
         np.arange(num_reps),
         mean_compression_scores,
@@ -730,12 +729,14 @@ def Fig_high_attn_against_low_attn_V2(attn_config_version, v):
     ax1.set_xticks([0, 15])
     ax1.set_xticklabels(['1', '16'])
     ax1.set_xlabel('Repetition')
-    ax1.set_ylabel('Compression Score')
+    ax1.set_ylabel('Compression Score', color=compression_color)
+    ax1.tick_params(axis='y', labelcolor=compression_color)
     ax2.set_ylim([-0.05, 0.65])
     ax2.set_ylabel('Peripheral Attention \nZero Proportion', color=zero_percent_color)
+    ax2.tick_params(axis='y', labelcolor=zero_percent_color)
 
     plt.tight_layout()
-    plt.savefig('figs/high_attn_against_low_attn.png')
+    plt.savefig(f'figs/high_attn_against_low_attn_type{problem_type}_{v}.png')
 
 
 def Fig_alphas_against_recon_V1(attn_config_version, v):
@@ -971,6 +972,6 @@ if __name__ == '__main__':
     # Fig_high_attn(attn_config_version, v)
 
     # Fig_high_attn_against_low_attn_V1(attn_config_version, v)
-    # Fig_high_attn_against_low_attn_V2(attn_config_version, v)
+    Fig_high_attn_against_low_attn_V2(attn_config_version, v)
     # Fig_alphas_against_recon_V1(attn_config_version, v)
     # Fig_alphas_against_recon_V2(attn_config_version, v)

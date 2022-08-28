@@ -651,13 +651,13 @@ def Fig_high_attn_against_low_attn_V2(attn_config_version, v):
     """
     Plot percentage zero low-attn against compression of high-attn
     """
-    problem_types = [1]
+    problem_types = [1, 2, 6]
     num_subs = 23
     num_reps = 16
     subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
     num_subs = len(subs)
     results_path = 'results'
-    fig, ax1 = plt.subplots(figsize=(5, 5))
+    fig, ax1 = plt.subplots(1, 3, figsize=(10, 5))
     compression_color = '#E98D6B'
     zero_percent_color = '#AD1759'
 
@@ -667,13 +667,12 @@ def Fig_high_attn_against_low_attn_V2(attn_config_version, v):
     with open(fname) as f:
         df = pd.read_csv(f)
 
-    compression_scores_collector = np.ones((num_reps, num_subs))
-    zero_percent_collector = np.ones((num_reps, num_subs))
-    for rp in range(num_reps):
-        compression_scores = df.loc[df['learning_trial'] == rp+1]
-
-        for z in range(len(problem_types)):
-            problem_type = problem_types[z]
+    for z in range(len(problem_types)):
+        problem_type = problem_types[z]
+        compression_scores_collector = np.ones((num_reps, num_subs))
+        zero_percent_collector = np.ones((num_reps, num_subs))
+        for rp in range(num_reps):
+            compression_scores = df.loc[df['learning_trial'] == rp+1]
 
             per_type_compression_scores = \
                 compression_scores.loc[
@@ -698,44 +697,51 @@ def Fig_high_attn_against_low_attn_V2(attn_config_version, v):
                 zero_percent_collector[rp, s] = per_subj_low_attn_percent_average
             compression_scores_collector[rp, :] = per_type_compression_scores['compression_score'].values
 
-        mean_compression_scores = np.mean(compression_scores_collector, axis=1)
-        sem_compression_scores = stats.sem(compression_scores_collector, axis=1)
-        mean_zero_percent = np.mean(zero_percent_collector, axis=1)
-        sem_zero_percent = stats.sem(zero_percent_collector, axis=1)
+            mean_compression_scores = np.mean(compression_scores_collector, axis=1)
+            sem_compression_scores = stats.sem(compression_scores_collector, axis=1)
+            mean_zero_percent = np.mean(zero_percent_collector, axis=1)
+            sem_zero_percent = stats.sem(zero_percent_collector, axis=1)
 
-    ax1.errorbar(
-        np.arange(num_reps),
-        mean_compression_scores,
-        yerr=sem_compression_scores,
-        color=compression_color,
-        marker='*',
-        markersize=5,
-        capsize=5,
-    )
+        ax1[z].errorbar(
+            np.arange(num_reps),
+            mean_compression_scores,
+            yerr=sem_compression_scores,
+            color=compression_color,
+            marker='o',
+            markersize=5,
+            capsize=5,
+            alpha=0.75
+        )
+        if z in [1, 2]:
+            ax1[z].set_yticks([])
 
-    ax2 = ax1.twinx()
-    ax2.errorbar(
-        np.arange(num_reps),
-        mean_zero_percent,
-        yerr=sem_zero_percent,
-        color=zero_percent_color,
-        marker='o',
-        markersize=5,
-        capsize=5,
-    )
-    
-    ax1.set_ylim([-0.05, 1.05])
-    ax1.set_xticks([0, 15])
-    ax1.set_xticklabels(['1', '16'])
-    ax1.set_xlabel('Repetition')
-    ax1.set_ylabel('Compression Score', color=compression_color)
-    ax1.tick_params(axis='y', labelcolor=compression_color)
-    ax2.set_ylim([-0.05, 0.65])
-    ax2.set_ylabel('Peripheral Attention \nZero Proportion', color=zero_percent_color)
-    ax2.tick_params(axis='y', labelcolor=zero_percent_color)
+        ax2 = ax1[z].twinx()
+        ax2.set_ylim([-0.05, 0.65])
+        if z < 2:
+            ax2.set_yticks([])
+        if z == 2:
+            ax2.set_ylabel('Peripheral Attention \nZero Proportion', color=zero_percent_color)
+        ax2.errorbar(
+            np.arange(num_reps),
+            mean_zero_percent,
+            yerr=sem_zero_percent,
+            color=zero_percent_color,
+            marker='o',
+            markersize=5,
+            capsize=5,
+            alpha=0.75
+        )
+        ax1[z].set_ylim([-0.05, 1.05])
+        ax1[z].set_xticks([0, 15])
+        ax1[z].set_xticklabels(['1', '16'])
+        ax1[1].set_xlabel('Repetition')
+        ax1[0].set_ylabel('Compression Score', color=compression_color)
+        ax1[z].tick_params(axis='y', labelcolor=compression_color)
+        ax2.tick_params(axis='y', labelcolor=zero_percent_color)
+        ax1[z].set_title(f'Type {TypeConverter[problem_type]}')
 
     plt.tight_layout()
-    plt.savefig(f'figs/high_attn_against_low_attn_type{problem_type}_{v}.png')
+    plt.savefig(f'figs/high_attn_against_low_attn_typeALL_{v}.pdf')
 
 
 def Fig_alphas_against_recon_V1(attn_config_version, v):
@@ -992,6 +998,6 @@ if __name__ == '__main__':
     # Fig_high_attn(attn_config_version, v)
 
     # Fig_high_attn_against_low_attn_V1(attn_config_version, v)
-    # Fig_high_attn_against_low_attn_V2(attn_config_version, v)
+    Fig_high_attn_against_low_attn_V2(attn_config_version, v)
     # Fig_alphas_against_recon_V1(attn_config_version, v)
-    Fig_alphas_against_recon_V2(attn_config_version, v)
+    # Fig_alphas_against_recon_V2(attn_config_version, v)

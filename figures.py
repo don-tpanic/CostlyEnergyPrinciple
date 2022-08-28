@@ -847,6 +847,108 @@ def Fig_alphas_against_recon_V1(attn_config_version, v):
     print(f'avg corr={mean_coef:.2f}, t={t:.2f}, one-sided p={p/2:.2f}')
 
 
+def Fig_alphas_against_recon_V1a(attn_config_version, v):
+    """
+    Look at overall how consistent are alphas corresponding to recon loss.
+    Here, we focus on Type 1 and the relevant dimension. 
+    It is less interesting just looking at the final because at the end, 
+    we have relevant dim alpha=1 and recon=0 (subject to a few exceptions).
+
+    To better visualize the results, we could have look at how the relationship
+    between alpha and recon changes over time.
+
+    Implementation-wise, what is tricky is that the saved alphas and recon_loss 
+    are not in the same dimensionality because alpha is saved once every trial (or rp),
+    but recon is saved once every inner-loop iteration and not saved at the first rp. But we 
+    could use recon=0 for rp=0 because at first we know there is no recon loss.
+    """
+    problem_types = [1, 2, 6]
+    num_subs = 23
+    num_reps = 16
+    num_dims = 3
+    subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
+    num_subs = len(subs)
+    sub2assignment_n_scheme = human.Mappings().sub2assignment_n_scheme
+    
+    fig, ax1 = plt.subplots(3, 3, figsize=(5, 5))
+    alpha_color = '#E98D6B'
+
+    for idx in range(len(problem_types)):
+        problem_type = problem_types[idx]
+        if problem_type == 2:  # swap to be consistent with tradition.
+            relevant_dim_indices = range(num_dims)[::-1]
+        else:
+            relevant_dim_indices = range(num_dims)
+
+        for i in range(len(relevant_dim_indices)):
+            relevant_dim_index = relevant_dim_indices[i]
+            relevant_dim_alphas = np.ones((num_reps, num_subs))
+            relevant_dim_recons = np.ones((num_reps, num_subs))
+            for rp in range(num_reps):
+                
+                # if rp < 15:
+                #     continue
+
+                for s in range(num_subs):
+                    sub = subs[s]
+                    # (384, 1) -> (16*8, 3)
+                    alphas = np.load(
+                        f'results/{attn_config_version}_sub{sub}_{v}/' \
+                        f'all_alphas_type{problem_type}_sub{sub}_cluster.npy')
+                    alphas = alphas.reshape(-1, 3)
+                    per_rp_alphas = alphas[rp*8 : (rp+1)*8, :]  # (8, 3)
+                    per_rp_alphas_average = np.mean(per_rp_alphas, axis=0)  # (3)
+                    
+                    # (10800, 1) -> (3600, 3) -> (15*8*30, 3)
+                    binary_recon = np.load(
+                        f'results/{attn_config_version}_sub{sub}_{v}/' \
+                        f'all_recon_loss_ideal_type{problem_type}_sub{sub}_cluster.npy')
+                    binary_recon = binary_recon.reshape(-1, 3)
+                    if rp == 0:  # because rp=0 recon not saved but we know it's zero.
+                        per_rp_binary_recon_average = np.array([0, 0, 0])
+                    else:
+                        per_rp_binary_recons = binary_recon[(rp-1)*8*30 : (rp)*8*30, :]  # (8*30, 3)
+                        per_rp_binary_recon_average = np.mean(per_rp_binary_recons, axis=0)  # (3)
+                    
+                    # alphas and binary_recon are initially DCNN order.
+                    # But to plot the relevant dim (which is in the abstract sense), we need to
+                    # rearrange alphas and binary_recon such that the first dim is the relevant dim.
+                    # The order of conversion is provided by the assignment_n_scheme.
+                    # e.g. sub02, has [2, 1, 3] mapping which means [antenna, leg, mouth] was the 
+                    # order used during learning and antenna is the relevant dim.
+                    sub_physical_order = np.array(sub2assignment_n_scheme[sub][:3])-1
+                    conversion_order = sub_physical_order
+                    if problem_type == 1:
+                        conversion_order[1:] = np.random.choice(
+                            conversion_order[1:], size=num_dims-1, replace=False
+                        )
+
+                    per_rp_alphas_average = per_rp_alphas_average[conversion_order]
+                    per_rp_binary_recon_average = per_rp_binary_recon_average[conversion_order]
+
+                    relevant_dim_alphas[rp, s] = per_rp_alphas_average[relevant_dim_index]
+                    relevant_dim_recons[rp, s] = per_rp_binary_recon_average[relevant_dim_index]
+            
+                ax1[idx, i].scatter(
+                    relevant_dim_alphas[rp, :],
+                    relevant_dim_recons[rp, :],
+                    color=alpha_color,
+                    marker='*', 
+                    alpha=0.5,
+                    edgecolor='none'
+                )
+                if i in [1, 2]:
+                    ax1[idx, i].set_yticks([])
+                ax1[idx, i].set_xlim([0, 1])
+                ax1[idx, i].set_ylim([0, 1])
+                ax1[idx, 1].set_title(f'Type {TypeConverter[problem_type]}')
+    
+    ax1[1, 0].set_ylabel('Information Loss')
+    ax1[-1, 1].set_xlabel('Attention Strength')
+    plt.tight_layout()
+    plt.savefig(f'figs/scatter_overtime_typeALL_highAttn_vs_reconLoss_{v}.pdf')
+
+
 def Fig_alphas_against_recon_V2(attn_config_version, v):
     """
     Look at overall how consistent are alphas corresponding to recon loss.
@@ -1002,5 +1104,6 @@ if __name__ == '__main__':
 
     # Fig_high_attn_against_low_attn_V1(attn_config_version, v)
     # Fig_high_attn_against_low_attn_V2(attn_config_version, v)
-    Fig_alphas_against_recon_V1(attn_config_version, v)
+    # Fig_alphas_against_recon_V1(attn_config_version, v)
+    Fig_alphas_against_recon_V1a(attn_config_version, v)
     # Fig_alphas_against_recon_V2(attn_config_version, v)

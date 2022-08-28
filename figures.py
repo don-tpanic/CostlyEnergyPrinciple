@@ -720,7 +720,7 @@ def Fig_high_attn_against_low_attn_V2(attn_config_version, v):
         if z < 2:
             ax2.set_yticks([])
         if z == 2:
-            ax2.set_ylabel('Peripheral Attention \nZero Proportion', color=zero_percent_color)
+            ax2.set_ylabel('Peripheral Attention \n(Zero Proportion)', color=zero_percent_color)
         ax2.errorbar(
             np.arange(num_reps),
             mean_zero_percent,
@@ -735,7 +735,7 @@ def Fig_high_attn_against_low_attn_V2(attn_config_version, v):
         ax1[z].set_xticks([0, 15])
         ax1[z].set_xticklabels(['1', '16'])
         ax1[1].set_xlabel('Repetition')
-        ax1[0].set_ylabel('Compression Score', color=compression_color)
+        ax1[0].set_ylabel('Controller Attention \n(Compression)', color=compression_color)
         ax1[z].tick_params(axis='y', labelcolor=compression_color)
         ax2.tick_params(axis='y', labelcolor=zero_percent_color)
         ax1[z].set_title(f'Type {TypeConverter[problem_type]}')
@@ -1000,6 +1000,6 @@ if __name__ == '__main__':
     # Fig_high_attn(attn_config_version, v)
 
     # Fig_high_attn_against_low_attn_V1(attn_config_version, v)
-    # Fig_high_attn_against_low_attn_V2(attn_config_version, v)
-    Fig_alphas_against_recon_V1(attn_config_version, v)
+    Fig_high_attn_against_low_attn_V2(attn_config_version, v)
+    # Fig_alphas_against_recon_V1(attn_config_version, v)
     # Fig_alphas_against_recon_V2(attn_config_version, v)

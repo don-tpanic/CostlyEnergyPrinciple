@@ -658,7 +658,6 @@ def Fig_high_attn_against_low_attn_V2(attn_config_version, v):
     num_subs = len(subs)
     results_path = 'results'
     fig, ax1 = plt.subplots(figsize=(5, 5))
-    markers = ['o', 's', '^']
     compression_color = '#E98D6B'
     zero_percent_color = '#AD1759'
 
@@ -854,23 +853,25 @@ def Fig_alphas_against_recon_V2(attn_config_version, v):
     but recon is saved once every inner-loop iteration and not saved at the first rp. But we 
     could use recon=0 for rp=0 because at first we know there is no recon loss.
     """
-    problem_types = [6]
+    problem_types = [1, 2, 6]
     num_subs = 23
     num_reps = 16
     num_dims = 3
-    relevant_dim_indices = range(num_dims)
     subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
     num_subs = len(subs)
     sub2assignment_n_scheme = human.Mappings().sub2assignment_n_scheme
     
-    fig, ax1 = plt.subplots(1, 3, figsize=(10, 3))
+    fig, ax1 = plt.subplots(3, 3, figsize=(5, 5))
     alpha_color = '#E98D6B'
     recon_color = '#AD1759'
 
     for idx in range(len(problem_types)):
         problem_type = problem_types[idx]
         if problem_type == 2:  # swap to be consistent with tradition.
-            relevant_dim_indices = relevant_dim_indices[::-1]
+            relevant_dim_indices = range(num_dims)[::-1]
+        else:
+            relevant_dim_indices = range(num_dims)
+
         for i in range(len(relevant_dim_indices)):
             relevant_dim_index = relevant_dim_indices[i]
             relevant_dim_alphas = np.ones((num_reps, num_subs))
@@ -921,42 +922,61 @@ def Fig_alphas_against_recon_V2(attn_config_version, v):
             sem_alpha_over_subs = stats.sem(relevant_dim_alphas, axis=1)
             sem_recon_over_subs = stats.sem(relevant_dim_recons, axis=1)
 
-            ax1[i].errorbar(
-                np.arange(num_reps),
-                mean_alpha_over_subs,
-                yerr=sem_alpha_over_subs,
-                color=alpha_color,
-                marker='*',
+            # ax1[idx, i].errorbar(
+            #     np.arange(num_reps),
+            #     mean_alpha_over_subs,
+            #     yerr=sem_alpha_over_subs,
+            #     color=alpha_color,
+            #     marker='*',
+            #     markersize=5,
+            #     capsize=5,
+            # )
+            ax1[idx, i].plot(
+                np.arange(num_reps), 
+                mean_alpha_over_subs, 
+                color=alpha_color, 
+                marker='o', 
                 markersize=5,
-                capsize=5,
+                alpha=0.75
             )
-            ax1[i].set_xlabel('Repetition')
-            ax1[i].set_xticks([0, 15])
-            ax1[i].set_xticklabels([1, 16])
+            ax1[idx, i].set_xticks([0, 15])
+            ax1[idx, i].set_xticklabels([1, 16])
+            ax1[idx, i].tick_params(axis='y', labelcolor=alpha_color)
             if i in [1, 2]:
-                ax1[i].set_yticks([])
-            ax1[i].set_ylim([-0.05, 1.05])
+                ax1[idx, i].set_yticks([])
+            ax1[idx, i].set_ylim([-0.05, 1.05])
 
-            ax2 = ax1[i].twinx()
+            ax2 = ax1[idx, i].twinx()
+            ax2.tick_params(axis='y', labelcolor=recon_color)
             if i in [0, 1]:
                 ax2.set_yticks([])
+            if idx == 1 and i == 2:
+                ax2.set_ylabel('Information Loss', color=recon_color)
+            if i == 1:
+                ax2.set_title(f'Type {TypeConverter[problem_type]}')
             ax2.set_ylim([-0.05, 1.05])
-            ax2.errorbar(
-                np.arange(num_reps),
-                mean_recon_over_subs,
-                yerr=sem_recon_over_subs,
-                color=recon_color,
-                marker='o',
-                markersize=5,
-                capsize=5,
+            # ax2.errorbar(
+            #     np.arange(num_reps),
+            #     mean_recon_over_subs,
+            #     yerr=sem_recon_over_subs,
+            #     color=recon_color,
+            #     marker='o',
+            #     markersize=5,
+            #     capsize=5,
+            # )
+            ax2.plot(
+                np.arange(num_reps), 
+                mean_recon_over_subs, 
+                color=recon_color, 
+                marker='o', 
+                markersize=5, 
+                alpha=0.75
             )
     
-    ax1[0].set_ylabel('Attention Strength', color=alpha_color)
-    ax1[0].tick_params(axis='y', labelcolor=alpha_color)
-    ax2.set_ylabel('Information Loss', color=recon_color)
-    ax2.tick_params(axis='y', labelcolor=recon_color)
+    ax1[1, 0].set_ylabel('Attention Strength', color=alpha_color)
+    ax1[-1, 1].set_xlabel('Repetition')
     plt.tight_layout()
-    plt.savefig(f'figs/errorbar_overtime_type{problem_type}_highAttn_vs_reconLoss_{v}.pdf')
+    plt.savefig(f'figs/errorbar_overtime_typeALL_highAttn_vs_reconLoss_{v}.pdf')
 
     
 if __name__ == '__main__':
@@ -972,6 +992,6 @@ if __name__ == '__main__':
     # Fig_high_attn(attn_config_version, v)
 
     # Fig_high_attn_against_low_attn_V1(attn_config_version, v)
-    Fig_high_attn_against_low_attn_V2(attn_config_version, v)
+    # Fig_high_attn_against_low_attn_V2(attn_config_version, v)
     # Fig_alphas_against_recon_V1(attn_config_version, v)
-    # Fig_alphas_against_recon_V2(attn_config_version, v)
+    Fig_alphas_against_recon_V2(attn_config_version, v)

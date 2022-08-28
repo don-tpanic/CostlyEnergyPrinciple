@@ -820,7 +820,7 @@ def Fig_alphas_against_recon_V1(attn_config_version, v):
             
             ax.scatter(
                 relevant_dim_alphas, 
-                np.log(relevant_dim_recons),
+                relevant_dim_recons,
                 color=colors(norm(rp)),
                 alpha=0.3,
                 edgecolors='none',
@@ -829,22 +829,30 @@ def Fig_alphas_against_recon_V1(attn_config_version, v):
             )
             
     ax.set_xlabel('Attention Strength')
-    ax.set_ylabel('Information Loss (log scale)')
+    ax.set_ylabel('Information Loss')
     ax.spines.right.set_visible(False)
     ax.spines.top.set_visible(False)
     ax.set_title(f'Type {TypeConverter[problem_type]}')
     plt.tight_layout()
     plt.savefig(f'figs/scatter_overtime_type{problem_type}_highAttn_vs_reconLoss_{v}.pdf')
 
-    # correlation t-test
+    # correlation t-test (each subject yields a corr)
     all_correlations = []
     for s in range(num_subs):
-        r, p_value = stats.pearsonr(all_alphas[s, :], all_recons[s, :])
+        r, _ = stats.pearsonr(all_alphas[s, :], all_recons[s, :])
         all_correlations.append(r)
 
     t, p = stats.ttest_1samp(all_correlations, popmean=0)
     mean_coef = np.mean(all_correlations)
     print(f'avg corr={mean_coef:.2f}, t={t:.2f}, one-sided p={p/2:.2f}')
+
+    # correlation t-test (all subjects yield a corr)
+    # here, we collapse the subject dimension so all subjects is as if it's a single subject
+    # overtime:
+    all_alphas_collapsed = np.mean(all_alphas, axis=0)
+    all_recons_collapsed = np.mean(all_recons, axis=0)
+    r, _ = stats.pearsonr(all_alphas_collapsed, all_recons_collapsed)
+    print(f'corr={r:.2f}')
 
 
 def Fig_alphas_against_recon_V1a(attn_config_version, v):
@@ -940,7 +948,7 @@ def Fig_alphas_against_recon_V1a(attn_config_version, v):
                 if i in [1, 2]:
                     ax1[idx, i].set_yticks([])
                 ax1[idx, i].set_xlim([0, 1])
-                ax1[idx, i].set_ylim([0, 1])
+                ax1[idx, i].set_ylim([-0.05, 1])
                 ax1[idx, 1].set_title(f'Type {TypeConverter[problem_type]}')
     
     ax1[1, 0].set_ylabel('Information Loss')
@@ -1102,8 +1110,8 @@ if __name__ == '__main__':
 
     # Fig_high_attn(attn_config_version, v)
 
-    # Fig_high_attn_against_low_attn_V1(attn_config_version, v)
+    Fig_high_attn_against_low_attn_V1(attn_config_version, v)
     # Fig_high_attn_against_low_attn_V2(attn_config_version, v)
     # Fig_alphas_against_recon_V1(attn_config_version, v)
-    Fig_alphas_against_recon_V1a(attn_config_version, v)
+    # Fig_alphas_against_recon_V1a(attn_config_version, v)
     # Fig_alphas_against_recon_V2(attn_config_version, v)

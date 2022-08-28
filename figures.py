@@ -623,8 +623,8 @@ def Fig_high_attn_against_low_attn_V1(attn_config_version, v):
             label=f'Type {TypeConverter[problem_type]}'
         )
 
-    ax.set_xlabel('Peripheral Attention \nZero Proportion')
-    ax.set_ylabel('Controller Attention \nCompression')
+    ax.set_xlabel('Peripheral Attention \n(Zero Proportion)')
+    ax.set_ylabel('Controller Attention \n(Compression)')
     ax.spines.right.set_visible(False)
     ax.spines.top.set_visible(False)
 
@@ -637,7 +637,8 @@ def Fig_high_attn_against_low_attn_V1(attn_config_version, v):
         all_correlations.append(r)
 
     t, p = stats.ttest_1samp(all_correlations, popmean=0)
-    print(f'avg corr={np.mean(all_correlations)}, t={t}, one-sided p={p/2}')
+    mean_coef = np.mean(all_correlations)
+    print(f'avg corr={mean_coef:.2f}, t={t:.2f}, one-sided p={p/2:.2f}')
     # Thoughts: 
     # High-attn compression makes sense as we have 0, 0.4, 1 three levels to the 3 types.
     # Low-attn seems less ideal because often a high compression corresponds to a low zero attn.
@@ -1000,6 +1001,6 @@ if __name__ == '__main__':
     # Fig_high_attn(attn_config_version, v)
 
     # Fig_high_attn_against_low_attn_V1(attn_config_version, v)
-    Fig_high_attn_against_low_attn_V2(attn_config_version, v)
-    # Fig_alphas_against_recon_V1(attn_config_version, v)
+    # Fig_high_attn_against_low_attn_V2(attn_config_version, v)
+    Fig_alphas_against_recon_V1(attn_config_version, v)
     # Fig_alphas_against_recon_V2(attn_config_version, v)

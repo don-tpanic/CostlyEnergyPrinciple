@@ -760,7 +760,7 @@ def Fig_alphas_against_recon_V1(attn_config_version, v):
     could use recon=0 for rp=0 because at first we know there is no recon loss.
     """
     import matplotlib.colors as clr
-    problem_types=[1]
+    problem_types = [1]
     num_subs = 23
     num_reps = 16
     subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
@@ -831,8 +831,9 @@ def Fig_alphas_against_recon_V1(attn_config_version, v):
     ax.set_ylabel('Information Loss (log scale)')
     ax.spines.right.set_visible(False)
     ax.spines.top.set_visible(False)
+    ax.set_title(f'Type {TypeConverter[problem_type]}')
     plt.tight_layout()
-    plt.savefig(f'figs/scatter_overtime_highAttn_vs_reconLoss_{v}.pdf')
+    plt.savefig(f'figs/scatter_overtime_type{problem_type}_highAttn_vs_reconLoss_{v}.pdf')
 
     # correlation t-test
     all_correlations = []
@@ -841,7 +842,8 @@ def Fig_alphas_against_recon_V1(attn_config_version, v):
         all_correlations.append(r)
 
     t, p = stats.ttest_1samp(all_correlations, popmean=0)
-    print(f'avg corr={np.mean(all_correlations)}, t={t}, one-sided p={p/2}')
+    mean_coef = np.mean(all_correlations)
+    print(f'avg corr={mean_coef:.2f}, t={t:.2f}, one-sided p={p/2:.2f}')
 
 
 def Fig_alphas_against_recon_V2(attn_config_version, v):
@@ -998,6 +1000,6 @@ if __name__ == '__main__':
     # Fig_high_attn(attn_config_version, v)
 
     # Fig_high_attn_against_low_attn_V1(attn_config_version, v)
-    Fig_high_attn_against_low_attn_V2(attn_config_version, v)
-    # Fig_alphas_against_recon_V1(attn_config_version, v)
+    # Fig_high_attn_against_low_attn_V2(attn_config_version, v)
+    Fig_alphas_against_recon_V1(attn_config_version, v)
     # Fig_alphas_against_recon_V2(attn_config_version, v)

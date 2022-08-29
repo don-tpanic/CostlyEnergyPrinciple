@@ -698,10 +698,10 @@ def Fig_high_attn_against_low_attn_V2(attn_config_version, v):
                 zero_percent_collector[rp, s] = per_subj_low_attn_percent_average
             compression_scores_collector[rp, :] = per_type_compression_scores['compression_score'].values
 
-            mean_compression_scores = np.mean(compression_scores_collector, axis=1)
-            sem_compression_scores = stats.sem(compression_scores_collector, axis=1)
-            mean_zero_percent = np.mean(zero_percent_collector, axis=1)
-            sem_zero_percent = stats.sem(zero_percent_collector, axis=1)
+        mean_compression_scores = np.mean(compression_scores_collector, axis=1)
+        sem_compression_scores = stats.sem(compression_scores_collector, axis=1)
+        mean_zero_percent = np.mean(zero_percent_collector, axis=1)
+        sem_zero_percent = stats.sem(zero_percent_collector, axis=1)
 
         ax1[z].errorbar(
             np.arange(num_reps),
@@ -1110,8 +1110,8 @@ if __name__ == '__main__':
 
     # Fig_high_attn(attn_config_version, v)
 
-    Fig_high_attn_against_low_attn_V1(attn_config_version, v)
-    # Fig_high_attn_against_low_attn_V2(attn_config_version, v)
+    # Fig_high_attn_against_low_attn_V1(attn_config_version, v)
+    Fig_high_attn_against_low_attn_V2(attn_config_version, v)
     # Fig_alphas_against_recon_V1(attn_config_version, v)
     # Fig_alphas_against_recon_V1a(attn_config_version, v)
     # Fig_alphas_against_recon_V2(attn_config_version, v)

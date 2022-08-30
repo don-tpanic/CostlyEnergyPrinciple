@@ -574,8 +574,7 @@ def Fig_high_attn_against_low_attn_V1(attn_config_version, v):
     subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
     num_subs = len(subs)
     results_path = 'results'
-    fig, ax = plt.subplots(figsize=(5, 5))
-    markers = ['o', 's', '^']
+    fig, ax = plt.subplots(1, 3, figsize=(8, 3))
 
     # csv - we only need the very last compression of each type
     # which corresponds to the very last zero% low-attn
@@ -613,22 +612,22 @@ def Fig_high_attn_against_low_attn_V1(attn_config_version, v):
             all_alphas[s, z] = per_type_final_compression_scores['compression_score'].values[s]
             all_zero_percents[s, z] = per_subj_low_attn_percent_average
         
-        ax.scatter(
+        ax[z].scatter(
             per_type_low_attn_percentages, 
             per_type_final_compression_scores['compression_score'].values,
             color=colors[z],
             alpha=0.5,
             edgecolors='none',
-            marker=markers[z],
+            marker='o',
             label=f'Type {TypeConverter[problem_type]}'
         )
+        ax[z].set_xlim([-0.05, 1.05])
+        ax[z].spines.right.set_visible(False)
+        ax[z].spines.top.set_visible(False)
+        ax[z].legend()
 
-    ax.set_xlabel('Peripheral Attention \n(Zero Proportion)')
-    ax.set_ylabel('Controller Attention \n(Compression)')
-    ax.spines.right.set_visible(False)
-    ax.spines.top.set_visible(False)
-
-    ax.legend()
+    ax[1].set_xlabel('Peripheral Attention \n(Zero Proportion)')
+    ax[0].set_ylabel('Controller Attention \n(Compression)')
     plt.tight_layout()
     plt.savefig('figs/high_attn_against_low_attn.pdf')
     all_correlations = []
@@ -1110,8 +1109,8 @@ if __name__ == '__main__':
 
     # Fig_high_attn(attn_config_version, v)
 
-    # Fig_high_attn_against_low_attn_V1(attn_config_version, v)
-    Fig_high_attn_against_low_attn_V2(attn_config_version, v)
+    Fig_high_attn_against_low_attn_V1(attn_config_version, v)
+    # Fig_high_attn_against_low_attn_V2(attn_config_version, v)
     # Fig_alphas_against_recon_V1(attn_config_version, v)
     # Fig_alphas_against_recon_V1a(attn_config_version, v)
     # Fig_alphas_against_recon_V2(attn_config_version, v)

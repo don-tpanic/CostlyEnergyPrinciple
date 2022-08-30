@@ -575,6 +575,7 @@ def Fig_high_attn_against_low_attn_V1(attn_config_version, v):
     num_subs = len(subs)
     results_path = 'results'
     fig, ax = plt.subplots(1, 3, figsize=(8, 3))
+    sub2assignment_n_scheme = human.Mappings().sub2assignment_n_scheme
 
     # csv - we only need the very last compression of each type
     # which corresponds to the very last zero% low-attn
@@ -606,11 +607,27 @@ def Fig_high_attn_against_low_attn_V1(attn_config_version, v):
             per_subj_low_attn_percent = np.load(metric_fpath)
             # take moving average (window=8*30), which corresponds to the 
             # final compression score which uses average over 8 trials alphas.
-            per_subj_low_attn_percent_average = np.mean(per_subj_low_attn_percent[-30*8:])
+            per_subj_low_attn_percent_average = np.mean(per_subj_low_attn_percent[-30*8*4:])
             per_type_low_attn_percentages.append(per_subj_low_attn_percent_average)
 
             all_alphas[s, z] = per_type_final_compression_scores['compression_score'].values[s]
             all_zero_percents[s, z] = per_subj_low_attn_percent_average
+
+            # # CHECK
+            # # (10800, 1) -> (3600, 3) -> (15*8*30, 3)
+            # binary_recon = np.load(
+            #     f'results/{attn_config_version}_sub{sub}_{v}/' \
+            #     f'all_recon_loss_ideal_type{problem_type}_sub{sub}_cluster.npy')
+            # binary_recon = binary_recon.reshape(-1, 3)
+            # rp=15
+            # per_rp_binary_recons = binary_recon[(rp-1)*8*30 : (rp)*8*30, :]  # (8*30, 3)
+            # per_rp_binary_recon_average = np.mean(per_rp_binary_recons, axis=0)  # (3)
+
+            # sub_physical_order = np.array(sub2assignment_n_scheme[sub][:3])-1
+            # conversion_order = sub_physical_order
+            # per_rp_binary_recon_average = per_rp_binary_recon_average[conversion_order]
+            # print(sub, per_subj_low_attn_percent_average, sub2assignment_n_scheme[sub][:3], per_rp_binary_recon_average)
+            # # #####
         
         ax[z].scatter(
             per_type_low_attn_percentages, 
@@ -624,12 +641,12 @@ def Fig_high_attn_against_low_attn_V1(attn_config_version, v):
         ax[z].set_xlim([-0.05, 1.05])
         ax[z].spines.right.set_visible(False)
         ax[z].spines.top.set_visible(False)
-        ax[z].legend()
+        ax[z].legend(loc="center")
 
     ax[1].set_xlabel('Peripheral Attention \n(Zero Proportion)')
     ax[0].set_ylabel('Controller Attention \n(Compression)')
     plt.tight_layout()
-    plt.savefig('figs/high_attn_against_low_attn.pdf')
+    plt.savefig(f'figs/scatter_final_typeALL_highAttn_vs_lowAttn_{v}.pdf')
     all_correlations = []
     for s in range(num_subs):
         r, p_value = stats.pearsonr(all_alphas[s, :], all_zero_percents[s, :])
@@ -878,10 +895,10 @@ def Fig_alphas_against_recon_V1a(attn_config_version, v):
     sub2assignment_n_scheme = human.Mappings().sub2assignment_n_scheme
     
     fig, ax1 = plt.subplots(3, 3, figsize=(5, 5))
-    alpha_color = '#E98D6B'
+    # alpha_color = '#E98D6B'
 
-    for idx in range(len(problem_types)):
-        problem_type = problem_types[idx]
+    for z in range(len(problem_types)):
+        problem_type = problem_types[z]
         if problem_type == 2:  # swap to be consistent with tradition.
             relevant_dim_indices = range(num_dims)[::-1]
         else:
@@ -893,8 +910,8 @@ def Fig_alphas_against_recon_V1a(attn_config_version, v):
             relevant_dim_recons = np.ones((num_reps, num_subs))
             for rp in range(num_reps):
                 
-                # if rp < 15:
-                #     continue
+                if rp < 15:
+                    continue
 
                 for s in range(num_subs):
                     sub = subs[s]
@@ -935,25 +952,40 @@ def Fig_alphas_against_recon_V1a(attn_config_version, v):
 
                     relevant_dim_alphas[rp, s] = per_rp_alphas_average[relevant_dim_index]
                     relevant_dim_recons[rp, s] = per_rp_binary_recon_average[relevant_dim_index]
-            
-                ax1[idx, i].scatter(
-                    relevant_dim_alphas[rp, :],
-                    relevant_dim_recons[rp, :],
-                    color=alpha_color,
-                    marker='*', 
-                    alpha=0.5,
-                    edgecolor='none'
-                )
+
+                if z == 0 and z >= i:
+                    ax1[z, i].axvline(1, 0.1, 0.8, c='grey', ls='--', alpha=0.5)
+                elif z == 1 and z >= i:
+                    ax1[z, i].axvline(0.5, 0.1, 0.8, c='grey', ls='--', alpha=0.5)
+                elif z == 2 and z >= i:
+                    ax1[z, i].axvline(0.333, 0.1, 0.8, c='grey', ls='--', alpha=0.5)
+                
                 if i in [1, 2]:
-                    ax1[idx, i].set_yticks([])
-                ax1[idx, i].set_xlim([0, 1])
-                ax1[idx, i].set_ylim([-0.05, 1])
-                ax1[idx, 1].set_title(f'Type {TypeConverter[problem_type]}')
+                    ax1[z, i].set_yticks([])
+                ax1[z, i].set_xticks([0, 0.5, 1])
+                ax1[z, i].set_xticklabels([0, 0.5, 1])
+                ax1[z, i].set_xlim([-0.1, 1.1])
+                ax1[z, i].set_ylim([-0.005, 0.01])
+                ax1[z, 1].set_title(f'Type {TypeConverter[problem_type]}')
+                ax1[z, i].spines.right.set_visible(False)
+                ax1[z, i].spines.top.set_visible(False)
+
+                if z < i:
+                    ax1[z, i].set_axis_off()
+                else:
+                    ax1[z, i].scatter(
+                        relevant_dim_alphas[rp, :],
+                        relevant_dim_recons[rp, :],
+                        color=colors[z],
+                        marker='o', 
+                        alpha=0.5,
+                        edgecolor='none'
+                    )
     
     ax1[1, 0].set_ylabel('Information Loss')
-    ax1[-1, 1].set_xlabel('Attention Strength')
+    ax1[-1, 1].set_xlabel('Attention Strength\n(relevant dimension)')
     plt.tight_layout()
-    plt.savefig(f'figs/scatter_overtime_typeALL_highAttn_vs_reconLoss_{v}.pdf')
+    plt.savefig(f'figs/scatter_final_typeALL_highAttn_vs_reconLoss_{v}.pdf')
 
 
 def Fig_alphas_against_recon_V2(attn_config_version, v):
@@ -1112,5 +1144,5 @@ if __name__ == '__main__':
     Fig_high_attn_against_low_attn_V1(attn_config_version, v)
     # Fig_high_attn_against_low_attn_V2(attn_config_version, v)
     # Fig_alphas_against_recon_V1(attn_config_version, v)
-    # Fig_alphas_against_recon_V1a(attn_config_version, v)
+    Fig_alphas_against_recon_V1a(attn_config_version, v)
     # Fig_alphas_against_recon_V2(attn_config_version, v)

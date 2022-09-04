@@ -460,7 +460,7 @@ def compression_execute_repetition_level(
         with multiprocessing.Pool(num_processes) as pool:
                         
             # compute & collect compression
-            repetition2type2metric = defaultdict(lambda: defaultdict(list))
+            repetition2type2metric = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
             for repetition in range(num_repetitions):
                 for task in tasks:
                     for sub in subs:
@@ -496,7 +496,7 @@ def compression_execute_repetition_level(
                         # Notice res_obj.get() = compression
                         # To enable multiproc, we extract the actual
                         # compression score when plotting later.
-                        repetition2type2metric[repetition][problem_type].append(res_obj)
+                        repetition2type2metric[repetition][problem_type][sub].append(res_obj)
             
             pool.close()
             pool.join()
@@ -516,20 +516,18 @@ def compression_execute_repetition_level(
                 problem_type = problem_types[z]
                 # here we extract a list of res_obj and 
                 # extract the actual compression scores.
-                list_of_res_obj = type2metric[problem_type]
-                # `metrics` is all scores over subs for one (problem_type, run)
-                metrics = [res_obj.get() for res_obj in list_of_res_obj]
-                # metrics = list(metrics - np.mean(metrics))
-                means.append(np.mean(metrics))
-                x.extend([f'{repetition}'] * num_subs)
-                y.extend(metrics)
+                sub2res_obj = type2metric[problem_type]
+
+                for sub in subs:
+                    metrics = [res_obj.get() for res_obj in sub2res_obj[sub]]
+                    x.extend([f'{repetition}'] * num_subs)
+                    y.extend(metrics)
                 hue.extend([f'Type {problem_type}'] * num_subs)
                 
         compression_results = {}
         compression_results['x'] = x
         compression_results['y'] = y
         compression_results['hue'] = hue
-        compression_results['means'] = means
         np.save(f'compression_results_repetition_level/{repr_level}.npy', compression_results)
     
     else:

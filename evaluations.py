@@ -15,6 +15,7 @@ from tensorflow.keras.models import Model
 from utils import load_config, png2gif
 from models import JointModel
 from data import data_loader_V2, load_X_only
+from clustering import human
 from clustering.utils import load_data
 from losses import binary_crossentropy
 
@@ -328,6 +329,7 @@ def visualize_attn_overtime(config_version, sub, ax):
     Through time we need to consider even subjects did 
     6-1-2 and odd subjects did 6-2-1.
     """
+    sub2assignment_n_scheme = human.Mappings().sub2assignment_n_scheme
     config = load_config(
         component=None, config_version=config_version)
     num_dims = 3
@@ -349,6 +351,11 @@ def visualize_attn_overtime(config_version, sub, ax):
             # all_alphas is a collector that extends every repeptition
             # but we only need the last 3 values from the latest rp.
             per_repetition_alphas = all_alphas[-num_dims:]
+
+            # swap dimensions from physical to abstract
+            sub_physical_order = np.array(sub2assignment_n_scheme[sub][:3])-1
+            conversion_order = sub_physical_order
+            per_repetition_alphas = per_repetition_alphas[conversion_order]
             attn_weights_overtime.append(per_repetition_alphas)
 
     # (16*3, 3)
@@ -472,12 +479,12 @@ def examine_subject_lc_and_attn_overtime(attn_config_version, v):
         noise_level = config['noise_level']
         reg_strength = config['reg_strength']
         high_attn_reg_strength = config['high_attn_reg_strength']
-        ax2.text(x_coord, y_coord, f'lr_attn={lr_attn}')
-        ax2.text(x_coord, y_coord-margin*1, f'inner_loop_epochs={inner_loop_epochs}')
-        ax2.text(x_coord, y_coord-margin*2, f'recon_clusters_weighting={recon_clusters_weighting}')
-        ax2.text(x_coord, y_coord-margin*3, f'noise_level={noise_level}')
-        ax2.text(x_coord, y_coord-margin*4, f'reg_strength={reg_strength}')
-        ax2.text(x_coord, y_coord-margin*5, f'high_attn_reg_strength={high_attn_reg_strength}')
+        # ax2.text(x_coord, y_coord, f'lr_attn={lr_attn}')
+        # ax2.text(x_coord, y_coord-margin*1, f'inner_loop_epochs={inner_loop_epochs}')
+        # ax2.text(x_coord, y_coord-margin*2, f'recon_clusters_weighting={recon_clusters_weighting}')
+        # ax2.text(x_coord, y_coord-margin*3, f'noise_level={noise_level}')
+        # ax2.text(x_coord, y_coord-margin*4, f'reg_strength={reg_strength}')
+        # ax2.text(x_coord, y_coord-margin*5, f'high_attn_reg_strength={high_attn_reg_strength}')
         plt.legend()
         
         if int(sub) % 2 == 0:
@@ -934,8 +941,8 @@ if __name__ == '__main__':
     v = 'fit-human-entropy-fast-nocarryover'
     # attn_config_version = 'best_config'
     attn_config_version = 'hyper4100'
-    # overall_eval(attn_config_version, v)
-    # examine_subject_lc_and_attn_overtime(attn_config_version, v)
+    overall_eval(attn_config_version, v)
+    examine_subject_lc_and_attn_overtime(attn_config_version, v)
     # consistency_alphas_vs_recon('best_config', v=v)
 
-    subject_dimension_rt_acc()
+    # subject_dimension_rt_acc()

@@ -3,6 +3,122 @@ import yaml
 from utils import load_config
 
 
+def per_subject_hyperparams_ranges_fix_inconsistent(sub, v, DCNN_config_version):
+    """
+    This is to re-search clustering with DCNN hyper fixed and to fix some of the 
+    cases where subjects have bad lc in joint when using best config from clustering 
+    searched independently (due to coding changes, the best config is not guaranteed.)
+    """
+    # best so far 
+    config_version = f'{DCNN_config_version}_sub{sub}_{v}'
+    config = load_config(
+        component=None, config_version=config_version)
+    
+    # Clustering
+    lr = config['lr']
+    center_lr_multiplier = config['center_lr_multiplier']
+    attn_lr_multiplier = config['attn_lr_multiplier']
+    asso_lr_multiplier = config['asso_lr_multiplier']
+    Phi = config['Phi']
+    specificity = config['specificity']
+    thr = config['thr']
+    beta = config['beta']
+    temp2 = config['temp2']
+    high_attn_reg_strength = config['high_attn_reg_strength']
+
+    # DCNN
+    lr_attn = config['lr_attn']
+    inner_loop_epochs = config['inner_loop_epochs']
+    recon_clusters_weighting = config['recon_clusters_weighting']
+    noise_level = config['noise_level']
+
+    print(
+        f'lr_attn={lr_attn}, ' \
+        f'inner_loop_epochs={inner_loop_epochs}, ' \
+        f'recon_clusters_weighting={recon_clusters_weighting}, ' \
+        f'noise_level={noise_level}'
+    )
+    
+    lr_ = [
+        lr*0.5,
+        lr*0.75,
+        lr, 
+    ]
+    
+    center_lr_multiplier_ = [
+        center_lr_multiplier,
+    ]
+    
+    attn_lr_multiplier_ = [
+        attn_lr_multiplier*0.1,
+        attn_lr_multiplier*0.3,
+        attn_lr_multiplier*0.7,
+    ]
+    
+    asso_lr_multiplier_ = [
+        asso_lr_multiplier*0.3,
+        asso_lr_multiplier*0.7,
+        asso_lr_multiplier*1.5,
+    ]
+    
+    Phi_ = [
+        Phi*0.75,
+        Phi*2,
+        Phi*5,
+    ]
+    
+    specificity_ = [
+        specificity*0.5,
+        specificity*0.75,
+        specificity*1.5,
+    ]
+    
+    thr_ = [
+        thr,
+    ]
+    
+    beta_ = [
+        beta*0.75,
+        beta,
+        beta*1.25
+    ]
+    
+    temp2_ = [
+        temp2*0.75,
+        temp2,
+        temp2*1.25,
+    ]
+        
+    high_attn_reg_strength_ = [
+        high_attn_reg_strength*0.01,
+        high_attn_reg_strength*0.1,
+        high_attn_reg_strength*1.5, 
+        high_attn_reg_strength*5,
+    ]
+
+    # **** do not search DCNN for now ****
+    lr_attn_ = [
+        lr_attn, 
+    ]
+    
+    inner_loop_epochs_ = [
+        inner_loop_epochs,
+    ]
+    
+    recon_clusters_weighting_ = [
+        recon_clusters_weighting,
+    ]
+    
+    noise_level_ = [
+        noise_level, 
+    ]
+        
+    return lr_, center_lr_multiplier_, \
+                attn_lr_multiplier_, asso_lr_multiplier_, \
+                    Phi_, specificity_, thr_, beta_, temp2_, high_attn_reg_strength_, \
+                        lr_attn_, inner_loop_epochs_, recon_clusters_weighting_, noise_level_
+
+
 def per_subject_hyperparams_ranges(sub, v, DCNN_config_version):
     """
     We set the range of each param around 
@@ -40,7 +156,7 @@ def per_subject_hyperparams_ranges(sub, v, DCNN_config_version):
     
     lr_ = [lr]
     center_lr_multiplier_ = [center_lr_multiplier]
-    # attn_lr_multiplier_ = [attn_lr_multiplier]
+    attn_lr_multiplier_ = [attn_lr_multiplier]
     asso_lr_multiplier_ = [asso_lr_multiplier]
     Phi_ = [Phi]
     specificity_ = [specificity]
@@ -50,10 +166,10 @@ def per_subject_hyperparams_ranges(sub, v, DCNN_config_version):
     high_attn_reg_strength_ = [high_attn_reg_strength]
 
 
-    # TODO: temp - search lower high-attn lr hoping for better compression results.
-    attn_lr_multiplier_ = [
-        0.91, 0.95, 0.97, 0.99
-    ]
+    # # TODO: temp - search lower high-attn lr hoping for better compression results.
+    # attn_lr_multiplier_ = [
+    #     0.91, 0.95, 0.97, 0.99
+    # ]
 
     
     lr_attn_ = [
@@ -191,16 +307,25 @@ def per_subject_generate_candidate_configs(DCNN_config_version, ct, v, sub):
     #                     v=v,
     #                     DCNN_config_version=DCNN_config_version)
     
-    # NOTE, only used for the first search.
+    # # NOTE, only used for the first search.
+    # lr_, center_lr_multiplier_, \
+    #     attn_lr_multiplier_, asso_lr_multiplier_, \
+    #         Phi_, specificity_, thr_, beta_, temp2_, high_attn_reg_strength_, \
+    #             lr_attn_, inner_loop_epochs_, recon_clusters_weighting_, noise_level_ = \
+    #     hyperparams_ranges(
+    #         sub=sub, 
+    #         clustering_config_version=clustering_config_version
+    #     )
+
     lr_, center_lr_multiplier_, \
         attn_lr_multiplier_, asso_lr_multiplier_, \
             Phi_, specificity_, thr_, beta_, temp2_, high_attn_reg_strength_, \
                 lr_attn_, inner_loop_epochs_, recon_clusters_weighting_, noise_level_ = \
-        hyperparams_ranges(
-            sub=sub, 
-            clustering_config_version=clustering_config_version
-        )
-    
+                    per_subject_hyperparams_ranges_fix_inconsistent(
+                        sub=sub, 
+                        v=v,
+                        DCNN_config_version=DCNN_config_version)
+
     # update all searchable entries in template
     for lr in lr_:        
         for center_lr_multiplier in center_lr_multiplier_:
@@ -242,12 +367,13 @@ def per_subject_generate_candidate_configs(DCNN_config_version, ct, v, sub):
 
 
 if __name__ == '__main__':
-    num_subs = 23
-    subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
+    # num_subs = 23
+    # subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
+    subs = ['04', '07']
     for sub in subs:
         per_subject_generate_candidate_configs(
-            DCNN_config_version='hyper89',
-            ct=4103, 
+            DCNN_config_version='hyper4100',
+            ct=8748, 
             v='fit-human-entropy-fast-nocarryover', 
             sub=sub,
         )
@@ -310,4 +436,9 @@ if __name__ == '__main__':
             # inner_loop_epochs_ = [10, 15, 20, 25, 30]
             # recon_clusters_weighting_ = [1000, 10000, 100000, 1000000, 10000000]
             # noise_level_ = [0.4, 0.5, 0.6]
-        # best overall:
+        # best overall: not better than 4100
+    
+    # [4178, 8748): Trying to fix a number of bad subjects lc which were good when using clustering 
+    # independent best configs which no longer are good when join with DCNN (due to coding inconsistent)
+    # Notice we focus on the really bad subjects only. We search clustering params only.
+    # ['07', '12', '13', '21', '24', '08', '03']

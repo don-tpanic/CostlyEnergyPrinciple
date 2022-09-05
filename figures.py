@@ -525,6 +525,7 @@ def Fig_high_attn(attn_config_version, v):
                     conversion_order[1:], size=num_dims-1, replace=False
                 )
             alphas = alphas[conversion_order]
+            print(problem_type, sub, alphas)
 
             if problem_type == 2:
                 alphas = alphas[::-1]
@@ -571,7 +572,7 @@ def Fig_high_attn_against_low_attn_V1(attn_config_version, v):
     problem_types = [1, 2, 6]
     num_types = len(problem_types)
     num_subs = 23
-    subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
+    subs = [f'{i:02d}' for i in range(2, num_subs+2) if i not in [9, 13]]   # 13 had flat human lc-type6
     num_subs = len(subs)
     results_path = 'results'
     fig, ax = plt.subplots(1, 3, figsize=(8, 3))
@@ -596,6 +597,7 @@ def Fig_high_attn_against_low_attn_V1(attn_config_version, v):
             ]
 
         per_type_low_attn_percentages = []
+        per_type_compression_scores = []
         for s in range(num_subs):
             sub = subs[s]
             
@@ -607,31 +609,24 @@ def Fig_high_attn_against_low_attn_V1(attn_config_version, v):
             per_subj_low_attn_percent = np.load(metric_fpath)
             # take moving average (window=8*30), which corresponds to the 
             # final compression score which uses average over 8 trials alphas.
-            per_subj_low_attn_percent_average = np.mean(per_subj_low_attn_percent[-30*8*4:])
+            per_subj_low_attn_percent_average = np.mean(per_subj_low_attn_percent[-30*8:])
             per_type_low_attn_percentages.append(per_subj_low_attn_percent_average)
+            per_type_compression_scores.append(
+                per_type_final_compression_scores.loc[
+                per_type_final_compression_scores['subject'] == int(sub)
+                ]['compression_score'].values[:]
+            )
 
-            all_alphas[s, z] = per_type_final_compression_scores['compression_score'].values[s]
-            all_zero_percents[s, z] = per_subj_low_attn_percent_average
+            print(problem_type, sub, per_type_final_compression_scores.loc[
+                per_type_final_compression_scores['subject'] == int(sub)
+                ]['compression_score'].values[:])
 
-            # # CHECK
-            # # (10800, 1) -> (3600, 3) -> (15*8*30, 3)
-            # binary_recon = np.load(
-            #     f'results/{attn_config_version}_sub{sub}_{v}/' \
-            #     f'all_recon_loss_ideal_type{problem_type}_sub{sub}_cluster.npy')
-            # binary_recon = binary_recon.reshape(-1, 3)
-            # rp=15
-            # per_rp_binary_recons = binary_recon[(rp-1)*8*30 : (rp)*8*30, :]  # (8*30, 3)
-            # per_rp_binary_recon_average = np.mean(per_rp_binary_recons, axis=0)  # (3)
-
-            # sub_physical_order = np.array(sub2assignment_n_scheme[sub][:3])-1
-            # conversion_order = sub_physical_order
-            # per_rp_binary_recon_average = per_rp_binary_recon_average[conversion_order]
-            # print(sub, per_subj_low_attn_percent_average, sub2assignment_n_scheme[sub][:3], per_rp_binary_recon_average)
-            # # #####
+            # all_alphas[s, z] = per_type_final_compression_scores['compression_score'].values[s]
+            # all_zero_percents[s, z] = per_subj_low_attn_percent_average
         
         ax[z].scatter(
             per_type_low_attn_percentages, 
-            per_type_final_compression_scores['compression_score'].values,
+            per_type_compression_scores,
             color=colors[z],
             alpha=0.5,
             edgecolors='none',
@@ -639,6 +634,7 @@ def Fig_high_attn_against_low_attn_V1(attn_config_version, v):
             label=f'Type {TypeConverter[problem_type]}'
         )
         ax[z].set_xlim([-0.05, 1.05])
+        ax[z].set_ylim([-0.05, 1.05])
         ax[z].spines.right.set_visible(False)
         ax[z].spines.top.set_visible(False)
         ax[z].legend(loc="center")
@@ -647,14 +643,16 @@ def Fig_high_attn_against_low_attn_V1(attn_config_version, v):
     ax[0].set_ylabel('Controller Attention \n(Compression)')
     plt.tight_layout()
     plt.savefig(f'figs/scatter_final_typeALL_highAttn_vs_lowAttn_{v}.pdf')
-    all_correlations = []
-    for s in range(num_subs):
-        r, p_value = stats.pearsonr(all_alphas[s, :], all_zero_percents[s, :])
-        all_correlations.append(r)
 
-    t, p = stats.ttest_1samp(all_correlations, popmean=0)
-    mean_coef = np.mean(all_correlations)
-    print(f'avg corr={mean_coef:.2f}, t={t:.2f}, one-sided p={p/2:.2f}')
+
+    # all_correlations = []
+    # for s in range(num_subs):
+    #     r, p_value = stats.pearsonr(all_alphas[s, :], all_zero_percents[s, :])
+    #     all_correlations.append(r)
+
+    # t, p = stats.ttest_1samp(all_correlations, popmean=0)
+    # mean_coef = np.mean(all_correlations)
+    # print(f'avg corr={mean_coef:.2f}, t={t:.2f}, one-sided p={p/2:.2f}')
     # Thoughts: 
     # High-attn compression makes sense as we have 0, 0.4, 1 three levels to the 3 types.
     # Low-attn seems less ideal because often a high compression corresponds to a low zero attn.
@@ -672,7 +670,7 @@ def Fig_high_attn_against_low_attn_V1a(attn_config_version, v):
     num_types = len(problem_types)
     num_subs = 23
     num_reps = 16
-    subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
+    subs = [f'{i:02d}' for i in range(2, num_subs+2) if i not in [9, 13]]
     num_subs = len(subs)
     results_path = 'results'
     fig, ax = plt.subplots(1, 3, figsize=(8, 3))
@@ -719,7 +717,7 @@ def Fig_high_attn_against_low_attn_V1a(attn_config_version, v):
             
             # (3600,) -> (15*8*30,)
             per_subj_low_attn_percent = np.load(metric_fpath)
-            per_subj_low_attn_percent_average = np.mean(per_subj_low_attn_percent[-30*8*15:])
+            per_subj_low_attn_percent_average = np.mean(per_subj_low_attn_percent[-30*8:])
             per_type_low_attn_percentages.append(per_subj_low_attn_percent_average)
             per_type_high_attn_compression.append(all_subs_average_compression_over_rps[s])
 
@@ -737,6 +735,8 @@ def Fig_high_attn_against_low_attn_V1a(attn_config_version, v):
             marker='o',
             label=f'Type {TypeConverter[problem_type]}'
         )
+        print(per_type_low_attn_percentages)
+        print(per_type_high_attn_compression)
         ax[z].set_xlim([-0.05, 1.05])
         ax[z].set_ylim([-0.05, 1.05])
         ax[z].spines.right.set_visible(False)
@@ -871,7 +871,7 @@ def Fig_alphas_against_recon_V1(attn_config_version, v):
     could use recon=0 for rp=0 because at first we know there is no recon loss.
     """
     import matplotlib.colors as clr
-    problem_types = [1]
+    problem_types = [1, 2, 6]
     num_subs = 23
     num_reps = 16
     subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
@@ -967,18 +967,7 @@ def Fig_alphas_against_recon_V1(attn_config_version, v):
 
 def Fig_alphas_against_recon_V1a(attn_config_version, v):
     """
-    Look at overall how consistent are alphas corresponding to recon loss.
-    Here, we focus on Type 1 and the relevant dimension. 
-    It is less interesting just looking at the final because at the end, 
-    we have relevant dim alpha=1 and recon=0 (subject to a few exceptions).
-
-    To better visualize the results, we could have look at how the relationship
-    between alpha and recon changes over time.
-
-    Implementation-wise, what is tricky is that the saved alphas and recon_loss 
-    are not in the same dimensionality because alpha is saved once every trial (or rp),
-    but recon is saved once every inner-loop iteration and not saved at the first rp. But we 
-    could use recon=0 for rp=0 because at first we know there is no recon loss.
+    V1 -> V1a: Plot 3-by-3, excluding irrelevant dims. Optional overtime.
     """
     problem_types = [1, 2, 6]
     num_subs = 23
@@ -1003,10 +992,8 @@ def Fig_alphas_against_recon_V1a(attn_config_version, v):
             relevant_dim_alphas = np.ones((num_reps, num_subs))
             relevant_dim_recons = np.ones((num_reps, num_subs))
             for rp in range(num_reps):
-                
                 if rp < 15:
                     continue
-
                 for s in range(num_subs):
                     sub = subs[s]
                     # (384, 1) -> (16*8, 3)
@@ -1014,8 +1001,12 @@ def Fig_alphas_against_recon_V1a(attn_config_version, v):
                         f'results/{attn_config_version}_sub{sub}_{v}/' \
                         f'all_alphas_type{problem_type}_sub{sub}_cluster.npy')
                     alphas = alphas.reshape(-1, 3)
+
+                    # **** experimental... ****
                     per_rp_alphas = alphas[rp*8 : (rp+1)*8, :]  # (8, 3)
-                    per_rp_alphas_average = np.mean(per_rp_alphas, axis=0)  # (3)
+                    # per_rp_alphas = alphas
+                    # per_rp_alphas_average = np.mean(per_rp_alphas, axis=0)  # (3)
+                    ######
                     
                     # (10800, 1) -> (3600, 3) -> (15*8*30, 3)
                     binary_recon = np.load(
@@ -1046,6 +1037,11 @@ def Fig_alphas_against_recon_V1a(attn_config_version, v):
 
                     relevant_dim_alphas[rp, s] = per_rp_alphas_average[relevant_dim_index]
                     relevant_dim_recons[rp, s] = per_rp_binary_recon_average[relevant_dim_index]
+                    print(
+                        sub, relevant_dim_index,
+                        per_rp_alphas_average[relevant_dim_index], 
+                        per_rp_binary_recon_average[relevant_dim_index],
+                    )
 
                 if z == 0 and z >= i:
                     ax1[z, i].axvline(1, 0.1, 0.8, c='grey', ls='--', alpha=0.5)
@@ -1236,8 +1232,8 @@ if __name__ == '__main__':
     # Fig_high_attn(attn_config_version, v)
 
     # Fig_high_attn_against_low_attn_V1(attn_config_version, v)
-    Fig_high_attn_against_low_attn_V1a(attn_config_version, v)
-    # Fig_high_attn_against_low_attn_V2(attn_config_version, v)
+    # Fig_high_attn_against_low_attn_V1a(attn_config_version, v)
+    Fig_high_attn_against_low_attn_V2(attn_config_version, v)
     # Fig_alphas_against_recon_V1(attn_config_version, v)
     # Fig_alphas_against_recon_V1a(attn_config_version, v)
-    # Fig_alphas_against_recon_V2(attn_config_version, v)
+    Fig_alphas_against_recon_V2(attn_config_version, v)

@@ -1382,7 +1382,7 @@ def Fig_alphas_against_recon_V1(attn_config_version, v):
 
 def Fig_alphas_against_recon_V1a(attn_config_version, v):
     """
-    V1 -> V1a: Plot 3-by-3, excluding irrelevant dims. Optional overtime.
+    V1 -> V1a: Plot 3-by-3, Optional overtime.
     """
     problem_types = [1, 2, 6]
     num_subs = 23
@@ -1453,37 +1453,35 @@ def Fig_alphas_against_recon_V1a(attn_config_version, v):
                     relevant_dim_alphas[rp, s] = per_rp_alphas_average[relevant_dim_index]
                     relevant_dim_recons[rp, s] = per_rp_binary_recon_average[relevant_dim_index]
                     print(
-                        sub, problem_type, per_rp_alphas_average
+                        sub, problem_type, per_rp_binary_recon_average
                     )
 
-                if z == 0 and z >= i:
+                if z == 0:
                     ax1[z, i].axvline(1, 0.1, 0.8, c='grey', ls='--', alpha=0.5)
-                elif z == 1 and z >= i:
+                elif z == 1:
                     ax1[z, i].axvline(0.5, 0.1, 0.8, c='grey', ls='--', alpha=0.5)
-                elif z == 2 and z >= i:
+                elif z == 2:
                     ax1[z, i].axvline(0.333, 0.1, 0.8, c='grey', ls='--', alpha=0.5)
                 
                 if i in [1, 2]:
                     ax1[z, i].set_yticks([])
                 ax1[z, i].set_xticks([0, 0.5, 1])
                 ax1[z, i].set_xticklabels([0, 0.5, 1])
-                ax1[z, i].set_xlim([-0.1, 1.1])
-                ax1[z, i].set_ylim([-0.005, 0.01])
+                ax1[z, i].set_ylim([-1, 7])
+                ax1[z, i].set_yticks([0, 7])
+                ax1[z, i].set_yticklabels([0, 7])
                 ax1[z, 1].set_title(f'Type {TypeConverter[problem_type]}')
                 ax1[z, i].spines.right.set_visible(False)
                 ax1[z, i].spines.top.set_visible(False)
 
-                if z < i:
-                    ax1[z, i].set_axis_off()
-                else:
-                    ax1[z, i].scatter(
-                        relevant_dim_alphas[rp, :],
-                        relevant_dim_recons[rp, :],
-                        color=colors[z],
-                        marker='o', 
-                        alpha=0.5,
-                        edgecolor='none'
-                    )
+                ax1[z, i].scatter(
+                    relevant_dim_alphas[rp, :],
+                    relevant_dim_recons[rp, :],
+                    color=colors[z],
+                    marker='o', 
+                    alpha=0.5,
+                    edgecolor='none'
+                )
     
     ax1[1, 0].set_ylabel('Information Loss')
     ax1[-1, 1].set_xlabel('Attention Strength\n(relevant dimension)')
@@ -1786,10 +1784,10 @@ if __name__ == '__main__':
 
     # Fig_high_attn_against_low_attn_final(attn_config_version, v)
     # Fig_high_attn_against_low_attn_window(attn_config_version, v, corr='keep_type_n_time')
-    Fig_high_attn_against_low_attn_window_oneplot(attn_config_version, v, corr='collapse_type_n_time')
+    # Fig_high_attn_against_low_attn_window_oneplot(attn_config_version, v, corr='collapse_type_n_time')
     # Fig_high_attn_against_low_attn_V2(attn_config_version, v)
 
     # Fig_alphas_against_recon_V1(attn_config_version, v)
-    # Fig_alphas_against_recon_V1a(attn_config_version, v)
+    Fig_alphas_against_recon_V1a(attn_config_version, v)
     # Fig_alphas_against_recon_V2(attn_config_version, v)
     

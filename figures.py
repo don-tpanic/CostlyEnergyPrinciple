@@ -1452,8 +1452,18 @@ def Fig_alphas_against_recon_V1a(attn_config_version, v):
 
                     relevant_dim_alphas[rp, s] = per_rp_alphas_average[relevant_dim_index]
                     relevant_dim_recons[rp, s] = per_rp_binary_recon_average[relevant_dim_index]
+
+
+
+                    # TEST
+                    # %zero
+                    metric_fpath = f'results/{attn_config_version}_sub{sub}_{v}/' \
+                                    f'all_percent_zero_attn_type{problem_type}_sub{sub}_cluster.npy'
+                    per_subj_low_attn_percent = np.load(metric_fpath)
+                    per_subj_low_attn_percent_average = np.mean(per_subj_low_attn_percent[-30*8:])
+                    
                     print(
-                        sub, problem_type, per_rp_binary_recon_average
+                        sub, problem_type, [per_rp_binary_recon_average[relevant_dim_index]], [per_subj_low_attn_percent_average]
                     )
 
                 if z == 0:
@@ -1473,6 +1483,18 @@ def Fig_alphas_against_recon_V1a(attn_config_version, v):
                 ax1[z, 1].set_title(f'Type {TypeConverter[problem_type]}')
                 ax1[z, i].spines.right.set_visible(False)
                 ax1[z, i].spines.top.set_visible(False)
+                if z == 0:
+                    ax1[z, 0].set_xlabel(f'Relevant')
+                    ax1[z, 1].set_xlabel(f'Irrelevant')
+                    ax1[z, 2].set_xlabel(f'Irrelevant')
+                elif z == 1:
+                    ax1[z, 0].set_xlabel(f'Relevant')
+                    ax1[z, 1].set_xlabel(f'Relevant')
+                    ax1[z, 2].set_xlabel(f'Irrelevant')
+                elif z == 2:
+                    ax1[z, 0].set_xlabel(f'Relevant')
+                    ax1[z, 1].set_xlabel(f'Relevant \n Attention Strength')
+                    ax1[z, 2].set_xlabel(f'Relevant')
 
                 ax1[z, i].scatter(
                     relevant_dim_alphas[rp, :],
@@ -1482,9 +1504,8 @@ def Fig_alphas_against_recon_V1a(attn_config_version, v):
                     alpha=0.5,
                     edgecolor='none'
                 )
-    
+
     ax1[1, 0].set_ylabel('Information Loss')
-    ax1[-1, 1].set_xlabel('Attention Strength\n(relevant dimension)')
     plt.tight_layout()
     plt.savefig(f'figs/scatter_final_typeALL_highAttn_vs_reconLoss_{v}.pdf')
 

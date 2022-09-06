@@ -1050,8 +1050,8 @@ def Fig_high_attn_against_low_attn_window_oneplot(attn_config_version, v, corr):
                 ax.scatter(
                     per_window_per_type_low_attn_percentages,
                     per_window_per_type_high_attn_compression,
-                    # color=colors[z],
-                    color='black',
+                    color=colors[z],
+                    # color='black',
                     alpha=0.5,
                     edgecolors='none',
                     marker='o',
@@ -1068,7 +1068,7 @@ def Fig_high_attn_against_low_attn_window_oneplot(attn_config_version, v, corr):
         ax.set_yticklabels([0, np.round(np.max(all_alphas))])
         ax.spines.right.set_visible(False)
         ax.spines.top.set_visible(False)
-        # ax.legend(loc='upper right')
+        ax.legend(loc='upper right')
 
         # plot best line fit
         bias, beta = pg.linear_regression(X=all_zero_percents, y=all_alphas, coef_only=True)
@@ -1700,6 +1700,78 @@ def Type1_relevant_dim_and_zero_percent(attn_config_version, v):
     print('mouth vs antenna: ', f't={t:.3f}, p={p:.3f}')
     
 
+def Type1_relevant_dim_and_info_loss(attn_config_version, v):
+    """
+    Test how LOC info loss corresponds to which dim is relevant in Type1
+    (similar to the RT analysis of humans)
+    """
+    runs = [2, 3, 4]
+    roi = 'LOC'
+    num_runs = len(runs)
+    problem_types = [1]
+    num_types = len(problem_types)
+    num_subs = 23
+    subs = [f'{i:02d}' for i in range(2, num_subs+2) if i not in [9]]   # 13 had flat human lc-type6
+    num_subs = len(subs)
+    results_path = 'results'
+    sub2assignment_n_scheme = human.Mappings().sub2assignment_n_scheme
+    dim2name = {0: 'leg', 1: 'antenna', 2: 'mouth'}
+
+    relevant_dim2info_loss = defaultdict(list)
+    for z in range(len(problem_types)):
+        problem_type = problem_types[z]
+        for s in range(num_subs):
+            sub = subs[s]
+            info_loss_collector = np.load(
+                f'brain_data/decoding_results/decoding_error_{num_runs}runs_{roi}.npy', 
+                allow_pickle=True).ravel()[0]
+
+            # info_loss_collector = np.load(
+            #     f'results/recon_loss_{attn_config_version}_{v}.npy', 
+            #     allow_pickle=True).ravel()[0]
+
+            sub_physical_order = np.array(sub2assignment_n_scheme[sub][:3])-1
+            relevant_dim_name = dim2name[sub_physical_order[0]]
+            relevant_dim2info_loss[relevant_dim_name].append(
+                info_loss_collector[problem_type][s]
+            )
+    
+    fig, ax = plt.subplots(1, 1, figsize=(4, 4))
+    dims_info_loss = ['Dimension']
+    info_loss = ['info_loss']
+
+    for relevant_dim_index in range(3):
+        relevant_dim_name = dim2name[relevant_dim_index]
+        dims_info_loss.extend([relevant_dim_name] * len(relevant_dim2info_loss[relevant_dim_name]))
+        info_loss.extend(relevant_dim2info_loss[relevant_dim_name])
+
+    dims_info_loss = np.array(dims_info_loss)
+    info_loss = np.array(info_loss)
+    df_info_loss = np.vstack((dims_info_loss, info_loss)).T
+    pd.DataFrame(df_info_loss).to_csv(
+        f"df_info_loss.csv", 
+        index=False, header=False
+    )
+    df_info_loss = pd.read_csv('df_info_loss.csv', usecols=['Dimension', 'info_loss'])
+
+    print(df_info_loss)
+
+    sns.barplot(x='Dimension', y='info_loss', data=df_info_loss, ax=ax)
+    plt.tight_layout()
+    plt.savefig(f'figs/relevant_dim_v_info_loss_type1_{v}.pdf')
+
+    # stats testing
+    from scipy.stats import ttest_ind
+    t, p = ttest_ind(relevant_dim2info_loss['leg'], relevant_dim2info_loss['antenna'])[:2]
+    print('leg vs antenna: ', f't={t:.3f}, p={p:.3f}')
+    
+    t, p = ttest_ind(relevant_dim2info_loss['leg'], relevant_dim2info_loss['mouth'])[:2]
+    print('leg vs mouth: ', f't={t:.3f}, p={p:.3f}')
+    
+    t, p = ttest_ind(relevant_dim2info_loss['mouth'], relevant_dim2info_loss['antenna'])[:2]
+    print('mouth vs antenna: ', f't={t:.3f}, p={p:.3f}')
+
+
 if __name__ == '__main__':
     attn_config_version='hyper4100'
     v='fit-human-entropy-fast-nocarryover'
@@ -1714,13 +1786,10 @@ if __name__ == '__main__':
 
     # Fig_high_attn_against_low_attn_final(attn_config_version, v)
     # Fig_high_attn_against_low_attn_window(attn_config_version, v, corr='keep_type_n_time')
-    # Fig_high_attn_against_low_attn_window_oneplot(attn_config_version, v, corr='collapse_type_n_time')
-
+    Fig_high_attn_against_low_attn_window_oneplot(attn_config_version, v, corr='collapse_type_n_time')
     # Fig_high_attn_against_low_attn_V2(attn_config_version, v)
 
     # Fig_alphas_against_recon_V1(attn_config_version, v)
     # Fig_alphas_against_recon_V1a(attn_config_version, v)
     # Fig_alphas_against_recon_V2(attn_config_version, v)
-
-    Type1_relevant_dim_and_zero_percent(attn_config_version, v)
     

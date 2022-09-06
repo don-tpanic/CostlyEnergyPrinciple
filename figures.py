@@ -907,6 +907,270 @@ def Fig_high_attn_against_low_attn_window(attn_config_version, v, corr):
                     y = all_alphas[rp]
                     r, p = stats.spearmanr(x, y)
                     print(f'[rep{rp}], corr={r:.3f}, p={p:.3f}')
+
+
+def Fig_high_attn_against_low_attn_window_oneplot(attn_config_version, v, corr):
+    """
+    Plot compression & %zero over time, where how timestep is defined depends on the
+    `window`.
+
+    if window == 'entire':
+        there is just one big average over the entire learning.
+    if window == 'half:
+        first half and second half are separated averaged.
+    ( window \in ['entire', 'half', 'run', 'rep'] )
+
+    The choice of `corr` determines how correlation analysis is done.
+
+    if corr == 'collapse_type_n_time':
+        corr is computed across all types regardless of type or time
+    if corr == 'keep_type_n_time':
+        corr is computed within each type and seperate every time step
+    if corr == 'collapse_type_keep_time':
+    ( corr \in ['collapse_type_n_time', 'keep_type_n_time', 'collapse_type_keep_time'])
+    """
+    problem_types = [1, 2, 6]
+    num_types = len(problem_types)
+    num_subs = 23
+    num_reps = 16
+    subs = [f'{i:02d}' for i in range(2, num_subs+2) if i not in [9, 13]]
+    num_subs = len(subs)
+    results_path = 'results'
+    fig, ax = plt.subplots(1, 1, figsize=(3, 3))
+    fname = 'compression_results_repetition_level/high_attn.csv'
+    with open(fname) as f:
+        df = pd.read_csv(f)
+
+    windows = ['entire']
+    for window in windows:
+        print(f'\n\nwindow={window}, corr={corr}')
+
+        if corr == 'collapse_type_n_time':
+            all_alphas = []
+            all_zero_percents = []
+
+        elif corr == 'keep_type_n_time':
+            all_alphas = defaultdict(lambda: defaultdict(list))
+            all_zero_percents = defaultdict(lambda: defaultdict(list))
+
+        elif corr == 'collapse_type_keep_time':
+            all_alphas = defaultdict(list)
+            all_zero_percents = defaultdict(list)
+
+        for z in range(len(problem_types)):
+            problem_type = problem_types[z]
+            # first collect each sub and each rp
+            # later based on window, rps within a window will be averaged.
+            all_subs_compression_over_rps = np.ones((num_subs, num_reps))
+            for rp in range(num_reps):
+                per_rp_compression_scores = df.loc[df['learning_trial'] == rp+1]  # 1-indexed
+                per_rp_per_type_compression_scores = \
+                    per_rp_compression_scores.loc[
+                        per_rp_compression_scores['problem_type'] == problem_type
+                    ]
+                for s in range(num_subs):
+                    sub = subs[s]
+                    per_sub_per_rp_per_type_compression_scores = \
+                        per_rp_per_type_compression_scores.loc[
+                            per_rp_per_type_compression_scores['subject'] == int(sub)
+                        ]
+                    all_subs_compression_over_rps[s, rp] = \
+                        per_sub_per_rp_per_type_compression_scores['compression_score'].values[:]
+                    
+            # take average over a window of rps.
+            if window == 'entire':
+                num_rps_per_window = num_reps
+            elif window == 'half':
+                num_rps_per_window = 8
+            elif window == 'run':
+                num_rps_per_window = 4
+            elif window == 'rep':
+                num_rps_per_window = 1
+            
+            # collect each subject averaged over a window of rps.
+            all_subs_average_compression_over_windows = np.zeros(
+                (num_subs, int(num_reps/num_rps_per_window))
+            )
+            for rp in range(0, num_reps, num_rps_per_window):
+
+                # for all subjects, average over a specific window of rps.
+                # rp is the beginning of a window.
+                all_subs_average_compression_over_windows[:, int(rp/num_rps_per_window)] = \
+                    np.mean(
+                        all_subs_compression_over_rps[:, rp:rp+num_rps_per_window], axis=1
+                    )
+                
+                per_window_per_type_low_attn_percentages = []
+                per_window_per_type_high_attn_compression = []
+                for s in range(num_subs):
+                    sub = subs[s]
+                    # %zero
+                    metric_fpath = f'{results_path}/{attn_config_version}_sub{sub}_{v}/' \
+                                    f'all_percent_zero_attn_type{problem_type}_sub{sub}_cluster.npy'
+                    per_subj_low_attn_percent = np.load(metric_fpath)
+                    # HACK: add 0 as the first rp %zero as not saved. But we know at the 
+                    # beginning rps, %zero=0, even given noisy init of low-attn.
+                    # ideal way is to actually save %zero for the 0th rp but shouldn't
+                    # affect results.
+                    hacky_array = np.zeros(30*8)
+                    per_subj_low_attn_percent = np.concatenate((hacky_array, per_subj_low_attn_percent))
+                    per_subj_low_attn_percent_average = np.mean(
+                            per_subj_low_attn_percent[(rp)*30*8 : (rp+num_rps_per_window)*30*8]
+                        )
+
+                    per_window_per_type_low_attn_percentages.append(per_subj_low_attn_percent_average)
+                    per_window_per_type_high_attn_compression.append(
+                        all_subs_average_compression_over_windows[s, int(rp/num_rps_per_window)]
+                    )
+
+                    # for stats testing
+                    # collect all regardless of type or window.
+                    if corr == 'collapse_type_n_time':
+                        all_alphas.append(
+                            all_subs_average_compression_over_windows[s, int(rp/num_rps_per_window)]
+                        )
+                        all_zero_percents.append(per_subj_low_attn_percent_average)
+                    
+                    # collect respecting type 
+                    elif corr == 'keep_type_n_time':
+                        all_alphas[problem_type][rp].append(
+                            all_subs_average_compression_over_windows[s, int(rp/num_rps_per_window)]
+                        )
+                        all_zero_percents[problem_type][rp].append(per_subj_low_attn_percent_average)
+                    
+                    # collect respecting time but not type
+                    elif corr == 'collapse_type_keep_time':
+                        all_alphas[rp].append(
+                            all_subs_average_compression_over_windows[s, int(rp/num_rps_per_window)]
+                        )
+                        all_zero_percents[rp].append(per_subj_low_attn_percent_average)
+
+                if window == 'entire':
+                    rp = 15  # trick to get size
+                ax.scatter(
+                    per_window_per_type_low_attn_percentages,
+                    per_window_per_type_high_attn_compression,
+                    # color=colors[z],
+                    color='black',
+                    alpha=0.5,
+                    edgecolors='none',
+                    marker='o',
+                    label=f'Type {TypeConverter[problem_type]}',
+                )
+
+        ax.set_xlabel('Peripheral Attention \n(Zero Proportion)')
+        ax.set_ylabel('Controller Attention \n(Compression)')
+        ax.set_xlim([-0.05, np.round(np.max(all_zero_percents))])
+        ax.set_ylim([-0.05, np.round(np.max(all_alphas))])
+        ax.set_xticks([0, np.round(np.max(all_zero_percents))])
+        ax.set_xticklabels([0, np.round(np.max(all_zero_percents))])
+        ax.set_yticks([0, np.round(np.max(all_alphas))])
+        ax.set_yticklabels([0, np.round(np.max(all_alphas))])
+        ax.spines.right.set_visible(False)
+        ax.spines.top.set_visible(False)
+        # ax.legend(loc='upper right')
+
+        # plot best line fit
+        bias, beta = pg.linear_regression(X=all_zero_percents, y=all_alphas, coef_only=True)
+        
+        x_coords = np.linspace(0, np.max(all_zero_percents)+0.05, 100)
+        y_coords = bias + beta * x_coords
+        plt.plot(x_coords, y_coords, color='grey', linewidth=2, linestyle='--')
+        plt.tight_layout()
+        plt.savefig(f'figs/scatter_typeALL_highAttn_vs_lowAttn_{v}_{window}_oneplot.pdf')
+
+        # **** corr analysis ****
+        if corr == 'collapse_type_n_time':
+            r, p = stats.pearsonr(all_alphas, all_zero_percents)
+            print(f'[{window}] r={r:.3f}, p={p:.3f}')
+        
+        # stats testing within a type.
+        elif corr == 'keep_type_n_time':
+            if window == 'entire':
+                for problem_type in problem_types:
+                    for rp in range(0, num_reps, num_rps_per_window):
+                        x = all_zero_percents[problem_type][rp]
+                        y = all_alphas[problem_type][rp]
+                        r, p = stats.spearmanr(x, y)
+                        print(f'type={problem_type}, corr={r:.3f}, p={p:.3f}')
+                
+            elif window == 'half':
+                for problem_type in problem_types:
+                    for rp in range(0, num_reps, num_rps_per_window):
+                        x = all_zero_percents[problem_type][rp]
+                        y = all_alphas[problem_type][rp]
+                        r, p = stats.spearmanr(x, y)
+                        if rp == 0:
+                            print(f'[early], type={problem_type}, corr={r:.3f}, p={p:.3f}')
+                        else:
+                            print(f'[late],  type={problem_type}, corr={r:.3f}, p={p:.3f}')
+                            print('------------------------------------------------------')
+            
+            elif window == 'run':
+                for problem_type in problem_types:
+                    for rp in range(0, num_reps, num_rps_per_window):
+                        x = all_zero_percents[problem_type][rp]
+                        y = all_alphas[problem_type][rp]
+                        r, p = stats.spearmanr(x, y)
+                        if rp == 0:
+                            print(f'[run1], type={problem_type}, corr={r:.3f}, p={p:.3f}')
+                        elif rp == 4:
+                            print(f'[run2], type={problem_type}, corr={r:.3f}, p={p:.3f}')
+                        elif rp == 8:
+                            print(f'[run3], type={problem_type}, corr={r:.3f}, p={p:.3f}')
+                        elif rp == 12:
+                            print(f'[run4], type={problem_type}, corr={r:.3f}, p={p:.3f}')
+                            print('------------------------------------------------------')
+            
+            elif window == 'rep':
+                for problem_type in problem_types:
+                    for rp in range(0, num_reps, num_rps_per_window):
+                        x = all_zero_percents[problem_type][rp]
+                        y = all_alphas[problem_type][rp]
+                        r, p = stats.spearmanr(x, y)
+                        print(f'[rep{rp}], type={problem_type}, corr={r:.3f}, p={p:.3f}')
+        
+        elif corr == 'collapse_type_keep_time':
+            if window == 'entire':
+                for rp in range(0, num_reps, num_rps_per_window):
+                    x = all_zero_percents[rp]
+                    y = all_alphas[rp]
+                    r, p = stats.spearmanr(x, y)
+                    print(f'corr={r:.3f}, p={p:.3f}')
+            
+            elif window == 'half':
+                for rp in range(0, num_reps, num_rps_per_window):
+                    x = all_zero_percents[rp]
+                    y = all_alphas[rp]
+                    r, p = stats.spearmanr(x, y)
+                    if rp == 0:
+                        print(f'[early], corr={r:.3f}, p={p:.3f}')
+                    else:
+                        print(f'[late],  corr={r:.3f}, p={p:.3f}')
+                        print('------------------------------------------------------')
+            
+            elif window == 'run':
+                for rp in range(0, num_reps, num_rps_per_window):
+                    x = all_zero_percents[rp]
+                    y = all_alphas[rp]
+                    r, p = stats.spearmanr(x, y)
+                    if rp == 0:
+                        print(f'[run1], corr={r:.3f}, p={p:.3f}')
+                    elif rp == 4:
+                        print(f'[run2], corr={r:.3f}, p={p:.3f}')
+                    elif rp == 8:
+                        print(f'[run3], corr={r:.3f}, p={p:.3f}')
+                    elif rp == 12:
+                        print(f'[run4], corr={r:.3f}, p={p:.3f}')
+                        print('------------------------------------------------------')
+            
+            elif window == 'rep':
+                for rp in range(0, num_reps, num_rps_per_window):
+                    x = all_zero_percents[rp]
+                    y = all_alphas[rp]
+                    r, p = stats.spearmanr(x, y)
+                    print(f'[rep{rp}], corr={r:.3f}, p={p:.3f}')
+
     
 
 def Fig_high_attn_against_low_attn_V2(attn_config_version, v):
@@ -1449,7 +1713,9 @@ if __name__ == '__main__':
     # Fig_high_attn(attn_config_version, v)
 
     # Fig_high_attn_against_low_attn_final(attn_config_version, v)
-    Fig_high_attn_against_low_attn_window(attn_config_version, v, corr='keep_type_n_time')
+    # Fig_high_attn_against_low_attn_window(attn_config_version, v, corr='keep_type_n_time')
+    Fig_high_attn_against_low_attn_window_oneplot(attn_config_version, v, corr='collapse_type_n_time')
+
     # Fig_high_attn_against_low_attn_V2(attn_config_version, v)
 
     # Fig_alphas_against_recon_V1(attn_config_version, v)

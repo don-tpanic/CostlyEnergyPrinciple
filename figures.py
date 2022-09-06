@@ -1690,14 +1690,14 @@ def Type1_relevant_dim_and_zero_percent(attn_config_version, v):
 
     # stats testing
     from scipy.stats import ttest_ind
-    stats, p = ttest_ind(relevant_dim2zero_percent['leg'], relevant_dim2zero_percent['antenna'])[:2]
-    print('leg vs antenna: ', f'stats={stats:.3f}, p={p:.3f}')
+    t, p = ttest_ind(relevant_dim2zero_percent['leg'], relevant_dim2zero_percent['antenna'])[:2]
+    print('leg vs antenna: ', f't={t:.3f}, p={p:.3f}')
     
-    stats, p = ttest_ind(relevant_dim2zero_percent['leg'], relevant_dim2zero_percent['mouth'])[:2]
-    print('leg vs mouth: ', f'stats={stats:.3f}, p={p:.3f}')
+    t, p = ttest_ind(relevant_dim2zero_percent['leg'], relevant_dim2zero_percent['mouth'])[:2]
+    print('leg vs mouth: ', f't={t:.3f}, p={p:.3f}')
     
-    stats, p = ttest_ind(relevant_dim2zero_percent['mouth'], relevant_dim2zero_percent['antenna'])[:2]
-    print('mouth vs antenna: ', f'stats={stats:.3f}, p={p:.3f}')
+    t, p = ttest_ind(relevant_dim2zero_percent['mouth'], relevant_dim2zero_percent['antenna'])[:2]
+    print('mouth vs antenna: ', f't={t:.3f}, p={p:.3f}')
     
 
 if __name__ == '__main__':
@@ -1714,7 +1714,7 @@ if __name__ == '__main__':
 
     # Fig_high_attn_against_low_attn_final(attn_config_version, v)
     # Fig_high_attn_against_low_attn_window(attn_config_version, v, corr='keep_type_n_time')
-    Fig_high_attn_against_low_attn_window_oneplot(attn_config_version, v, corr='collapse_type_n_time')
+    # Fig_high_attn_against_low_attn_window_oneplot(attn_config_version, v, corr='collapse_type_n_time')
 
     # Fig_high_attn_against_low_attn_V2(attn_config_version, v)
 
@@ -1722,5 +1722,5 @@ if __name__ == '__main__':
     # Fig_alphas_against_recon_V1a(attn_config_version, v)
     # Fig_alphas_against_recon_V2(attn_config_version, v)
 
-    # Type1_relevant_dim_and_zero_percent(attn_config_version, v)
+    Type1_relevant_dim_and_zero_percent(attn_config_version, v)
     

@@ -1248,7 +1248,7 @@ def Type1_relevant_dim_and_zero_percent(attn_config_version, v):
     num_subs = len(subs)
     results_path = 'results'
     sub2assignment_n_scheme = human.Mappings().sub2assignment_n_scheme
-    dim2name = {0: 'antenna', 1: 'leg', 2: 'mouth'}
+    dim2name = {0: 'leg', 1: 'antenna', 2: 'mouth'}
 
     relevant_dim2zero_percent = defaultdict(list)
     for z in range(len(problem_types)):
@@ -1269,14 +1269,40 @@ def Type1_relevant_dim_and_zero_percent(attn_config_version, v):
             relevant_dim2zero_percent[relevant_dim_name].append(per_subj_low_attn_percent_average)
     
     fig, ax = plt.subplots(1, 1, figsize=(4, 4))
+    dims_zero_percent = ['Dimension']
+    zero_percent = ['zero_percent']
+
     for relevant_dim_index in range(3):
         relevant_dim_name = dim2name[relevant_dim_index]
-        sns.barplot(
-            np.arange(len(relevant_dim2zero_percent[relevant_dim_name])),
-            relevant_dim2zero_percent[relevant_dim_name],
-            label=relevant_dim_name,
-        )
+        dims_zero_percent.extend([relevant_dim_name] * len(relevant_dim2zero_percent[relevant_dim_name]))
+        zero_percent.extend(relevant_dim2zero_percent[relevant_dim_name])
 
+    dims_zero_percent = np.array(dims_zero_percent)
+    zero_percent = np.array(zero_percent)
+    df_zero_percent = np.vstack((dims_zero_percent, zero_percent)).T
+    pd.DataFrame(df_zero_percent).to_csv(
+        f"df_zero_percent.csv", 
+        index=False, header=False
+    )
+    df_zero_percent = pd.read_csv('df_zero_percent.csv', usecols=['Dimension', 'zero_percent'])
+
+    print(df_zero_percent)
+
+    sns.barplot(x='Dimension', y='zero_percent', data=df_zero_percent, ax=ax)
+    plt.tight_layout()
+    plt.savefig(f'figs/relevant_dim_v_zero_percent_type1_{v}.pdf')
+
+    # stats testing
+    from scipy.stats import ttest_ind
+    stats, p = ttest_ind(relevant_dim2zero_percent['leg'], relevant_dim2zero_percent['antenna'])[:2]
+    print('leg vs antenna: ', f'stats={stats:.3f}, p={p:.3f}')
+    
+    stats, p = ttest_ind(relevant_dim2zero_percent['leg'], relevant_dim2zero_percent['mouth'])[:2]
+    print('leg vs mouth: ', f'stats={stats:.3f}, p={p:.3f}')
+    
+    stats, p = ttest_ind(relevant_dim2zero_percent['mouth'], relevant_dim2zero_percent['antenna'])[:2]
+    print('mouth vs antenna: ', f'stats={stats:.3f}, p={p:.3f}')
+    
 
 if __name__ == '__main__':
     attn_config_version='hyper4100'
@@ -1291,10 +1317,12 @@ if __name__ == '__main__':
     # Fig_high_attn(attn_config_version, v)
 
     # Fig_high_attn_against_low_attn_final(attn_config_version, v)
-    Fig_high_attn_against_low_attn_window(attn_config_version, v)
+    # Fig_high_attn_against_low_attn_window(attn_config_version, v)
     # Fig_high_attn_against_low_attn_V2(attn_config_version, v)
 
     # Fig_alphas_against_recon_V1(attn_config_version, v)
     # Fig_alphas_against_recon_V1a(attn_config_version, v)
     # Fig_alphas_against_recon_V2(attn_config_version, v)
+
+    Type1_relevant_dim_and_zero_percent(attn_config_version, v)
     

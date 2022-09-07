@@ -784,6 +784,125 @@ def Fig_high_attn_against_low_attn_V2(attn_config_version):
     plt.savefig(f'figs/high_attn_against_low_attn_type{problem_type}.png')
 
 
+def Fig_alphas_against_recon_V1a(attn_config_version):
+    """
+    V1 -> V1a: Plot 3-by-3, Optional overtime.
+    """
+    problem_types = [1, 2, 6]
+    num_dims = 3
+    
+    fig, ax1 = plt.subplots(3, 3, figsize=(5, 5))
+    # alpha_color = '#E98D6B'
+    type2runs, _ = find_canonical_runs(
+            attn_config_version, canonical_runs_only=True)
+
+    for z in range(len(problem_types)):
+        problem_type = problem_types[z]
+        relevant_dim_indices = range(num_dims)
+        subs = type2runs[problem_type-1]
+        num_runs = len(subs)
+
+        print(problem_type, num_runs)
+
+        for i in range(len(relevant_dim_indices)):
+            relevant_dim_index = relevant_dim_indices[i]
+            relevant_dim_alphas = np.ones((num_runs))
+            relevant_dim_recons = np.ones((num_runs))
+
+            for s in range(num_runs):
+                sub = subs[s]
+                # (384, 1) -> (16*8, 3)
+                alphas = np.load(
+                    f'results/{attn_config_version}/' \
+                    f'all_alphas_type{problem_type}_run{sub}_cluster.npy')
+                alphas = alphas.reshape(-1, 3)
+
+                per_rp_alphas = alphas[-8:, :]  # (8, 3)
+                per_rp_alphas_average = np.mean(per_rp_alphas, axis=0)  # (3)
+                
+                # (10800, 1) -> (3600, 3) -> (15*8*30, 3)
+                binary_recon = np.load(
+                    f'results/{attn_config_version}/' \
+                    f'all_recon_loss_ideal_type{problem_type}_run{sub}_cluster.npy')
+                binary_recon = binary_recon.reshape(-1, 3)
+                per_rp_binary_recons = binary_recon[-8*5:, :]  # (8*30, 3)
+                per_rp_binary_recon_average = np.mean(per_rp_binary_recons, axis=0)  # (3)
+                
+                counter_balancing_fpath = f'results/{attn_config_version}/counter_balancing_type{problem_type}_run{sub}_cluster.npy'
+                counter_balancing = np.load(counter_balancing_fpath, allow_pickle=True)
+                rot_dims = counter_balancing.item()['rot_dims']
+                k = counter_balancing.item()['k'][0]
+                if k != 2:
+                    # no need to rotate if k == 2 as it is same as k == 0
+                    # otherwise just switch based on index.
+                    per_rp_binary_recon_average[rot_dims[1]], per_rp_binary_recon_average[rot_dims[0]] = \
+                        per_rp_binary_recon_average[rot_dims[0]], per_rp_binary_recon_average[rot_dims[1]]
+
+                    per_rp_alphas_average[rot_dims[1]], per_rp_alphas_average[rot_dims[0]] = \
+                    per_rp_alphas_average[rot_dims[0]], per_rp_alphas_average[rot_dims[1]]
+
+                # if problem_type == 1:
+                #     conversion_order = [0, 1, 2]
+                #     conversion_order[1:] = np.random.choice(
+                #         conversion_order[1:], size=num_dims-1, replace=False
+                #     )
+                #     per_rp_alphas_average = per_rp_alphas_average[conversion_order]
+                #     per_rp_binary_recon_average = per_rp_binary_recon_average[conversion_order]
+
+                relevant_dim_alphas[s] = per_rp_alphas_average[relevant_dim_index]
+                relevant_dim_recons[s] = per_rp_binary_recon_average[relevant_dim_index]
+            
+            if i in [1, 2]:
+                ax1[z, i].set_yticks([])
+            ax1[z, i].set_xticks([0, 0.5, 1])
+            ax1[z, i].set_xticklabels([0, 0.5, 1])
+            ax1[z, i].set_ylim([-1, 7])
+            ax1[z, i].set_yticks([0, 7])
+            ax1[z, i].set_yticklabels([0, 7])
+            ax1[z, 1].set_title(f'Type {TypeConverter[problem_type]}')
+            ax1[z, i].spines.right.set_visible(False)
+            ax1[z, i].spines.top.set_visible(False)
+            if z == 0:
+                ax1[z, 0].set_xlabel(f'Relevant')
+                ax1[z, 1].set_xlabel(f'Irrelevant')
+                ax1[z, 2].set_xlabel(f'Irrelevant')
+            elif z == 1:
+                ax1[z, 0].set_xlabel(f'Relevant')
+                ax1[z, 1].set_xlabel(f'Relevant')
+                ax1[z, 2].set_xlabel(f'Irrelevant')
+            elif z == 2:
+                ax1[z, 0].set_xlabel(f'Relevant')
+                ax1[z, 1].set_xlabel(f'Relevant \n Attention Strength')
+                ax1[z, 2].set_xlabel(f'Relevant')
+
+            ax1[z, i].scatter(
+                relevant_dim_alphas,
+                relevant_dim_recons,
+                color=colors[z],
+                marker='o', 
+                alpha=0.2,
+                edgecolor='none'
+            )
+
+            mean_alpha = np.mean(relevant_dim_alphas)
+            mean_recon = np.mean(relevant_dim_recons)
+            print(
+                f'Problem type {problem_type}, dim {relevant_dim_index}, mean alpha={mean_alpha:.3f}, mean recon={mean_recon:.3f}')
+
+            ax1[z, i].errorbar(
+                0.5,
+                np.mean(relevant_dim_recons),
+                yerr=stats.sem(relevant_dim_recons),
+                capsize=5,
+                color='k',
+                marker='o',
+            )
+
+    ax1[1, 0].set_ylabel('Information Loss')
+    plt.tight_layout()
+    plt.savefig(f'figs/scatter_final_typeALL_highAttn_vs_reconLoss.pdf')
+
+
 if __name__ == '__main__':
     attn_config_version='v4a_naive-withNoise-entropy'
     
@@ -795,3 +914,5 @@ if __name__ == '__main__':
 
     # Fig_alphas_against_recon_V2(attn_config_version)
     # Fig_high_attn_against_low_attn_V2(attn_config_version)
+
+    Fig_alphas_against_recon_V1a(attn_config_version)

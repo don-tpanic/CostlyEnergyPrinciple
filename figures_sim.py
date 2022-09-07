@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from collections import defaultdict
 from matplotlib import rc
 from utils import load_config
+import matplotlib.gridspec as gridspec
 
 # rc('text', usetex=True)
 # plt.rcParams['text.usetex']=True
@@ -854,11 +855,13 @@ def Fig_alphas_against_recon_V1a(attn_config_version):
             
             if i in [1, 2]:
                 ax1[z, i].set_yticks([])
-            ax1[z, i].set_xticks([0, 0.5, 1])
-            ax1[z, i].set_xticklabels([0, 0.5, 1])
-            ax1[z, i].set_ylim([-1, 7])
-            ax1[z, i].set_yticks([0, 7])
-            ax1[z, i].set_yticklabels([0, 7])
+
+            ax1[z, i].set_xlim([-0.5, 10])
+            ax1[z, i].set_xticks([0, 10])
+            ax1[z, i].set_xticklabels([0, 10])
+            # ax1[z, i].set_ylim([-1, 7])
+            # ax1[z, i].set_yticks([0, 7])
+            # ax1[z, i].set_yticklabels([0, 7])
             ax1[z, 1].set_title(f'Type {TypeConverter[problem_type]}')
             ax1[z, i].spines.right.set_visible(False)
             ax1[z, i].spines.top.set_visible(False)
@@ -875,32 +878,213 @@ def Fig_alphas_against_recon_V1a(attn_config_version):
                 ax1[z, 1].set_xlabel(f'Relevant \n Attention Strength')
                 ax1[z, 2].set_xlabel(f'Relevant')
 
-            ax1[z, i].scatter(
-                relevant_dim_alphas,
-                relevant_dim_recons,
-                color=colors[z],
-                marker='o', 
-                alpha=0.2,
-                edgecolor='none'
-            )
+            # ax1[z, i].scatter(
+            #     relevant_dim_alphas,
+            #     relevant_dim_recons,
+            #     color=colors[z],
+            #     marker='o', 
+            #     alpha=0.2,
+            #     edgecolor='none'
+            # )
 
             mean_alpha = np.mean(relevant_dim_alphas)
             mean_recon = np.mean(relevant_dim_recons)
             print(
                 f'Problem type {problem_type}, dim {relevant_dim_index}, mean alpha={mean_alpha:.3f}, mean recon={mean_recon:.3f}')
 
-            ax1[z, i].errorbar(
-                0.5,
-                np.mean(relevant_dim_recons),
-                yerr=stats.sem(relevant_dim_recons),
-                capsize=5,
-                color='k',
-                marker='o',
+            # ax1[z, i].errorbar(
+            #     mean_alpha,
+            #     np.mean(relevant_dim_recons),
+            #     yerr=stats.sem(relevant_dim_recons),
+            #     capsize=5,
+            #     color='k',
+            #     marker='o',
+            # )
+
+            sns.kdeplot(
+                data=relevant_dim_recons,
+                ax=ax1[z, i],
             )
+
 
     ax1[1, 0].set_ylabel('Information Loss')
     plt.tight_layout()
     plt.savefig(f'figs/scatter_final_typeALL_highAttn_vs_reconLoss.pdf')
+
+
+def Fig_alphas_against_recon_jointplot(attn_config_version):
+    problem_types = [1]
+    num_dims = 3
+    
+    # fig = plt.figure(figsize=(250, 250))
+    # gs = gridspec.GridSpec(3, 3)
+    fig, ax1 = plt.subplots(3, 3, figsize=(10, 10))
+    type2runs, _ = find_canonical_runs(attn_config_version, canonical_runs_only=True)
+
+    for z in range(len(problem_types)):
+        problem_type = problem_types[z]
+        relevant_dim_indices = range(num_dims)
+        subs = type2runs[problem_type-1]
+        num_runs = len(subs)
+
+        print(problem_type, num_runs)
+
+        for i in range(len(relevant_dim_indices)):
+            relevant_dim_index = relevant_dim_indices[i]
+            relevant_dim_alphas = np.ones((num_runs))
+            relevant_dim_recons = np.ones((num_runs))
+
+            for s in range(num_runs):
+                sub = subs[s]
+                # (384, 1) -> (16*8, 3)
+                alphas = np.load(
+                    f'results/{attn_config_version}/' \
+                    f'all_alphas_type{problem_type}_run{sub}_cluster.npy')
+                alphas = alphas.reshape(-1, 3)
+
+                per_rp_alphas = alphas[-8:, :]  # (8, 3)
+                per_rp_alphas_average = np.mean(per_rp_alphas, axis=0)  # (3)
+                
+                # (10800, 1) -> (3600, 3) -> (15*8*30, 3)
+                binary_recon = np.load(
+                    f'results/{attn_config_version}/' \
+                    f'all_recon_loss_ideal_type{problem_type}_run{sub}_cluster.npy')
+                binary_recon = binary_recon.reshape(-1, 3)
+                per_rp_binary_recons = binary_recon[-8*5:, :]  # (8*30, 3)
+                per_rp_binary_recon_average = np.mean(per_rp_binary_recons, axis=0)  # (3)
+                
+                counter_balancing_fpath = f'results/{attn_config_version}/counter_balancing_type{problem_type}_run{sub}_cluster.npy'
+                counter_balancing = np.load(counter_balancing_fpath, allow_pickle=True)
+                rot_dims = counter_balancing.item()['rot_dims']
+                k = counter_balancing.item()['k'][0]
+                if k != 2:
+                    # no need to rotate if k == 2 as it is same as k == 0
+                    # otherwise just switch based on index.
+                    per_rp_binary_recon_average[rot_dims[1]], per_rp_binary_recon_average[rot_dims[0]] = \
+                        per_rp_binary_recon_average[rot_dims[0]], per_rp_binary_recon_average[rot_dims[1]]
+
+                    per_rp_alphas_average[rot_dims[1]], per_rp_alphas_average[rot_dims[0]] = \
+                    per_rp_alphas_average[rot_dims[0]], per_rp_alphas_average[rot_dims[1]]
+
+                # if problem_type == 1:
+                #     conversion_order = [0, 1, 2]
+                #     conversion_order[1:] = np.random.choice(
+                #         conversion_order[1:], size=num_dims-1, replace=False
+                #     )
+                #     per_rp_alphas_average = per_rp_alphas_average[conversion_order]
+                #     per_rp_binary_recon_average = per_rp_binary_recon_average[conversion_order]
+
+                relevant_dim_alphas[s] = per_rp_alphas_average[relevant_dim_index]
+                relevant_dim_recons[s] = per_rp_binary_recon_average[relevant_dim_index]
+            
+            # ax1[z, i].scatter(
+            #     relevant_dim_alphas,
+            #     relevant_dim_recons,
+            #     color=colors[z],
+            #     marker='o', 
+            #     alpha=0.2,
+            #     edgecolor='none'
+            # )
+
+            # ax1[z, i].errorbar(
+            #     mean_alpha,
+            #     np.mean(relevant_dim_recons),
+            #     yerr=stats.sem(relevant_dim_recons),
+            #     capsize=5,
+            #     color='k',
+            #     marker='o',
+            # )
+
+            # sns.kdeplot(
+            #     data=relevant_dim_recons,
+            #     ax=ax1[z, i],
+            # )
+
+            hack_hue = np.ones((len(relevant_dim_alphas)))
+            hue = np.concatenate((['hue'], hack_hue))
+
+            relevant_dim_alphas = np.concatenate((['attn'], relevant_dim_alphas))
+            relevant_dim_recons = np.concatenate((['recon'], relevant_dim_recons))
+            
+            alpha_v_recon = np.vstack((relevant_dim_alphas, relevant_dim_recons, hue)).T
+            pd.DataFrame(alpha_v_recon).to_csv(
+                f"alpha_v_recon.csv", 
+                index=False, 
+                header=False
+            )
+            alpha_v_recon = pd.read_csv(f"alpha_v_recon.csv")
+            plot = sns.jointplot(
+                data=alpha_v_recon, 
+                x="attn", y="recon", kind='hack2', 
+                # xlim = (-0,1), ylim = (-0,2),
+            )
+            # plot.ax_marg_x.set_xlim(0, 1)
+
+            if z == 0:
+                if i <= 0:
+                    plot.ax_marg_y.set_ylim(-0.005, 0.1)
+                else:
+                    plot.ax_marg_y.set_ylim(-0.5, 8)
+            
+
+            # SeabornFig2Grid(g, fig, gs[z, i])
+
+            # gs.tight_layout(fig)
+            plt.savefig(f'figs/scatter_final_typeALL_highAttn_vs_reconLoss_{z}-{i}.png')
+
+
+class SeabornFig2Grid():
+
+    def __init__(self, seaborngrid, fig,  subplot_spec):
+        self.fig = fig
+        self.sg = seaborngrid
+        self.subplot = subplot_spec
+        if isinstance(self.sg, sns.axisgrid.FacetGrid) or \
+            isinstance(self.sg, sns.axisgrid.PairGrid):
+            self._movegrid()
+        elif isinstance(self.sg, sns.axisgrid.JointGrid):
+            self._movejointgrid()
+        self._finalize()
+
+    def _movegrid(self):
+        """ Move PairGrid or Facetgrid """
+        self._resize()
+        n = self.sg.axes.shape[0]
+        m = self.sg.axes.shape[1]
+        self.subgrid = gridspec.GridSpecFromSubplotSpec(n,m, subplot_spec=self.subplot)
+        for i in range(n):
+            for j in range(m):
+                self._moveaxes(self.sg.axes[i,j], self.subgrid[i,j])
+
+    def _movejointgrid(self):
+        """ Move Jointgrid """
+        h= self.sg.ax_joint.get_position().height
+        h2= self.sg.ax_marg_x.get_position().height
+        r = int(np.round(h/h2))
+        self._resize()
+        self.subgrid = gridspec.GridSpecFromSubplotSpec(r+1,r+1, subplot_spec=self.subplot)
+
+        self._moveaxes(self.sg.ax_joint, self.subgrid[1:, :-1])
+        self._moveaxes(self.sg.ax_marg_x, self.subgrid[0, :-1])
+        self._moveaxes(self.sg.ax_marg_y, self.subgrid[1:, -1])
+
+    def _moveaxes(self, ax, gs):
+        #https://stackoverflow.com/a/46906599/4124317
+        ax.remove()
+        ax.figure=self.fig
+        self.fig.axes.append(ax)
+        self.fig.add_axes(ax)
+        ax._subplotspec = gs
+        ax.set_position(gs.get_position(self.fig))
+        ax.set_subplotspec(gs)
+
+    def _finalize(self):
+        plt.close(self.sg.fig)
+        self.fig.canvas.mpl_connect("resize_event", self._resize)
+        self.fig.canvas.draw()
+
+    def _resize(self, evt=None):
+        self.sg.fig.set_size_inches(self.fig.get_size_inches())
 
 
 if __name__ == '__main__':
@@ -915,4 +1099,6 @@ if __name__ == '__main__':
     # Fig_alphas_against_recon_V2(attn_config_version)
     # Fig_high_attn_against_low_attn_V2(attn_config_version)
 
-    Fig_alphas_against_recon_V1a(attn_config_version)
+    # Fig_alphas_against_recon_V1a(attn_config_version)
+
+    Fig_alphas_against_recon_jointplot(attn_config_version)

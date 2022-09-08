@@ -1384,7 +1384,7 @@ def Fig_alphas_against_recon_V1a(attn_config_version, v):
     """
     V1 -> V1a: Plot 3-by-3, Optional overtime.
     """
-    problem_types = [1, 2, 6]
+    problem_types = [1, ]
     num_subs = 23
     num_reps = 16
     num_dims = 3
@@ -1463,7 +1463,7 @@ def Fig_alphas_against_recon_V1a(attn_config_version, v):
                     per_subj_low_attn_percent_average = np.mean(per_subj_low_attn_percent[-30*8:])
                     
                     print(
-                        sub, problem_type, [per_rp_binary_recon_average[relevant_dim_index]], [per_subj_low_attn_percent_average]
+                        sub, relevant_dim_index, per_rp_alphas_average[relevant_dim_index]
                     )
 
                 if z == 0:
@@ -1651,6 +1651,108 @@ def Fig_alphas_against_recon_V2(attn_config_version, v):
     plt.savefig(f'figs/errorbar_overtime_typeALL_highAttn_vs_reconLoss_{v}.pdf')    
 
 
+def Fig_alphas_against_recon_jointplot(attn_config_version, v):
+    problem_types = [1]
+    num_dims = 3
+    fig, ax1 = plt.subplots(3, 3, figsize=(10, 10))
+    num_subs = 23
+    num_reps = 16
+    subs = [f'{i:02d}' for i in range(2, num_subs+2) if i!=9]
+    num_subs = len(subs)
+    sub2assignment_n_scheme = human.Mappings().sub2assignment_n_scheme
+
+    for z in range(len(problem_types)):
+        problem_type = problem_types[z]
+        if problem_type == 2:  # swap to be consistent with tradition.
+            relevant_dim_indices = range(num_dims)[::-1]
+        else:
+            relevant_dim_indices = range(num_dims)
+
+        for i in range(len(relevant_dim_indices)):
+            relevant_dim_index = relevant_dim_indices[i]
+            relevant_dim_alphas = np.ones((num_reps, num_subs))
+            relevant_dim_recons = np.ones((num_reps, num_subs))
+            for rp in range(num_reps):
+                if rp < 15:
+                    continue
+                for s in range(num_subs):
+                    sub = subs[s]
+                    # (384, 1) -> (16*8, 3)
+                    alphas = np.load(
+                        f'results/{attn_config_version}_sub{sub}_{v}/' \
+                        f'all_alphas_type{problem_type}_sub{sub}_cluster.npy')
+                    alphas = alphas.reshape(-1, 3)
+                    per_rp_alphas = alphas[rp*8 : (rp+1)*8, :]  # (8, 3)
+                    per_rp_alphas_average = np.mean(per_rp_alphas, axis=0)  # (3)
+                    
+                    # (10800, 1) -> (3600, 3) -> (15*8*30, 3)
+                    binary_recon = np.load(
+                        f'results/{attn_config_version}_sub{sub}_{v}/' \
+                        f'all_recon_loss_ideal_type{problem_type}_sub{sub}_cluster.npy')
+                    binary_recon = binary_recon.reshape(-1, 3)
+                    if rp == 0:  # because rp=0 recon not saved but we know it's zero.
+                        per_rp_binary_recon_average = np.array([0, 0, 0])
+                    else:
+                        per_rp_binary_recons = binary_recon[(rp-1)*8*30 : (rp)*8*30, :]  # (8*30, 3)
+                        per_rp_binary_recon_average = np.mean(per_rp_binary_recons, axis=0)  # (3)
+                    
+                    # alphas and binary_recon are initially DCNN order.
+                    # But to plot the relevant dim (which is in the abstract sense), we need to
+                    # rearrange alphas and binary_recon such that the first dim is the relevant dim.
+                    # The order of conversion is provided by the assignment_n_scheme.
+                    # e.g. sub02, has [2, 1, 3] mapping which means [antenna, leg, mouth] was the 
+                    # order used during learning and antenna is the relevant dim.
+                    sub_physical_order = np.array(sub2assignment_n_scheme[sub][:3])-1
+                    conversion_order = sub_physical_order
+                    if problem_type == 1:
+                        conversion_order[1:] = np.random.choice(
+                            conversion_order[1:], size=num_dims-1, replace=False
+                        )
+
+                    per_rp_alphas_average = per_rp_alphas_average[conversion_order]
+                    per_rp_binary_recon_average = per_rp_binary_recon_average[conversion_order]
+
+                    relevant_dim_alphas[rp, s] = per_rp_alphas_average[relevant_dim_index]
+                    relevant_dim_recons[rp, s] = per_rp_binary_recon_average[relevant_dim_index]
+
+                # sns.kdeplot(
+                #     data=relevant_dim_recons,
+                #     ax=ax1[z, i],
+                # )
+
+                relevant_dim_alphas = relevant_dim_alphas[rp, :]
+                relevant_dim_recons = relevant_dim_recons[rp, :]
+                hack_hue = np.ones((len(relevant_dim_alphas)))
+                hue = np.concatenate((['hue'], hack_hue))
+
+                relevant_dim_alphas = np.concatenate((['attn'], relevant_dim_alphas))
+                relevant_dim_recons = np.concatenate((['recon'], relevant_dim_recons))
+                
+                alpha_v_recon = np.vstack((relevant_dim_alphas, relevant_dim_recons, hue)).T
+                pd.DataFrame(alpha_v_recon).to_csv(
+                    f"alpha_v_recon.csv", 
+                    index=False, 
+                    header=False
+                )
+
+                alpha_v_recon = pd.read_csv(f"alpha_v_recon.csv")
+                print(alpha_v_recon)
+                sns.jointplot(
+                    data=alpha_v_recon, 
+                    x="attn", y="recon", kind='hist', hue='hue'
+                )
+                plt.savefig(f'figs/scatter_final_typeALL_highAttn_vs_reconLoss_{z}-{i}.png')
+                print('ok')
+                exit()
+            #     # if z == 0:
+            #     #     if i <= 0:
+            #     #         plot.ax_marg_y.set_ylim(-0.005, 0.1)
+            #     #     else:
+            #     #         plot.ax_marg_y.set_ylim(-0.5, 8)
+            
+        
+
+
 def Type1_relevant_dim_and_zero_percent(attn_config_version, v):
     """
     Test how %zero corresponds to which dim is relevant in Type1
@@ -1663,9 +1765,9 @@ def Type1_relevant_dim_and_zero_percent(attn_config_version, v):
     num_subs = len(subs)
     results_path = 'results'
     sub2assignment_n_scheme = human.Mappings().sub2assignment_n_scheme
-    dim2name = {0: 'leg', 1: 'antenna', 2: 'mouth'}
+    dim2name = {0: 'l', 1: 'a', 2: 'm'}
 
-    relevant_dim2zero_percent = defaultdict(list)
+    relevant_dim2zero_percent = defaultdict(lambda: defaultdict())
     for z in range(len(problem_types)):
         problem_type = problem_types[z]
         for s in range(num_subs):
@@ -1681,44 +1783,73 @@ def Type1_relevant_dim_and_zero_percent(attn_config_version, v):
 
             sub_physical_order = np.array(sub2assignment_n_scheme[sub][:3])-1
             relevant_dim_name = dim2name[sub_physical_order[0]]
-            relevant_dim2zero_percent[relevant_dim_name].append(per_subj_low_attn_percent_average)
+            relevant_dim2zero_percent[relevant_dim_name][sub] = per_subj_low_attn_percent_average
     
     fig, ax = plt.subplots(1, 1, figsize=(4, 4))
+    subs_ = ['sub']
     dims_zero_percent = ['Dimension']
     zero_percent = ['zero_percent']
 
     for relevant_dim_index in range(3):
         relevant_dim_name = dim2name[relevant_dim_index]
-        dims_zero_percent.extend([relevant_dim_name] * len(relevant_dim2zero_percent[relevant_dim_name]))
-        zero_percent.extend(relevant_dim2zero_percent[relevant_dim_name])
+        subs_using_this_dim = list(relevant_dim2zero_percent[relevant_dim_name].keys())
+        subs_.extend(subs_using_this_dim)
+        dims_zero_percent.extend([relevant_dim_name] * len(subs_using_this_dim))
+        for sub in subs_using_this_dim:
+            zero_percent.extend([relevant_dim2zero_percent[relevant_dim_name][sub]])
 
+    subs_ = np.array(subs_)
     dims_zero_percent = np.array(dims_zero_percent)
     zero_percent = np.array(zero_percent)
-    df_zero_percent = np.vstack((dims_zero_percent, zero_percent)).T
+    df_zero_percent = np.vstack((subs_, dims_zero_percent, zero_percent)).T
     pd.DataFrame(df_zero_percent).to_csv(
         f"df_zero_percent.csv", 
         index=False, header=False
     )
-    df_zero_percent = pd.read_csv('df_zero_percent.csv', usecols=['Dimension', 'zero_percent'])
+    df_zero_percent = pd.read_csv('df_zero_percent.csv', usecols=['sub', 'Dimension', 'zero_percent'])
 
     print(df_zero_percent)
 
     sns.barplot(x='Dimension', y='zero_percent', data=df_zero_percent, ax=ax)
+    plt.title(f'Type {problem_type}')
     plt.tight_layout()
-    plt.savefig(f'figs/relevant_dim_v_zero_percent_type1_{v}.pdf')
+
+    if problem_type == 1:
+        plt.savefig(f'figs/relevant_dim_v_zero_percent_type1_{v}.pdf')
 
     # stats testing
     from scipy.stats import ttest_ind
-    t, p = ttest_ind(relevant_dim2zero_percent['leg'], relevant_dim2zero_percent['antenna'])[:2]
-    print('leg vs antenna: ', f't={t:.3f}, p={p:.3f}')
-    
-    t, p = ttest_ind(relevant_dim2zero_percent['leg'], relevant_dim2zero_percent['mouth'])[:2]
-    print('leg vs mouth: ', f't={t:.3f}, p={p:.3f}')
-    
-    t, p = ttest_ind(relevant_dim2zero_percent['mouth'], relevant_dim2zero_percent['antenna'])[:2]
-    print('mouth vs antenna: ', f't={t:.3f}, p={p:.3f}')
-    
+    temp_1 = []
+    temp_2 = []
+    for sub in relevant_dim2zero_percent['l'].keys():
+        temp_1.append(relevant_dim2zero_percent['l'][sub])
+    for sub in relevant_dim2zero_percent['a'].keys():
+        temp_2.append(relevant_dim2zero_percent['a'][sub])
 
+    t, p = ttest_ind(temp_1, temp_2)[:2]
+    print('leg vs antenna: ', f't={t:.3f}, p={p:.3f}')
+
+    temp_1 = []
+    temp_2 = []
+    for sub in relevant_dim2zero_percent['l'].keys():
+        temp_1.append(relevant_dim2zero_percent['l'][sub])
+    for sub in relevant_dim2zero_percent['m'].keys():
+        temp_2.append(relevant_dim2zero_percent['m'][sub])
+    
+    t, p = ttest_ind(temp_1, temp_2)[:2]
+    print('leg vs mouth: ', f't={t:.3f}, p={p:.3f}')
+
+    temp_1 = []
+    temp_2 = []
+    for sub in relevant_dim2zero_percent['a'].keys():
+        temp_1.append(relevant_dim2zero_percent['a'][sub])
+    for sub in relevant_dim2zero_percent['m'].keys():
+        temp_2.append(relevant_dim2zero_percent['m'][sub])
+    
+    t, p = ttest_ind(temp_1, temp_2)[:2]
+    print('antenna vs mouth: ', f't={t:.3f}, p={p:.3f}')
+
+    
 def Type1_relevant_dim_and_info_loss(attn_config_version, v):
     """
     Test how LOC info loss corresponds to which dim is relevant in Type1
@@ -1791,16 +1922,111 @@ def Type1_relevant_dim_and_info_loss(attn_config_version, v):
     print('mouth vs antenna: ', f't={t:.3f}, p={p:.3f}')
 
 
+def Type2_oneofrelevant_dim_and_zero_percent(attn_config_version, v):
+    """
+    Look at when each dim is one of the relevant dims (out of 2) and 
+    the corresponding zero percent.
+
+    The guess is that when mouth is one out of two relevant, the overall
+    zero percent is lowest.
+    """
+    problem_types = [2]
+    num_types = len(problem_types)
+    num_subs = 23
+    subs = [f'{i:02d}' for i in range(2, num_subs+2) if i not in [9]]   # 13 had flat human lc-type6
+    num_subs = len(subs)
+    results_path = 'results'
+    sub2assignment_n_scheme = human.Mappings().sub2assignment_n_scheme
+    dim2name = {0: 'l', 1: 'a', 2: 'm'}
+
+    relevant_dim2zero_percent = defaultdict(lambda: defaultdict())
+    for z in range(len(problem_types)):
+        problem_type = problem_types[z]
+        for s in range(num_subs):
+            sub = subs[s]
+            # For %attn, we grab the last item
+            metric_fpath = f'{results_path}/{attn_config_version}_sub{sub}_{v}/' \
+                            f'all_percent_zero_attn_type{problem_type}_sub{sub}_cluster.npy'
+            # (3600,) -> (15*8*30,)
+            per_subj_low_attn_percent = np.load(metric_fpath)
+            # take moving average (window=8*30), which corresponds to the 
+            # final compression score which uses average over 8 trials alphas.
+            per_subj_low_attn_percent_average = np.mean(per_subj_low_attn_percent[-30*8:])
+
+            sub_physical_order = np.array(sub2assignment_n_scheme[sub][:3])-1
+            relevant_dims_names = str(sorted([f'{dim2name[sub_physical_order[1]]}', f'{dim2name[sub_physical_order[2]]}']))
+            relevant_dim2zero_percent[relevant_dims_names][sub] = per_subj_low_attn_percent_average
+    
+    fig, ax = plt.subplots(1, 1, figsize=(4, 4))
+    subs_ = ['sub']
+    dims_zero_percent = ['Dimensions']
+    zero_percent = ['zero_percent']
+
+    for relevant_dims_names in relevant_dim2zero_percent.keys():
+        subs_using_this_dim = list(relevant_dim2zero_percent[relevant_dims_names].keys())
+        subs_.extend(subs_using_this_dim)
+        dims_zero_percent.extend([relevant_dims_names] * len(subs_using_this_dim))
+        for sub in subs_using_this_dim:
+            zero_percent.extend([relevant_dim2zero_percent[relevant_dims_names][sub]])
+
+    subs_ = np.array(subs_)
+    dims_zero_percent = np.array(dims_zero_percent)
+    zero_percent = np.array(zero_percent)
+    df_zero_percent = np.vstack((subs_, dims_zero_percent, zero_percent)).T
+    pd.DataFrame(df_zero_percent).to_csv(
+        f"df_zero_percent.csv", 
+        index=False, header=False
+    )
+    df_zero_percent = pd.read_csv('df_zero_percent.csv', usecols=['sub', 'Dimensions', 'zero_percent'])
+
+    print(df_zero_percent)
+
+    sns.barplot(x='Dimensions', y='zero_percent', data=df_zero_percent, ax=ax)
+    plt.title(f'Type {problem_type}')
+    plt.tight_layout()
+    if problem_type == 2:
+        plt.savefig(f'figs/relevant_dims_v_zero_percent_type2_{v}.pdf')
+    
+    # stats testing
+    from scipy.stats import ttest_ind
+    temp_1 = []
+    temp_2 = []
+    for sub in relevant_dim2zero_percent[str(['l', 'm'])].keys():
+        temp_1.append(relevant_dim2zero_percent[str(['l', 'm'])][sub])
+    for sub in relevant_dim2zero_percent[str(['a', 'l'])].keys():
+        temp_2.append(relevant_dim2zero_percent[str(['a', 'l'])][sub])
+
+    t, p = ttest_ind(temp_1, temp_2)[:2]
+    print('leg+mouth vs leg+antenna: ', f't={t:.3f}, p={p:.3f}')
+
+    temp_1 = []
+    temp_2 = []
+    for sub in relevant_dim2zero_percent[str(['a', 'l'])].keys():
+        temp_1.append(relevant_dim2zero_percent[str(['a', 'l'])][sub])
+    for sub in relevant_dim2zero_percent[str(['a', 'm'])].keys():
+        temp_2.append(relevant_dim2zero_percent[str(['a', 'm'])][sub])
+    
+    t, p = ttest_ind(temp_1, temp_2)[:2]
+    print('leg+antenna vs mouth+antenna: ', f't={t:.3f}, p={p:.3f}')
+
+    temp_1 = []
+    temp_2 = []
+    for sub in relevant_dim2zero_percent[str(['l', 'm'])].keys():
+        temp_1.append(relevant_dim2zero_percent[str(['l', 'm'])][sub])
+    for sub in relevant_dim2zero_percent[str(['a', 'm'])].keys():
+        temp_2.append(relevant_dim2zero_percent[str(['a', 'm'])][sub])
+    
+    t, p = ttest_ind(temp_1, temp_2)[:2]
+    print('leg+mouth vs mouth+antenna: ', f't={t:.3f}, p={p:.3f}')
+
+
 if __name__ == '__main__':
     attn_config_version='hyper4100'
     v='fit-human-entropy-fast-nocarryover'
     
     # Fig_zero_attn(attn_config_version, v)
-
     # Fig_recon_n_decoding(attn_config_version, v)
-
     # Fig_binary_recon(attn_config_version, v)
-
     # Fig_high_attn(attn_config_version, v)
 
     # Fig_high_attn_against_low_attn_final(attn_config_version, v)
@@ -1809,6 +2035,10 @@ if __name__ == '__main__':
     # Fig_high_attn_against_low_attn_V2(attn_config_version, v)
 
     # Fig_alphas_against_recon_V1(attn_config_version, v)
-    Fig_alphas_against_recon_V1a(attn_config_version, v)
+    # Fig_alphas_against_recon_V1a(attn_config_version, v)
     # Fig_alphas_against_recon_V2(attn_config_version, v)
+    # Fig_alphas_against_recon_jointplot(attn_config_version, v)
+
+    Type1_relevant_dim_and_zero_percent(attn_config_version, v)
+    Type2_oneofrelevant_dim_and_zero_percent(attn_config_version, v)
     

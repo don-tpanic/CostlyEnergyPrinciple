@@ -1865,61 +1865,89 @@ def Type1_relevant_dim_and_info_loss(attn_config_version, v):
     num_subs = len(subs)
     results_path = 'results'
     sub2assignment_n_scheme = human.Mappings().sub2assignment_n_scheme
-    dim2name = {0: 'leg', 1: 'antenna', 2: 'mouth'}
+    dim2name = {0: 'l', 1: 'a', 2: 'm'}
 
-    relevant_dim2info_loss = defaultdict(list)
+    relevant_dim2info_loss = defaultdict(lambda: defaultdict())
     for z in range(len(problem_types)):
         problem_type = problem_types[z]
         for s in range(num_subs):
             sub = subs[s]
-            info_loss_collector = np.load(
-                f'brain_data/decoding_results/decoding_error_{num_runs}runs_{roi}.npy', 
-                allow_pickle=True).ravel()[0]
-
             # info_loss_collector = np.load(
-            #     f'results/recon_loss_{attn_config_version}_{v}.npy', 
+            #     f'brain_data/decoding_results/decoding_error_{num_runs}runs_{roi}.npy', 
             #     allow_pickle=True).ravel()[0]
+
+            info_loss_collector = np.load(
+                f'results/recon_loss_{attn_config_version}_{v}.npy', 
+                allow_pickle=True).ravel()[0]
 
             sub_physical_order = np.array(sub2assignment_n_scheme[sub][:3])-1
             relevant_dim_name = dim2name[sub_physical_order[0]]
-            relevant_dim2info_loss[relevant_dim_name].append(
+            relevant_dim2info_loss[relevant_dim_name][sub] = \
                 info_loss_collector[problem_type][s]
-            )
     
     fig, ax = plt.subplots(1, 1, figsize=(4, 4))
+    subs_ = ['sub']
     dims_info_loss = ['Dimension']
     info_loss = ['info_loss']
 
     for relevant_dim_index in range(3):
         relevant_dim_name = dim2name[relevant_dim_index]
-        dims_info_loss.extend([relevant_dim_name] * len(relevant_dim2info_loss[relevant_dim_name]))
-        info_loss.extend(relevant_dim2info_loss[relevant_dim_name])
+        subs_using_this_dim = list(relevant_dim2info_loss[relevant_dim_name].keys())
+        subs_.extend(subs_using_this_dim)
+        dims_info_loss.extend([relevant_dim_name] * len(subs_using_this_dim))
+        for sub in subs_using_this_dim:
+            info_loss.extend([relevant_dim2info_loss[relevant_dim_name][sub]])
 
+    subs_ = np.array(subs_)
     dims_info_loss = np.array(dims_info_loss)
     info_loss = np.array(info_loss)
-    df_info_loss = np.vstack((dims_info_loss, info_loss)).T
-    pd.DataFrame(df_info_loss).to_csv(
+    df_zero_percent = np.vstack((subs_, dims_info_loss, info_loss)).T
+    pd.DataFrame(df_zero_percent).to_csv(
         f"df_info_loss.csv", 
         index=False, header=False
     )
-    df_info_loss = pd.read_csv('df_info_loss.csv', usecols=['Dimension', 'info_loss'])
+    df_info_loss = pd.read_csv('df_info_loss.csv', usecols=['sub', 'Dimension', 'info_loss'])
 
     print(df_info_loss)
 
     sns.barplot(x='Dimension', y='info_loss', data=df_info_loss, ax=ax)
+    plt.title(f'Type {problem_type}')
     plt.tight_layout()
-    plt.savefig(f'figs/relevant_dim_v_info_loss_type1_{v}.pdf')
+
+    if problem_type == 1:
+        plt.savefig(f'figs/relevant_dim_v_info_loss_type1_{v}.pdf')
 
     # stats testing
     from scipy.stats import ttest_ind
-    t, p = ttest_ind(relevant_dim2info_loss['leg'], relevant_dim2info_loss['antenna'])[:2]
+    temp_1 = []
+    temp_2 = []
+    for sub in relevant_dim2info_loss['l'].keys():
+        temp_1.append(relevant_dim2info_loss['l'][sub])
+    for sub in relevant_dim2info_loss['a'].keys():
+        temp_2.append(relevant_dim2info_loss['a'][sub])
+
+    t, p = ttest_ind(temp_1, temp_2)[:2]
     print('leg vs antenna: ', f't={t:.3f}, p={p:.3f}')
+
+    temp_1 = []
+    temp_2 = []
+    for sub in relevant_dim2info_loss['l'].keys():
+        temp_1.append(relevant_dim2info_loss['l'][sub])
+    for sub in relevant_dim2info_loss['m'].keys():
+        temp_2.append(relevant_dim2info_loss['m'][sub])
     
-    t, p = ttest_ind(relevant_dim2info_loss['leg'], relevant_dim2info_loss['mouth'])[:2]
+    t, p = ttest_ind(temp_1, temp_2)[:2]
     print('leg vs mouth: ', f't={t:.3f}, p={p:.3f}')
+
+    temp_1 = []
+    temp_2 = []
+    for sub in relevant_dim2info_loss['a'].keys():
+        temp_1.append(relevant_dim2info_loss['a'][sub])
+    for sub in relevant_dim2info_loss['m'].keys():
+        temp_2.append(relevant_dim2info_loss['m'][sub])
     
-    t, p = ttest_ind(relevant_dim2info_loss['mouth'], relevant_dim2info_loss['antenna'])[:2]
-    print('mouth vs antenna: ', f't={t:.3f}, p={p:.3f}')
+    t, p = ttest_ind(temp_1, temp_2)[:2]
+    print('antenna vs mouth: ', f't={t:.3f}, p={p:.3f}')
 
 
 def Type2_oneofrelevant_dim_and_zero_percent(attn_config_version, v):
@@ -2040,5 +2068,6 @@ if __name__ == '__main__':
     # Fig_alphas_against_recon_jointplot(attn_config_version, v)
 
     Type1_relevant_dim_and_zero_percent(attn_config_version, v)
-    Type2_oneofrelevant_dim_and_zero_percent(attn_config_version, v)
+    Type1_relevant_dim_and_info_loss(attn_config_version, v)
+    # Type2_oneofrelevant_dim_and_zero_percent(attn_config_version, v)
     

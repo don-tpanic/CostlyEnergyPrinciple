@@ -531,7 +531,7 @@ def Fig_binary_recon(
         ax[row_idx, col_idx].errorbar(
             x=range(num_dims),
             y=average_metric,
-            yerr=std_metric,
+            yerr=sem_metric,
             fmt='o',
             capsize=3,
             color=colors[z])
@@ -547,9 +547,9 @@ def Fig_binary_recon(
 
 
 if __name__ == '__main__':
-    attn_config_version='v4a_naive-withNoise-entropy'
+    attn_config_version='v4a-noCostly_naive-withNoise-entropy-e2e'
     
-    # Fig_zero_attn(attn_config_version)
+    Fig_zero_attn(attn_config_version)
 
     # Fig_recon_n_decoding(attn_config_version)
 

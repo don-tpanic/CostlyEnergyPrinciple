@@ -276,7 +276,7 @@ if __name__ == '__main__':
             )
         # Do multi-GPU for all when there is no problem_type specified.
         else:
-            versions = ['4a']
+            versions = ['4a-noCostly']
             attn_configs = []
             for v in versions:
                 attn_configs.append(f'v{v}_naive-withNoise-entropy-e2e')

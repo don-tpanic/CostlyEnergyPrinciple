@@ -3,6 +3,7 @@ os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 import numpy as np 
+import pandas as pd
 import pingouin as pg
 import seaborn as sns
 import scipy.stats as stats
@@ -10,19 +11,23 @@ import matplotlib.pyplot as plt
 from collections import defaultdict
 from matplotlib import rc
 from utils import load_config
+import matplotlib.gridspec as gridspec
 
 # rc('text', usetex=True)
 # plt.rcParams['text.usetex']=True
-color_palette = sns.color_palette("bright")
+color_palette = sns.color_palette("flare")
 colors = [
-    color_palette[1],   # 1
-    color_palette[6],   # 2
-    color_palette[3],   # 3
-    color_palette[4],   # 4
-    color_palette[8],   # 5
-    color_palette[9],   # 6
+    color_palette[0],   # 1
+    color_palette[1],   # 2
+    color_palette[2],   # 3
+    color_palette[3],   # 4
+    color_palette[4],   # 5
+    color_palette[5],   # 6
 ]
-plt.rcParams.update({'font.size': 12})
+
+plt.rcParams.update({'font.size': 12, 'font.weight': "bold"})
+plt.rcParams["font.family"] = "Helvetica"
+TypeConverter = {1: 'I', 2: 'II', 6: 'VI'}
 
 """
 Plot equivalent figures but using simulated model (not behav fitted).
@@ -35,7 +40,6 @@ def find_canonical_runs(
     Record the runs that produce canonical solutions
     for each problem type. 
     Specificially, we check the saved `mask_non_recruit`
-
     if canonical_solutions:
         only return runs that yield canonical solutions.
     """
@@ -200,14 +204,14 @@ def Fig_zero_attn(attn_config_version, threshold=[0, 0, 0]):
     ax.plot(range(len(problem_types)), means, color='grey', ls='dashed')       
     ax.set_ylabel('Percentage of \nZero Attention Weights')
     ax.set_xticks([])
-    ax.set_ylim([0, 0.6])
+    ax.set_ylim([-0.05, 0.6])
     
     # WARNING: problematic because modal run nums are different for each type.
     # regression(collector, , problem_types)
 
     plt.tight_layout()
     plt.legend()
-    plt.savefig(f'figs/zero_attn_{attn_config_version}.png')
+    plt.savefig(f'figs/zero_attn_{attn_config_version}.pdf')
     plt.close()
     
 
@@ -299,7 +303,6 @@ def Fig_recon_n_decoding(attn_config_version):
         -----
             For brain decoding, we have produced results which are 
             in `brain_data/decoding.py` and `brain_data/decoding_results/`.
-
             For model recon, we obtain results in `recon_loss_by_type`
             following conventions of how we save decoding results.
         """
@@ -359,7 +362,6 @@ def Fig_recon_n_decoding(attn_config_version):
         -----
             For brain decoding, we have produced results which are 
             in `brain_data/decoding.py` and `brain_data/decoding_results/`.
-
             For model recon, we obtain results in `recon_loss_by_type`
             following conventions of how we save decoding results.
         """
@@ -525,32 +527,580 @@ def Fig_binary_recon(
                 strategy2metric[strategy])
             all_strategies_collector.extend(metrics)
 
+        # print(all_strategies_collector)
         average_metric = np.mean(np.array(all_strategies_collector), axis=0)
         sem_metric = stats.sem(np.array(all_strategies_collector), axis=0)
         std_metric = np.std(np.array(all_strategies_collector), axis=0)
-        ax[row_idx, col_idx].errorbar(
+        print(average_metric)
+        print(std_metric)
+        ax[row_idx, col_idx].bar(
             x=range(num_dims),
-            y=average_metric,
-            yerr=sem_metric,
-            fmt='o',
-            capsize=3,
-            color=colors[z])
+            height=average_metric,
+            yerr=std_metric,
+            # fmt='o',
+            # capsize=3,
+            color=colors[z]
+        )
 
         ax[row_idx, col_idx].set_xticks([])
-        ax[row_idx, col_idx].set_ylim([-0.1, 3])
+        ax[row_idx, col_idx].set_ylim([-0.1, 5])
         ax[row_idx, col_idx].set_title(f'Type {problem_type}')
         ax[-1, col_idx].set_xlabel('Abstract Dimension')
 
-    ax[1, 0].set_ylabel('Reconstruction Loss')
+    ax[1, 0].set_ylabel('Information Loss')
     plt.tight_layout()
-    plt.savefig(f'figs/binary_recon_{attn_config_version}.png')
+    plt.savefig(f'figs/binary_recon_{attn_config_version}.pdf')
+
+
+def Fig_alphas_against_recon_V2(attn_config_version):
+    """
+    Look at overall how consistent are alphas corresponding to recon loss.
+    Here, we focus on Type 1 and the relevant dimension. 
+    It is less interesting just looking at the final because at the end, 
+    we have relevant dim alpha=1 and recon=0 (subject to a few exceptions).
+    To better visualize the results, we could have look at how the relationship
+    between alpha and recon changes over time.
+    Implementation-wise, what is tricky is that the saved alphas and recon_loss 
+    are not in the same dimensionality because alpha is saved once every trial (or rp),
+    but recon is saved once every inner-loop iteration and not saved at the first rp. But we 
+    could use recon=0 for rp=0 because at first we know there is no recon loss.
+    """
+    attn_config = load_config(
+        component=None,
+        config_version=attn_config_version
+    )
+    problem_types = [6]
+    num_dims = 3
+    num_reps = 16
+    results_path = f'results/{attn_config_version}'
+    type2runs, type_proportions = find_canonical_runs(
+        attn_config_version, canonical_runs_only=True)
+
+    fig, ax1 = plt.subplots(1, 3, figsize=(10, 3))
+    alpha_color = '#E98D6B'
+    recon_color = '#AD1759'
+
+    for idx in range(len(problem_types)):
+
+        problem_type = problem_types[idx]
+        num_runs = len(type2runs[idx])
+        runs = type2runs[idx]
+
+        for relevant_dim_index in [0, 1, 2]:
+            relevant_dim_alphas = np.ones((num_reps, num_runs))
+            relevant_dim_recons = np.ones((num_reps, num_runs))
+            for rp in range(0, 16):
+                for r in range(num_runs):
+                    run = runs[r]
+
+                    # (768,)
+                    alphas = np.load(
+                        f'results/{attn_config_version}/' \
+                        f'all_alphas_type{problem_type}_run{run}_cluster.npy')
+                    alphas = alphas.reshape(-1, 3)
+                    per_rp_alphas = alphas[rp*8*2 : (rp+1)*8*2, :]  # (8*2, 3)
+                    per_rp_alphas_average = np.mean(per_rp_alphas, axis=0)  # (3)
+                    
+                    binary_recon = np.load(
+                        f'results/{attn_config_version}/' \
+                        f'all_recon_loss_ideal_type{problem_type}_run{run}_cluster.npy')
+                    binary_recon = binary_recon.reshape(-1, 3)
+                    if rp == 0:  # because rp=0 recon not saved but we know it's zero.
+                        per_rp_binary_recon_average = np.array([0, 0, 0])
+                    else:
+                        per_rp_binary_recons = binary_recon[(rp-1)*8*2*5 : (rp)*8*2*5, :]  # (8*2*30, 3)
+                        per_rp_binary_recon_average = np.mean(per_rp_binary_recons, axis=0)  # (3)
+                    
+                    # *** reverse counterbalancing ***
+                    # rotate dimensions based on `rot_dims`
+                    # notice here rotation changes the `meaning` of dimensions
+                    # because we want to move the task diagnostic dimension to
+                    # always be dim1 for plotting only.
+                    counter_balancing_fpath = f'{results_path}/counter_balancing_type{problem_type}_run{run}_cluster.npy'
+                    counter_balancing = np.load(counter_balancing_fpath, allow_pickle=True)
+                    rot_dims = counter_balancing.item()['rot_dims']
+                    k = counter_balancing.item()['k'][0]
+                    if k != 2:
+                        # no need to rotate if k == 2 as it is same as k == 0
+                        # otherwise just switch based on index.
+                        per_rp_alphas_average[rot_dims[1]], \
+                            per_rp_alphas_average[rot_dims[0]] = \
+                                per_rp_alphas_average[rot_dims[0]], \
+                                    per_rp_alphas_average[rot_dims[1]]
+
+                        per_rp_binary_recon_average[rot_dims[1]], \
+                            per_rp_binary_recon_average[rot_dims[0]] = \
+                                per_rp_binary_recon_average[rot_dims[0]], \
+                                    per_rp_binary_recon_average[rot_dims[1]]
+
+                    # *** For type1, relevant is always `dim1`, ie [0] ***
+                    relevant_dim_alphas[rp, r] = per_rp_alphas_average[relevant_dim_index]
+                    relevant_dim_recons[rp, r] = per_rp_binary_recon_average[relevant_dim_index]
+            
+            mean_alpha_over_subs = np.mean(relevant_dim_alphas, axis=1)
+            mean_recon_over_subs = np.mean(relevant_dim_recons, axis=1)
+            sem_alpha_over_subs = stats.sem(relevant_dim_alphas, axis=1)
+            sem_recon_over_subs = stats.sem(relevant_dim_recons, axis=1)
+
+            ax1[relevant_dim_index].errorbar(
+                np.arange(num_reps),
+                mean_alpha_over_subs,
+                yerr=sem_alpha_over_subs,
+                color=alpha_color,
+                marker='*',
+                markersize=5,
+                capsize=5,
+            )
+            ax1[relevant_dim_index].set_xlabel('Repetition')
+            ax1[relevant_dim_index].set_xticks([0, 15])
+            ax1[relevant_dim_index].set_xticklabels([1, 16])
+            if relevant_dim_index in [1, 2]:
+                ax1[relevant_dim_index].set_yticks([])
+            ax1[relevant_dim_index].set_ylim([-0.05, 1.05])
+
+            # 2nd y-axis
+            ax2 = ax1[relevant_dim_index].twinx()
+            if relevant_dim_index in [0, 1]:
+                ax2.set_yticks([])
+            ax2.set_ylim([-0.05, 3.5])
+            ax2.errorbar(
+                np.arange(num_reps),
+                mean_recon_over_subs,
+                yerr=sem_recon_over_subs,
+                color=recon_color,
+                marker='o',
+                markersize=5,
+                capsize=5,
+            )
+    
+    ax1[0].set_ylabel('Attention Strength', color=alpha_color)
+    ax1[0].tick_params(axis='y', labelcolor=alpha_color)
+    ax2.set_ylabel('Information Loss', color=recon_color)
+    ax2.tick_params(axis='y', labelcolor=recon_color)
+    plt.tight_layout()
+    plt.savefig(f'figs/errorbar_type{problem_type}_highAttn_vs_reconLoss.pdf')
+
+
+def Fig_high_attn_against_low_attn_V2(attn_config_version):
+    """
+    Plot percentage zero low-attn against compression of high-attn
+    """
+    attn_config = load_config(
+        component=None,
+        config_version=attn_config_version
+    )
+    problem_types = [1, 2, 6]
+    num_dims = 3
+    num_reps = 16
+    results_path = f'results/{attn_config_version}'
+    type2runs, type_proportions = find_canonical_runs(
+        attn_config_version, canonical_runs_only=True)
+
+    fig, ax1 = plt.subplots(1, 3, figsize=(10, 5))
+    markers = ['o', 's', '^']
+    compression_color = '#E98D6B'
+    zero_percent_color = '#AD1759'
+
+    # csv - we only need the very last compression of each type
+    # which corresponds to the very last zero% low-attn
+    fname = 'compression_results_repetition_level/high_attn.csv'
+    with open(fname) as f:
+        df = pd.read_csv(f)
+
+    for z in range(len(problem_types)):
+        problem_type = problem_types[z]
+        num_runs = len(type2runs[problem_type-1])
+        print(problem_type, num_runs)
+        runs = type2runs[problem_type-1]
+        # num_runs = 500
+        # runs = range(num_runs)
+
+        compression_scores_collector = np.ones((num_reps, num_runs))
+        zero_percent_collector = np.ones((num_reps, num_runs))
+        for rp in range(num_reps):
+            for r in range(num_runs):
+                run = runs[r]
+                metric_fpath = f'{results_path}/' \
+                                f'all_percent_zero_attn_type{problem_type}_run{run}_cluster.npy'
+
+                compression_scores = df.loc[df['learning_trial'] == rp+1].loc[df['run'] == r]
+                # print(compression_scores)
+                # exit()
+                per_type_compression_scores = \
+                    compression_scores.loc[
+                        compression_scores['problem_type'] == problem_type
+                    ]
+                
+                per_subj_low_attn_percent = np.load(metric_fpath)
+                if rp == 0:
+                    per_subj_low_attn_percent_average = 0
+                else:
+                    # take moving average (window=8*30), which corresponds to the 
+                    # final compression score which uses average over 8 trials alphas.
+                    per_subj_low_attn_percent_average = np.mean(per_subj_low_attn_percent[(rp-1)*5*8*2:(rp)*5*8*2])
+
+                zero_percent_collector[rp, r] = per_subj_low_attn_percent_average
+                compression_scores_collector[rp, r] = per_type_compression_scores['compression_score'].values
+
+        mean_compression_scores = np.mean(compression_scores_collector, axis=1)
+        sem_compression_scores = stats.sem(compression_scores_collector, axis=1)
+        mean_zero_percent = np.mean(zero_percent_collector, axis=1)
+        sem_zero_percent = stats.sem(zero_percent_collector, axis=1)
+
+        ax1[z].errorbar(
+            np.arange(num_reps),
+            mean_compression_scores,
+            yerr=sem_compression_scores,
+            color=compression_color,
+            marker='*',
+            markersize=5,
+            capsize=5,
+        )
+        if z in [1, 2]:
+            ax1[z].set_yticks([])
+
+        ax2 = ax1[z].twinx()
+        # if z < 2:
+        #     ax2.set_yticks([])
+        if z == 2:
+            ax2.set_ylabel('Peripheral Attention \n(Zero Proportion)', color=zero_percent_color)
+        ax2.errorbar(
+            np.arange(num_reps),
+            mean_zero_percent,
+            yerr=sem_zero_percent,
+            color=zero_percent_color,
+            marker='o',
+            markersize=5,
+            capsize=5,
+            alpha=0.75
+        )
+        ax1[z].set_ylim([-0.05, 1.05])
+        ax1[z].set_xticks([0, 15])
+        ax1[z].set_xticklabels(['1', '16'])
+        ax1[1].set_xlabel('Repetition')
+        ax1[0].set_ylabel('Controller Attention \n(Compression)', color=compression_color)
+        ax1[z].tick_params(axis='y', labelcolor=compression_color)
+        ax2.tick_params(axis='y', labelcolor=zero_percent_color)
+        ax1[z].set_title(f'Type {TypeConverter[problem_type]}')
+
+    plt.tight_layout()
+    plt.savefig(f'figs/high_attn_against_low_attn_type{problem_type}.png')
+
+
+def Fig_alphas_against_recon_V1a(attn_config_version):
+    """
+    V1 -> V1a: Plot 3-by-3, Optional overtime.
+    """
+    problem_types = [1, 2, 6]
+    num_dims = 3
+    
+    fig, ax1 = plt.subplots(3, 3, figsize=(5, 5))
+    # alpha_color = '#E98D6B'
+    type2runs, _ = find_canonical_runs(
+            attn_config_version, canonical_runs_only=True)
+
+    for z in range(len(problem_types)):
+        problem_type = problem_types[z]
+        relevant_dim_indices = range(num_dims)
+        subs = type2runs[problem_type-1]
+        num_runs = len(subs)
+
+        print(problem_type, num_runs)
+
+        for i in range(len(relevant_dim_indices)):
+            relevant_dim_index = relevant_dim_indices[i]
+            relevant_dim_alphas = np.ones((num_runs))
+            relevant_dim_recons = np.ones((num_runs))
+
+            for s in range(num_runs):
+                sub = subs[s]
+                # (384, 1) -> (16*8, 3)
+                alphas = np.load(
+                    f'results/{attn_config_version}/' \
+                    f'all_alphas_type{problem_type}_run{sub}_cluster.npy')
+                alphas = alphas.reshape(-1, 3)
+
+                per_rp_alphas = alphas[-8:, :]  # (8, 3)
+                per_rp_alphas_average = np.mean(per_rp_alphas, axis=0)  # (3)
+                
+                # (10800, 1) -> (3600, 3) -> (15*8*30, 3)
+                binary_recon = np.load(
+                    f'results/{attn_config_version}/' \
+                    f'all_recon_loss_ideal_type{problem_type}_run{sub}_cluster.npy')
+                binary_recon = binary_recon.reshape(-1, 3)
+                per_rp_binary_recons = binary_recon[-8*5:, :]  # (8*30, 3)
+                per_rp_binary_recon_average = np.mean(per_rp_binary_recons, axis=0)  # (3)
+                
+                counter_balancing_fpath = f'results/{attn_config_version}/counter_balancing_type{problem_type}_run{sub}_cluster.npy'
+                counter_balancing = np.load(counter_balancing_fpath, allow_pickle=True)
+                rot_dims = counter_balancing.item()['rot_dims']
+                k = counter_balancing.item()['k'][0]
+                if k != 2:
+                    # no need to rotate if k == 2 as it is same as k == 0
+                    # otherwise just switch based on index.
+                    per_rp_binary_recon_average[rot_dims[1]], per_rp_binary_recon_average[rot_dims[0]] = \
+                        per_rp_binary_recon_average[rot_dims[0]], per_rp_binary_recon_average[rot_dims[1]]
+
+                    per_rp_alphas_average[rot_dims[1]], per_rp_alphas_average[rot_dims[0]] = \
+                    per_rp_alphas_average[rot_dims[0]], per_rp_alphas_average[rot_dims[1]]
+
+                # if problem_type == 1:
+                #     conversion_order = [0, 1, 2]
+                #     conversion_order[1:] = np.random.choice(
+                #         conversion_order[1:], size=num_dims-1, replace=False
+                #     )
+                #     per_rp_alphas_average = per_rp_alphas_average[conversion_order]
+                #     per_rp_binary_recon_average = per_rp_binary_recon_average[conversion_order]
+
+                relevant_dim_alphas[s] = per_rp_alphas_average[relevant_dim_index]
+                relevant_dim_recons[s] = per_rp_binary_recon_average[relevant_dim_index]
+            
+            if i in [1, 2]:
+                ax1[z, i].set_yticks([])
+
+            ax1[z, i].set_xlim([-0.5, 10])
+            ax1[z, i].set_xticks([0, 10])
+            ax1[z, i].set_xticklabels([0, 10])
+            # ax1[z, i].set_ylim([-1, 7])
+            # ax1[z, i].set_yticks([0, 7])
+            # ax1[z, i].set_yticklabels([0, 7])
+            ax1[z, 1].set_title(f'Type {TypeConverter[problem_type]}')
+            ax1[z, i].spines.right.set_visible(False)
+            ax1[z, i].spines.top.set_visible(False)
+            if z == 0:
+                ax1[z, 0].set_xlabel(f'Relevant')
+                ax1[z, 1].set_xlabel(f'Irrelevant')
+                ax1[z, 2].set_xlabel(f'Irrelevant')
+            elif z == 1:
+                ax1[z, 0].set_xlabel(f'Relevant')
+                ax1[z, 1].set_xlabel(f'Relevant')
+                ax1[z, 2].set_xlabel(f'Irrelevant')
+            elif z == 2:
+                ax1[z, 0].set_xlabel(f'Relevant')
+                ax1[z, 1].set_xlabel(f'Relevant \n Attention Strength')
+                ax1[z, 2].set_xlabel(f'Relevant')
+
+            # ax1[z, i].scatter(
+            #     relevant_dim_alphas,
+            #     relevant_dim_recons,
+            #     color=colors[z],
+            #     marker='o', 
+            #     alpha=0.2,
+            #     edgecolor='none'
+            # )
+
+            mean_alpha = np.mean(relevant_dim_alphas)
+            mean_recon = np.mean(relevant_dim_recons)
+            print(
+                f'Problem type {problem_type}, dim {relevant_dim_index}, mean alpha={mean_alpha:.3f}, mean recon={mean_recon:.3f}')
+
+            # ax1[z, i].errorbar(
+            #     mean_alpha,
+            #     np.mean(relevant_dim_recons),
+            #     yerr=stats.sem(relevant_dim_recons),
+            #     capsize=5,
+            #     color='k',
+            #     marker='o',
+            # )
+
+            sns.kdeplot(
+                data=relevant_dim_recons,
+                ax=ax1[z, i],
+            )
+
+
+    ax1[1, 0].set_ylabel('Information Loss')
+    plt.tight_layout()
+    plt.savefig(f'figs/scatter_final_typeALL_highAttn_vs_reconLoss.pdf')
+
+
+def Fig_alphas_against_recon_jointplot(attn_config_version):
+    problem_types = [1]
+    num_dims = 3
+    
+    # fig = plt.figure(figsize=(250, 250))
+    # gs = gridspec.GridSpec(3, 3)
+    fig, ax1 = plt.subplots(3, 3, figsize=(10, 10))
+    type2runs, _ = find_canonical_runs(attn_config_version, canonical_runs_only=True)
+
+    for z in range(len(problem_types)):
+        problem_type = problem_types[z]
+        relevant_dim_indices = range(num_dims)
+        subs = type2runs[problem_type-1]
+        num_runs = len(subs)
+
+        print(problem_type, num_runs)
+
+        for i in range(len(relevant_dim_indices)):
+            relevant_dim_index = relevant_dim_indices[i]
+            relevant_dim_alphas = np.ones((num_runs))
+            relevant_dim_recons = np.ones((num_runs))
+
+            for s in range(num_runs):
+                sub = subs[s]
+                # (384, 1) -> (16*8, 3)
+                alphas = np.load(
+                    f'results/{attn_config_version}/' \
+                    f'all_alphas_type{problem_type}_run{sub}_cluster.npy')
+                alphas = alphas.reshape(-1, 3)
+
+                per_rp_alphas = alphas[-8:, :]  # (8, 3)
+                per_rp_alphas_average = np.mean(per_rp_alphas, axis=0)  # (3)
+                
+                # (10800, 1) -> (3600, 3) -> (15*8*30, 3)
+                binary_recon = np.load(
+                    f'results/{attn_config_version}/' \
+                    f'all_recon_loss_ideal_type{problem_type}_run{sub}_cluster.npy')
+                binary_recon = binary_recon.reshape(-1, 3)
+                per_rp_binary_recons = binary_recon[-8*5:, :]  # (8*30, 3)
+                per_rp_binary_recon_average = np.mean(per_rp_binary_recons, axis=0)  # (3)
+                
+                counter_balancing_fpath = f'results/{attn_config_version}/counter_balancing_type{problem_type}_run{sub}_cluster.npy'
+                counter_balancing = np.load(counter_balancing_fpath, allow_pickle=True)
+                rot_dims = counter_balancing.item()['rot_dims']
+                k = counter_balancing.item()['k'][0]
+                if k != 2:
+                    # no need to rotate if k == 2 as it is same as k == 0
+                    # otherwise just switch based on index.
+                    per_rp_binary_recon_average[rot_dims[1]], per_rp_binary_recon_average[rot_dims[0]] = \
+                        per_rp_binary_recon_average[rot_dims[0]], per_rp_binary_recon_average[rot_dims[1]]
+
+                    per_rp_alphas_average[rot_dims[1]], per_rp_alphas_average[rot_dims[0]] = \
+                    per_rp_alphas_average[rot_dims[0]], per_rp_alphas_average[rot_dims[1]]
+
+                # if problem_type == 1:
+                #     conversion_order = [0, 1, 2]
+                #     conversion_order[1:] = np.random.choice(
+                #         conversion_order[1:], size=num_dims-1, replace=False
+                #     )
+                #     per_rp_alphas_average = per_rp_alphas_average[conversion_order]
+                #     per_rp_binary_recon_average = per_rp_binary_recon_average[conversion_order]
+
+                relevant_dim_alphas[s] = per_rp_alphas_average[relevant_dim_index]
+                relevant_dim_recons[s] = per_rp_binary_recon_average[relevant_dim_index]
+            
+            # ax1[z, i].scatter(
+            #     relevant_dim_alphas,
+            #     relevant_dim_recons,
+            #     color=colors[z],
+            #     marker='o', 
+            #     alpha=0.2,
+            #     edgecolor='none'
+            # )
+
+            # ax1[z, i].errorbar(
+            #     mean_alpha,
+            #     np.mean(relevant_dim_recons),
+            #     yerr=stats.sem(relevant_dim_recons),
+            #     capsize=5,
+            #     color='k',
+            #     marker='o',
+            # )
+
+            # sns.kdeplot(
+            #     data=relevant_dim_recons,
+            #     ax=ax1[z, i],
+            # )
+
+            hack_hue = np.ones((len(relevant_dim_alphas)))
+            hue = np.concatenate((['hue'], hack_hue))
+
+            relevant_dim_alphas = np.concatenate((['attn'], relevant_dim_alphas))
+            relevant_dim_recons = np.concatenate((['recon'], relevant_dim_recons))
+            
+            alpha_v_recon = np.vstack((relevant_dim_alphas, relevant_dim_recons, hue)).T
+            pd.DataFrame(alpha_v_recon).to_csv(
+                f"alpha_v_recon.csv", 
+                index=False, 
+                header=False
+            )
+            alpha_v_recon = pd.read_csv(f"alpha_v_recon.csv")
+            plot = sns.jointplot(
+                data=alpha_v_recon, 
+                x="attn", y="recon", kind='hack2', 
+                # xlim = (-0,1), ylim = (-0,2),
+            )
+            # plot.ax_marg_x.set_xlim(0, 1)
+
+            if z == 0:
+                if i <= 0:
+                    plot.ax_marg_y.set_ylim(-0.005, 0.1)
+                else:
+                    plot.ax_marg_y.set_ylim(-0.5, 8)
+            
+
+            # SeabornFig2Grid(g, fig, gs[z, i])
+
+            # gs.tight_layout(fig)
+            plt.savefig(f'figs/scatter_final_typeALL_highAttn_vs_reconLoss_{z}-{i}.png')
+
+
+class SeabornFig2Grid():
+
+    def __init__(self, seaborngrid, fig,  subplot_spec):
+        self.fig = fig
+        self.sg = seaborngrid
+        self.subplot = subplot_spec
+        if isinstance(self.sg, sns.axisgrid.FacetGrid) or \
+            isinstance(self.sg, sns.axisgrid.PairGrid):
+            self._movegrid()
+        elif isinstance(self.sg, sns.axisgrid.JointGrid):
+            self._movejointgrid()
+        self._finalize()
+
+    def _movegrid(self):
+        """ Move PairGrid or Facetgrid """
+        self._resize()
+        n = self.sg.axes.shape[0]
+        m = self.sg.axes.shape[1]
+        self.subgrid = gridspec.GridSpecFromSubplotSpec(n,m, subplot_spec=self.subplot)
+        for i in range(n):
+            for j in range(m):
+                self._moveaxes(self.sg.axes[i,j], self.subgrid[i,j])
+
+    def _movejointgrid(self):
+        """ Move Jointgrid """
+        h= self.sg.ax_joint.get_position().height
+        h2= self.sg.ax_marg_x.get_position().height
+        r = int(np.round(h/h2))
+        self._resize()
+        self.subgrid = gridspec.GridSpecFromSubplotSpec(r+1,r+1, subplot_spec=self.subplot)
+
+        self._moveaxes(self.sg.ax_joint, self.subgrid[1:, :-1])
+        self._moveaxes(self.sg.ax_marg_x, self.subgrid[0, :-1])
+        self._moveaxes(self.sg.ax_marg_y, self.subgrid[1:, -1])
+
+    def _moveaxes(self, ax, gs):
+        #https://stackoverflow.com/a/46906599/4124317
+        ax.remove()
+        ax.figure=self.fig
+        self.fig.axes.append(ax)
+        self.fig.add_axes(ax)
+        ax._subplotspec = gs
+        ax.set_position(gs.get_position(self.fig))
+        ax.set_subplotspec(gs)
+
+    def _finalize(self):
+        plt.close(self.sg.fig)
+        self.fig.canvas.mpl_connect("resize_event", self._resize)
+        self.fig.canvas.draw()
+
+    def _resize(self, evt=None):
+        self.sg.fig.set_size_inches(self.fig.get_size_inches())
 
 
 if __name__ == '__main__':
-    attn_config_version='v4a-noCostly_naive-withNoise-entropy-e2e'
+    attn_config_version='v4a_naive-withNoise-entropy-e2e'
     
     Fig_zero_attn(attn_config_version)
 
     # Fig_recon_n_decoding(attn_config_version)
 
-    Fig_binary_recon(attn_config_version)
+    # Fig_binary_recon(attn_config_version)
+
+    # Fig_alphas_against_recon_V2(attn_config_version)
+    # Fig_high_attn_against_low_attn_V2(attn_config_version)
+
+    # Fig_alphas_against_recon_V1a(attn_config_version)
+
+    # Fig_alphas_against_recon_jointplot(attn_config_version)

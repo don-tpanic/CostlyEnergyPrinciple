@@ -191,11 +191,19 @@ def Fig_zero_attn(attn_config_version, threshold=[0, 0, 0]):
 
         mean = np.mean(temp_collector)
         means.append(mean)
-        sem = stats.sem(temp_collector)
+        # sem = stats.sem(temp_collector)
+        sem = np.std(temp_collector)
+        temp_collector = (temp_collector,)
+        ci = stats.bootstrap(
+            temp_collector, 
+            statistic=np.mean, 
+            random_state=42
+        ).confidence_interval
+        yerr = np.array([np.abs(mean-ci[0]), np.abs(mean-ci[1])]).reshape(2, -1)
         ax.errorbar(
             x=z,
             y=mean,
-            yerr=sem,
+            yerr=yerr,
             fmt='o',
             capsize=3,
             color=colors[z],
@@ -1093,13 +1101,13 @@ class SeabornFig2Grid():
 
 
 if __name__ == '__main__':
-    attn_config_version='v4a-noCostly_naive-withNoise-entropy'
+    attn_config_version='v4a_naive-withNoise-entropy'
     
     Fig_zero_attn(attn_config_version)
 
     # Fig_recon_n_decoding(attn_config_version)
 
-    Fig_binary_recon(attn_config_version)
+    # Fig_binary_recon(attn_config_version)
 
     # Fig_alphas_against_recon_V2(attn_config_version)
     # Fig_high_attn_against_low_attn_V2(attn_config_version)

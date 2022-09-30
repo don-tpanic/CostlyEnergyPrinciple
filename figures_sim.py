@@ -40,6 +40,7 @@ def find_canonical_runs(
     Record the runs that produce canonical solutions
     for each problem type. 
     Specificially, we check the saved `mask_non_recruit`
+
     if canonical_solutions:
         only return runs that yield canonical solutions.
     """
@@ -190,11 +191,19 @@ def Fig_zero_attn(attn_config_version, threshold=[0, 0, 0]):
 
         mean = np.mean(temp_collector)
         means.append(mean)
-        sem = stats.sem(temp_collector)
+        # sem = stats.sem(temp_collector)
+        sem = np.std(temp_collector)
+        temp_collector = (temp_collector,)
+        ci = stats.bootstrap(
+            temp_collector, 
+            statistic=np.mean, 
+            random_state=42
+        ).confidence_interval
+        yerr = np.array([np.abs(mean-ci[0]), np.abs(mean-ci[1])]).reshape(2, -1)
         ax.errorbar(
             x=z,
             y=mean,
-            yerr=sem,
+            yerr=yerr,
             fmt='o',
             capsize=3,
             color=colors[z],
@@ -303,6 +312,7 @@ def Fig_recon_n_decoding(attn_config_version):
         -----
             For brain decoding, we have produced results which are 
             in `brain_data/decoding.py` and `brain_data/decoding_results/`.
+
             For model recon, we obtain results in `recon_loss_by_type`
             following conventions of how we save decoding results.
         """
@@ -362,6 +372,7 @@ def Fig_recon_n_decoding(attn_config_version):
         -----
             For brain decoding, we have produced results which are 
             in `brain_data/decoding.py` and `brain_data/decoding_results/`.
+
             For model recon, we obtain results in `recon_loss_by_type`
             following conventions of how we save decoding results.
         """
@@ -529,19 +540,25 @@ def Fig_binary_recon(
 
         # print(all_strategies_collector)
         average_metric = np.mean(np.array(all_strategies_collector), axis=0)
-        sem_metric = stats.sem(np.array(all_strategies_collector), axis=0)
-        std_metric = np.std(np.array(all_strategies_collector), axis=0)
-        print(average_metric)
-        print(std_metric)
+        # sem_metric = stats.sem(np.array(all_strategies_collector), axis=0)
+        # std_metric = np.std(np.array(all_strategies_collector), axis=0)
+        ci = stats.bootstrap(
+            (average_metric, ),
+            statistic=np.mean, 
+            random_state=42
+        ).confidence_interval
+        yerr = np.array(
+            [np.abs(average_metric-ci[0]), np.abs(average_metric-ci[1])]
+        ).reshape(2, -1)
+
         ax[row_idx, col_idx].bar(
             x=range(num_dims),
             height=average_metric,
-            yerr=std_metric,
+            yerr=yerr,
             # fmt='o',
             # capsize=3,
             color=colors[z]
         )
-
         ax[row_idx, col_idx].set_xticks([])
         ax[row_idx, col_idx].set_ylim([-0.1, 5])
         ax[row_idx, col_idx].set_title(f'Type {problem_type}')
@@ -1092,11 +1109,11 @@ class SeabornFig2Grid():
 if __name__ == '__main__':
     attn_config_version='v4a_naive-withNoise-entropy-e2e'
     
-    Fig_zero_attn(attn_config_version)
+    # Fig_zero_attn(attn_config_version)
 
     # Fig_recon_n_decoding(attn_config_version)
 
-    # Fig_binary_recon(attn_config_version)
+    Fig_binary_recon(attn_config_version)
 
     # Fig_alphas_against_recon_V2(attn_config_version)
     # Fig_high_attn_against_low_attn_V2(attn_config_version)

@@ -15,15 +15,16 @@ import matplotlib.gridspec as gridspec
 
 # rc('text', usetex=True)
 # plt.rcParams['text.usetex']=True
-color_palette = sns.color_palette("bright")
+color_palette = sns.color_palette("flare")
 colors = [
-    color_palette[1],   # 1
-    color_palette[6],   # 2
-    color_palette[3],   # 3
-    color_palette[4],   # 4
-    color_palette[8],   # 5
-    color_palette[9],   # 6
+    color_palette[0],   # 1
+    color_palette[1],   # 2
+    color_palette[2],   # 3
+    color_palette[3],   # 4
+    color_palette[4],   # 5
+    color_palette[5],   # 6
 ]
+
 plt.rcParams.update({'font.size': 12, 'font.weight': "bold"})
 plt.rcParams["font.family"] = "Helvetica"
 TypeConverter = {1: 'I', 2: 'II', 6: 'VI'}
@@ -204,14 +205,14 @@ def Fig_zero_attn(attn_config_version, threshold=[0, 0, 0]):
     ax.plot(range(len(problem_types)), means, color='grey', ls='dashed')       
     ax.set_ylabel('Percentage of \nZero Attention Weights')
     ax.set_xticks([])
-    ax.set_ylim([0, 0.6])
+    ax.set_ylim([-0.05, 0.6])
     
     # WARNING: problematic because modal run nums are different for each type.
     # regression(collector, , problem_types)
 
     plt.tight_layout()
     plt.legend()
-    plt.savefig(f'figs/zero_attn_{attn_config_version}.png')
+    plt.savefig(f'figs/zero_attn_{attn_config_version}.pdf')
     plt.close()
     
 
@@ -529,25 +530,29 @@ def Fig_binary_recon(
                 strategy2metric[strategy])
             all_strategies_collector.extend(metrics)
 
+        # print(all_strategies_collector)
         average_metric = np.mean(np.array(all_strategies_collector), axis=0)
         sem_metric = stats.sem(np.array(all_strategies_collector), axis=0)
         std_metric = np.std(np.array(all_strategies_collector), axis=0)
-        ax[row_idx, col_idx].errorbar(
+        print(average_metric)
+        print(std_metric)
+        ax[row_idx, col_idx].bar(
             x=range(num_dims),
-            y=average_metric,
+            height=average_metric,
             yerr=std_metric,
-            fmt='o',
-            capsize=3,
-            color=colors[z])
+            # fmt='o',
+            # capsize=3,
+            color=colors[z]
+        )
 
         ax[row_idx, col_idx].set_xticks([])
-        ax[row_idx, col_idx].set_ylim([-0.1, 3])
+        ax[row_idx, col_idx].set_ylim([-0.1, 5])
         ax[row_idx, col_idx].set_title(f'Type {problem_type}')
         ax[-1, col_idx].set_xlabel('Abstract Dimension')
 
-    ax[1, 0].set_ylabel('Reconstruction Loss')
+    ax[1, 0].set_ylabel('Information Loss')
     plt.tight_layout()
-    plt.savefig(f'figs/binary_recon_{attn_config_version}.png')
+    plt.savefig(f'figs/binary_recon_{attn_config_version}.pdf')
 
 
 def Fig_alphas_against_recon_V2(attn_config_version):
@@ -1088,17 +1093,17 @@ class SeabornFig2Grid():
 
 
 if __name__ == '__main__':
-    attn_config_version='v4a_naive-withNoise-entropy'
+    attn_config_version='v4a-noCostly_naive-withNoise-entropy'
     
-    # Fig_zero_attn(attn_config_version)
+    Fig_zero_attn(attn_config_version)
 
     # Fig_recon_n_decoding(attn_config_version)
 
-    # Fig_binary_recon(attn_config_version)
+    Fig_binary_recon(attn_config_version)
 
     # Fig_alphas_against_recon_V2(attn_config_version)
     # Fig_high_attn_against_low_attn_V2(attn_config_version)
 
     # Fig_alphas_against_recon_V1a(attn_config_version)
 
-    Fig_alphas_against_recon_jointplot(attn_config_version)
+    # Fig_alphas_against_recon_jointplot(attn_config_version)

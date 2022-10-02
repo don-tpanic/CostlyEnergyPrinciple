@@ -83,10 +83,11 @@ def examine_clustering_learning_curves(
     ax[0].set_xlabel('Learning Block', fontweight='bold')
     ax[0].set_ylabel('Probability of Error', fontweight='bold')
 
-    ax[1].set_xticks(range(0, lc.shape[0], 2))
+    lc = np.mean(lc.reshape(-1, 2), axis=1)
+    ax[1].set_xticks(range(len(lc)))
     ax[1].set_xticklabels(range(1, len(shj[0]) + 1))
     ax[1].set_xlabel('Learning Block', fontweight='bold')
-    ax[1].get_yaxis().set_visible(False)
+    # ax[1].get_yaxis().set_visible(False)
 
     plt.legend()
     # plt.suptitle('(A)')
@@ -899,10 +900,10 @@ def subject_dimension_rt_acc():
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
     
-    attn_config_version = 'v4a-noCostly_naive-withNoise-entropy-e2e'
+    attn_config_version = 'v4a_naive-withNoise-entropy-e2e'
     dcnn_config_version = 't1.vgg16.block4_pool.None.run1'
     
-    # examine_clustering_learning_curves(attn_config_version)
+    examine_clustering_learning_curves(attn_config_version)
     examine_high_attn_and_modal_solutions(attn_config_version)
 
     # consistency_alphas_vs_recon(attn_config_version)

@@ -214,6 +214,8 @@ def Fig_zero_attn(attn_config_version, threshold=[0, 0, 0]):
     ax.set_ylabel('Percentage of \nZero Attention Weights')
     ax.set_xticks([])
     ax.set_ylim([-0.05, 0.6])
+    ax.spines.right.set_visible(False)
+    ax.spines.top.set_visible(False)
     
     # WARNING: problematic because modal run nums are different for each type.
     # regression(collector, , problem_types)
@@ -1107,13 +1109,13 @@ class SeabornFig2Grid():
 
 
 if __name__ == '__main__':
-    attn_config_version='v4a_naive-withNoise-entropy-e2e'
+    attn_config_version='v4a-noCostly_naive-withNoise-entropy-e2e'
     
-    # Fig_zero_attn(attn_config_version)
+    Fig_zero_attn(attn_config_version)
 
     # Fig_recon_n_decoding(attn_config_version)
 
-    Fig_binary_recon(attn_config_version)
+    # Fig_binary_recon(attn_config_version)
 
     # Fig_alphas_against_recon_V2(attn_config_version)
     # Fig_high_attn_against_low_attn_V2(attn_config_version)

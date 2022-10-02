@@ -68,6 +68,7 @@ def examine_clustering_learning_curves(
         lc = np.load(
             f'results/{attn_config_version}/lc_type{problem_type}_{recon_level}.npy'
         )
+        lc = np.mean(lc.reshape(-1, 2), axis=1)
         ax[1].errorbar(
             range(lc.shape[0]), 
             lc,
@@ -83,7 +84,6 @@ def examine_clustering_learning_curves(
     ax[0].set_xlabel('Learning Block', fontweight='bold')
     ax[0].set_ylabel('Probability of Error', fontweight='bold')
 
-    lc = np.mean(lc.reshape(-1, 2), axis=1)
     ax[1].set_xticks(range(len(lc)))
     ax[1].set_xticklabels(range(1, len(shj[0]) + 1))
     ax[1].set_xlabel('Learning Block', fontweight='bold')
@@ -900,7 +900,7 @@ def subject_dimension_rt_acc():
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
     
-    attn_config_version = 'v4a_naive-withNoise-entropy-e2e'
+    attn_config_version = 'v4a-noCostly_naive-withNoise-entropy-e2e'
     dcnn_config_version = 't1.vgg16.block4_pool.None.run1'
     
     examine_clustering_learning_curves(attn_config_version)

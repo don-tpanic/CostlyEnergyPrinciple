@@ -2064,10 +2064,10 @@ if __name__ == '__main__':
 
     # Fig_alphas_against_recon_V1(attn_config_version, v)
     # Fig_alphas_against_recon_V1a(attn_config_version, v)
-    # Fig_alphas_against_recon_V2(attn_config_version, v)
+    Fig_alphas_against_recon_V2(attn_config_version, v)
     # Fig_alphas_against_recon_jointplot(attn_config_version, v)
 
-    Type1_relevant_dim_and_zero_percent(attn_config_version, v)
-    Type1_relevant_dim_and_info_loss(attn_config_version, v)
+    # Type1_relevant_dim_and_zero_percent(attn_config_version, v)
+    # Type1_relevant_dim_and_info_loss(attn_config_version, v)
     # Type2_oneofrelevant_dim_and_zero_percent(attn_config_version, v)
     

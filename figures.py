@@ -1234,9 +1234,9 @@ def Fig_high_attn_against_low_attn_V2(attn_config_version, v):
             yerr=sem_compression_scores,
             color=compression_color,
             marker='o',
-            markersize=5,
-            capsize=5,
-            alpha=0.75
+            markersize=3,
+            capsize=3,
+            alpha=0.7
         )
         if z in [1, 2]:
             ax1[z].set_yticks([])
@@ -1253,9 +1253,9 @@ def Fig_high_attn_against_low_attn_V2(attn_config_version, v):
             yerr=sem_zero_percent,
             color=zero_percent_color,
             marker='o',
-            markersize=5,
-            capsize=5,
-            alpha=0.75
+            markersize=3,
+            capsize=3,
+            alpha=0.5
         )
         ax1[z].set_ylim([-0.05, 1.05])
         ax1[z].set_xticks([0, 15])
@@ -1578,10 +1578,10 @@ def Fig_alphas_against_recon_V2(attn_config_version, v):
                     # order used during learning and antenna is the relevant dim.
                     sub_physical_order = np.array(sub2assignment_n_scheme[sub][:3])-1
                     conversion_order = sub_physical_order
-                    if problem_type == 1:
-                        conversion_order[1:] = np.random.choice(
-                            conversion_order[1:], size=num_dims-1, replace=False
-                        )
+                    # if problem_type == 1:
+                    #     conversion_order[1:] = np.random.choice(
+                    #         conversion_order[1:], size=num_dims-1, replace=False
+                    #     )
 
                     per_rp_alphas_average = per_rp_alphas_average[conversion_order]
                     per_rp_binary_recon_average = per_rp_binary_recon_average[conversion_order]
@@ -1608,8 +1608,8 @@ def Fig_alphas_against_recon_V2(attn_config_version, v):
                 mean_alpha_over_subs, 
                 color=alpha_color, 
                 marker='o', 
-                markersize=5,
-                alpha=0.75
+                markersize=3,
+                alpha=0.7
             )
             ax1[idx, i].set_xticks([0, 15])
             ax1[idx, i].set_xticklabels([1, 16])
@@ -1626,24 +1626,25 @@ def Fig_alphas_against_recon_V2(attn_config_version, v):
                 ax2.set_ylabel('Information Loss', color=recon_color)
             if i == 1:
                 ax2.set_title(f'Type {TypeConverter[problem_type]}')
-            ax2.set_ylim([-0.05, 1.05])
-            # ax2.errorbar(
-            #     np.arange(num_reps),
-            #     mean_recon_over_subs,
-            #     yerr=sem_recon_over_subs,
-            #     color=recon_color,
-            #     marker='o',
-            #     markersize=5,
-            #     capsize=5,
-            # )
-            ax2.plot(
-                np.arange(num_reps), 
-                mean_recon_over_subs, 
-                color=recon_color, 
-                marker='o', 
-                markersize=5, 
-                alpha=0.75
+            ax2.set_ylim([-0.05, 2])
+            ax2.errorbar(
+                np.arange(num_reps),
+                mean_recon_over_subs,
+                yerr=sem_recon_over_subs,
+                color=recon_color,
+                marker='o',
+                markersize=3,
+                capsize=3,
+                alpha=0.7,
             )
+            # ax2.plot(
+            #     np.arange(num_reps), 
+            #     mean_recon_over_subs, 
+            #     color=recon_color, 
+            #     marker='o', 
+            #     markersize=5, 
+            #     alpha=0.75
+            # )
     
     ax1[1, 0].set_ylabel('Attention Strength', color=alpha_color)
     ax1[-1, 1].set_xlabel('Repetition')
@@ -2060,7 +2061,7 @@ if __name__ == '__main__':
     # Fig_high_attn_against_low_attn_final(attn_config_version, v)
     # Fig_high_attn_against_low_attn_window(attn_config_version, v, corr='keep_type_n_time')
     # Fig_high_attn_against_low_attn_window_oneplot(attn_config_version, v, corr='collapse_type_n_time')
-    # Fig_high_attn_against_low_attn_V2(attn_config_version, v)
+    Fig_high_attn_against_low_attn_V2(attn_config_version, v)
 
     # Fig_alphas_against_recon_V1(attn_config_version, v)
     # Fig_alphas_against_recon_V1a(attn_config_version, v)

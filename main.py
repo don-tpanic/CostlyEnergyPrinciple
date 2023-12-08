@@ -169,8 +169,10 @@ def train_model(problem_type, attn_config_version):
             )
             
         # ===== Saving stuff at the end of each run =====
-        # save one run's trained joint model.
-        joint_model.save(os.path.join(results_path, f'model_type{problem_type}_run{run}')) 
+        if 'vit' not in attn_config_version:
+            # NOTE: vit-based model saving has unresolved error.
+            # save one run's trained joint model.
+            joint_model.save(os.path.join(results_path, f'model_type{problem_type}_run{run}'))
         
         # sub in model_double's final attn weights.
         mask_non_recruit = joint_model.get_layer('mask_non_recruit').get_weights()[0]
@@ -278,7 +280,7 @@ if __name__ == '__main__':
             )
         # Do multi-GPU for all when there is no problem_type specified.
         else:
-            versions = ['4a-t0-vgg16']
+            versions = ['4a-t0-vit_b16-msa']
             attn_configs = []
             for v in versions:
                 attn_configs.append(f'v{v}_naive-withNoise-entropy')

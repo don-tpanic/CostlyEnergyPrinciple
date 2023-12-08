@@ -75,6 +75,7 @@ def train_model(problem_type, attn_config_version):
             attn_config_version=attn_config_version,
             dcnn_config_version=dcnn_config_version, 
         )
+
         preprocess_func = joint_model.preprocess_func
         assoc_weights = np.random.uniform(
             low=0, high=0, size=(num_clusters, 2)

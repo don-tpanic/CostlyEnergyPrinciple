@@ -907,8 +907,8 @@ def subject_dimension_rt_acc():
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
     
-    attn_config_version = 'v4a-t0-vgg16_naive-withNoise-entropy'
-    dcnn_config_version = 't0.vgg16.block4_pool.None.run1'
+    attn_config_version = 'v4a-t0-vit_b16-msa_naive-withNoise-entropy'
+    dcnn_config_version = 't0.vit_b16.layer_9_msa.None.run1'
     
     examine_clustering_learning_curves(attn_config_version)
     # examine_high_attn_and_modal_solutions(attn_config_version)

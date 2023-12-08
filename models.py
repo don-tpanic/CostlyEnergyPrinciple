@@ -16,6 +16,8 @@ from clustering.layers import *
 from clustering.models import ClusterModel
 from layers import AttnFactory
 from keras_custom import initializers
+from transformers_custom import AutoImageProcessor, TFViTModel
+
 
 
 def presave_dcnn(dcnn_config_version, path_model):
@@ -181,21 +183,24 @@ def ViT(attn_config_version,
     layer = attn_positions[0]
 
     # --- stage 1 --- #
-    from transformers_custom import AutoImageProcessor, TFViTModel
-    model = TFViTModel.from_pretrained(
+    full_vit = TFViTModel.from_pretrained(
         'google/vit-base-patch16-224-in21k',
         cache_dir='model_zoo/vit_b16'
     )
+    
+    # freeze all full_vit layers.
+    full_vit.trainable = False
+
     preprocess_func = AutoImageProcessor.from_pretrained(
         "google/vit-base-patch16-224-in21k",
         cache_dir='model_zoo/vit_b16'
     )
-
     synthetic_input = tf.random.uniform(shape=(1, 3, 224, 224))
     layer_index = int(layer[6:7])
-    msa_states = model(
+    msa_states = full_vit(
         synthetic_input, training=False, 
-        output_msa_states=True).attentions[layer_index].numpy()
+        output_msa_states=True
+    ).attentions[layer_index].numpy()
 
     # --- stage 2 --- #
     intermediate_input = tf.keras.Input(
@@ -278,7 +283,7 @@ def ViT(attn_config_version,
         if "attn_factory" not in layer.name:
             layer.trainable = False
     model.summary()
-    return model, preprocess_func
+    return model, preprocess_func, full_vit
 
 
 
@@ -303,7 +308,7 @@ class JointModel(Model):
         self.dcnn_config_version = dcnn_config_version
 
         if 'vit' in self.dcnn_config_version:
-            self.DCNN, self.preprocess_func = ViT(
+            self.DCNN, self.preprocess_func, self.full_vit = ViT(
                 attn_config_version=attn_config_version,
                 dcnn_config_version=dcnn_config_version,
                 intermediate_input=intermediate_input
@@ -462,22 +467,17 @@ class JointModel(Model):
         # to get msa states as we didn't build 
         # vit into the graph (i.e. not symbolic.)
         if 'vit' in self.dcnn_config_version:
-            from finetune.models import model_base
             dcnn_config = load_config(
                 component='finetune',
                 config_version=self.dcnn_config_version
             )
-            vit_model_until_msa, _, _ = model_base(
-                model_name=dcnn_config['model_name'],
-                layer=dcnn_config['layer'],
-                train='none'
-            )
             real_inputs, fake_inputs = inputs
             layer_index = int(dcnn_config['layer'][6:7])
-            real_inputs = vit_model_until_msa(
-                real_inputs, training=False, output_msa_states=True
+            real_inputs = self.full_vit(
+                real_inputs, 
+                training=False, 
+                output_msa_states=True
             ).attentions[layer_index].numpy()
-
             inputs = [real_inputs, fake_inputs]
             
         # DCNN to produce binary outputs. 

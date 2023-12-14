@@ -1109,11 +1109,11 @@ class SeabornFig2Grid():
 
 
 if __name__ == '__main__':
-    attn_config_version='v4a_naive-withNoise-entropy'
+    attn_config_version='v4a-t0-vit_b16-msa_naive-withNoise-entropy'
     
     Fig_zero_attn(attn_config_version)
 
-    # Fig_recon_n_decoding(attn_config_version)
+    Fig_recon_n_decoding(attn_config_version)
 
     # Fig_binary_recon(attn_config_version)
 

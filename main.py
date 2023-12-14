@@ -177,6 +177,7 @@ def train_model(problem_type, attn_config_version):
         
         # sub in model_double's final attn weights.
         mask_non_recruit = joint_model.get_layer('mask_non_recruit').get_weights()[0]
+        print(f'[Check] mask_non_recruit = {mask_non_recruit}')
 
         # save final params (attn weights, mask_non_recruit)
         np.save(
@@ -184,11 +185,13 @@ def train_model(problem_type, attn_config_version):
                 results_path, f'attn_weights_type{problem_type}_run{run}_{recon_level}.npy'),
                 attn_weights  # NOTE: [[aw_position1], [aw_position2], [aw_position3], ...]
         )
+        print(f"[Saved] attn_weights_type{problem_type}_run{run}_{recon_level}.npy")
         np.save(
             os.path.join(
                 results_path, f'mask_non_recruit_type{problem_type}_run{run}_{recon_level}.npy'),
                 mask_non_recruit
         )
+        print(f"[Saved] attn_weights_type{problem_type}_run{run}_{recon_level}.npy")
         K.clear_session()
         del joint_model
 
@@ -203,6 +206,7 @@ def train_model(problem_type, attn_config_version):
                 results_path, f'all_recon_loss_ideal_type{problem_type}_run{run}_{recon_level}.npy'),
                 all_recon_loss_ideal
         )
+        print(f"[Saved] all_recon_loss_ideal_type{problem_type}_run{run}_{recon_level}.npy")
         # np.save(
         #     os.path.join(
         #         results_path, f'all_reg_loss_type{problem_type}_run{run}_{recon_level}.npy'), 
@@ -213,11 +217,13 @@ def train_model(problem_type, attn_config_version):
                 results_path, f'all_percent_zero_attn_type{problem_type}_run{run}_{recon_level}.npy'),
                 all_percent_zero_attn
         )
+        print(f"[Saved] all_percent_zero_attn_type{problem_type}_run{run}_{recon_level}.npy")
         np.save(
             os.path.join(
                 results_path, f'all_alphas_type{problem_type}_run{run}_{recon_level}.npy'),
                 all_alphas
         )
+        print(f"[Saved] all_alphas_type{problem_type}_run{run}_{recon_level}.npy")
         # np.save(
         #     os.path.join(
         #         results_path, f'all_centers_type{problem_type}_run{run}_{recon_level}.npy'),

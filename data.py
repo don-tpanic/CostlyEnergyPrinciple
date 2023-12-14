@@ -30,6 +30,10 @@ def dict_layer2attn_size(model_name='vgg16'):
             'block3_pool': 256,
             'block4_pool': 512
         }
+    elif model_name == 'vit_b16':
+        layer2attn_size = {
+            'layer_9_msa': 12
+        }
         
     return layer2attn_size
     
@@ -173,6 +177,9 @@ def data_loader_V2(
     num_images = len(all_image_fnames)
     if data_format == 'channels_last':
         image_shape = target_size + (3,)
+    if 'vit' in dcnn_config_version:
+        data_format = 'channels_first'
+        image_shape = (3,) + target_size
         
     dataset = []
     for i in range(num_images):
@@ -195,7 +202,10 @@ def data_loader_V2(
         if hasattr(img, 'close'):
             img.close()
         if preprocess_func:
-            x = preprocess_func(x)
+            if 'vit' in dcnn_config_version:
+                x = preprocess_func(x, return_tensors="tf")['pixel_values']
+            else:
+                x = preprocess_func(x)
 
         # ------ /counterbalancing ------
         num_dims = np.int(np.log2(num_images))
@@ -231,7 +241,11 @@ def data_loader_V2(
         # ------ counterbalancing/ ------
 
         # preserve dim=0 (i.e. batch_size dim)
-        x = np.expand_dims(x, axis=0)
+        # NOTE: only when not vit, vit seems to add batch_size dim
+        # from preprocess_func
+        if 'vit' not in dcnn_config_version:
+            x = np.expand_dims(x, axis=0)
+
         y = np.expand_dims(
             type2labels(problem_type)[signature],
             axis=0)

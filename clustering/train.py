@@ -119,9 +119,10 @@ def update_params(
     Update trainable params in the model.
     """
     print(f'[Check] update ALL parameters')
-    
+
     # len(grads) == 10 (8 + 1 + 1)
     grads = tape.gradient(loss_value, model.trainable_weights)
+    assert len(grads) == 10, f'[Check] len(grads) = {len(grads)}'
     
     # adjust lr for each component.
     for i in range(len(grads)):

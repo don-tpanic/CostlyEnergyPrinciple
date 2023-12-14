@@ -75,6 +75,7 @@ def train_model(problem_type, attn_config_version):
             attn_config_version=attn_config_version,
             dcnn_config_version=dcnn_config_version, 
         )
+
         preprocess_func = joint_model.preprocess_func
         assoc_weights = np.random.uniform(
             low=0, high=0, size=(num_clusters, 2)
@@ -169,11 +170,14 @@ def train_model(problem_type, attn_config_version):
             )
             
         # ===== Saving stuff at the end of each run =====
-        # save one run's trained joint model.
-        joint_model.save(os.path.join(results_path, f'model_type{problem_type}_run{run}')) 
+        if 'vit' not in attn_config_version:
+            # NOTE: vit-based model saving has unresolved error.
+            # save one run's trained joint model.
+            joint_model.save(os.path.join(results_path, f'model_type{problem_type}_run{run}'))
         
         # sub in model_double's final attn weights.
         mask_non_recruit = joint_model.get_layer('mask_non_recruit').get_weights()[0]
+        print(f'[Check] mask_non_recruit = {mask_non_recruit}')
 
         # save final params (attn weights, mask_non_recruit)
         np.save(
@@ -181,11 +185,13 @@ def train_model(problem_type, attn_config_version):
                 results_path, f'attn_weights_type{problem_type}_run{run}_{recon_level}.npy'),
                 attn_weights  # NOTE: [[aw_position1], [aw_position2], [aw_position3], ...]
         )
+        print(f"[Saved] attn_weights_type{problem_type}_run{run}_{recon_level}.npy")
         np.save(
             os.path.join(
                 results_path, f'mask_non_recruit_type{problem_type}_run{run}_{recon_level}.npy'),
                 mask_non_recruit
         )
+        print(f"[Saved] attn_weights_type{problem_type}_run{run}_{recon_level}.npy")
         K.clear_session()
         del joint_model
 
@@ -200,6 +206,7 @@ def train_model(problem_type, attn_config_version):
                 results_path, f'all_recon_loss_ideal_type{problem_type}_run{run}_{recon_level}.npy'),
                 all_recon_loss_ideal
         )
+        print(f"[Saved] all_recon_loss_ideal_type{problem_type}_run{run}_{recon_level}.npy")
         # np.save(
         #     os.path.join(
         #         results_path, f'all_reg_loss_type{problem_type}_run{run}_{recon_level}.npy'), 
@@ -210,11 +217,13 @@ def train_model(problem_type, attn_config_version):
                 results_path, f'all_percent_zero_attn_type{problem_type}_run{run}_{recon_level}.npy'),
                 all_percent_zero_attn
         )
+        print(f"[Saved] all_percent_zero_attn_type{problem_type}_run{run}_{recon_level}.npy")
         np.save(
             os.path.join(
                 results_path, f'all_alphas_type{problem_type}_run{run}_{recon_level}.npy'),
                 all_alphas
         )
+        print(f"[Saved] all_alphas_type{problem_type}_run{run}_{recon_level}.npy")
         # np.save(
         #     os.path.join(
         #         results_path, f'all_centers_type{problem_type}_run{run}_{recon_level}.npy'),
@@ -278,7 +287,7 @@ if __name__ == '__main__':
             )
         # Do multi-GPU for all when there is no problem_type specified.
         else:
-            versions = ['4a-t0-vgg16']
+            versions = ['4a-t0-vit_b16-msa']
             attn_configs = []
             for v in versions:
                 attn_configs.append(f'v{v}_naive-withNoise-entropy')

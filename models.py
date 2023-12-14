@@ -16,6 +16,8 @@ from clustering.layers import *
 from clustering.models import ClusterModel
 from layers import AttnFactory
 from keras_custom import initializers
+from transformers_custom import AutoImageProcessor, TFViTModel
+
 
 
 def presave_dcnn(dcnn_config_version, path_model):
@@ -154,6 +156,136 @@ def DCNN(attn_config_version,
         inputs.extend(fake_inputs)
         model_dcnn = Model(inputs=inputs, outputs=x, name='dcnn_model')
         return model_dcnn, preprocess_func
+    
+
+def ViT(attn_config_version, 
+        dcnn_config_version,
+        intermediate_input):
+    """
+    Alternative to DCNN.
+    
+    Stage 1: use synthetic input to get msa states shapes.
+    No real computation through ViT here. The real compute
+    is deferred to `__call__` method in `JointModel`.
+
+    Stage 2: from msa states to binary predictions, 
+    we apply filter (head-wise) attention to msa 
+    states, flatten and apply a dense layer; the model wraps 
+    msa, attention and prediction layers.
+
+    Stage 3: sub in the finetuned pred weights & complete the graph.
+    """
+    attn_config = load_config(
+        component=None,
+        config_version=attn_config_version,
+    )
+    attn_positions = attn_config['attn_positions'].split(',')
+    layer = attn_positions[0]
+
+    # --- stage 1 --- #
+    full_vit = TFViTModel.from_pretrained(
+        'google/vit-base-patch16-224-in21k',
+        cache_dir='model_zoo/vit_b16'
+    )
+    
+    # freeze all full_vit layers.
+    full_vit.trainable = False
+
+    preprocess_func = AutoImageProcessor.from_pretrained(
+        "google/vit-base-patch16-224-in21k",
+        cache_dir='model_zoo/vit_b16'
+    )
+    synthetic_input = tf.random.uniform(shape=(1, 3, 224, 224))
+    layer_index = int(layer[6:7])
+    msa_states = full_vit(
+        synthetic_input, training=False, 
+        output_msa_states=True
+    ).attentions[layer_index].numpy()
+
+    # --- stage 2 --- #
+    intermediate_input = tf.keras.Input(
+        shape=msa_states.shape[1:],
+        name='intermediate_input'
+    )
+    
+    # attn layer settings
+    if attn_config['attn_initializer'] == 'ones':
+        attn_initializer = tf.keras.initializers.Ones()
+    elif attn_config['attn_initializer'] == 'ones-withNoise':
+        attn_initializer = initializers.NoisyOnes(
+            noise_level=attn_config['noise_level'], 
+            noise_distribution=attn_config['noise_distribution'], 
+            random_seed=attn_config['random_seed']
+        )
+                
+    if attn_config['low_attn_constraint'] == 'nonneg':
+        low_attn_constraint = tf.keras.constraints.NonNeg()
+        
+    if attn_config['attn_regularizer'] == 'l1':
+        attn_regularizer = tf.keras.regularizers.l1(
+            attn_config['reg_strength'])
+    else:
+        attn_regularizer = None
+
+    # apply attn at the output of the above layer output
+    # attn_size is the number of heads (akin to channels)
+    attn_size = msa_states.shape[2]  # ViT MSA shape (bs, seq_len, n_heads, head_dim)
+    fake_input = layers.Input(
+            shape=(attn_size,),
+            name=f'fake_input_{layer}'
+        )
+    attn_weights = AttnFactory(
+        output_dim=attn_size,
+        input_shape=fake_input.shape,
+        name=f'attn_factory_{layer}',
+        initializer=attn_initializer,
+        constraint=low_attn_constraint,
+        regularizer=attn_regularizer
+    )(fake_input)
+
+    # reshape attn to be compatible.
+    attn_weights = layers.Reshape(
+        # target_shape=(1, 1, attn_weights.shape[-1]),  # for DCNN
+        target_shape=(1, attn_weights.shape[-1], 1),    # for ViT
+        name=f'reshape_attn_{layer}')(attn_weights)
+    
+    # apply attn to prev layer (MSA) output
+    x = layers.Multiply(name=f'post_attn_actv_{layer}')([intermediate_input, attn_weights])
+    x = layers.Flatten(name=f'flatten_{layer}')(x)
+    pred_layer = layers.Dense(
+        3, activation="sigmoid", 
+        kernel_constraint=None,
+        kernel_regularizer=None,
+        activity_regularizer=None,
+        name='pred'
+    )
+    output = pred_layer(x)
+    model = Model(
+        inputs=[intermediate_input, fake_input],
+        outputs=output, 
+        name='dcnn_model'
+    )
+
+    # --- stage 3 --- #
+    # sub in finetuned pred weights.
+    dcnn_config = load_config(
+        component='finetune',
+        config_version=dcnn_config_version,
+    )
+    model_name = dcnn_config['model_name']
+    dcnn_save_path = f'finetune/results/{model_name}/config_{dcnn_config_version}/trained_weights'
+    with open(os.path.join(dcnn_save_path, 'pred_weights.pkl'), 'rb') as f:
+        pred_weights = pickle.load(f)
+    pred_layer.set_weights(pred_weights)
+
+    # Freeze all layers except attn layer.
+    for layer in model.layers:
+        if "attn_factory" not in layer.name:
+            layer.trainable = False
+    model.summary()
+    return model, preprocess_func, full_vit
+
+
 
 
 class JointModel(Model):
@@ -172,13 +304,21 @@ class JointModel(Model):
             component=None,
             config_version=attn_config_version,
         )
-        
-        # --- finetuned DCNN with attn --- #
-        self.DCNN, self.preprocess_func = DCNN(
-            attn_config_version=attn_config_version,
-            dcnn_config_version=dcnn_config_version,
-            intermediate_input=intermediate_input
-        )
+
+        self.dcnn_config_version = dcnn_config_version
+
+        if 'vit' in self.dcnn_config_version:
+            self.DCNN, self.preprocess_func, self.full_vit = ViT(
+                attn_config_version=attn_config_version,
+                dcnn_config_version=dcnn_config_version,
+                intermediate_input=intermediate_input
+            )
+        else:
+            self.DCNN, self.preprocess_func = DCNN(
+                attn_config_version=attn_config_version,
+                dcnn_config_version=dcnn_config_version,
+                intermediate_input=intermediate_input
+            )
         
         # --- freshly defined cluster model --- #
         num_clusters = attn_config['num_clusters']
@@ -323,7 +463,24 @@ class JointModel(Model):
         Only when y_true is provided, 
         totalSupport will be computed.
         """
-        # DCNN to produce binary outputs.
+        # if vit, we manually go thru vit model
+        # to get msa states as we didn't build 
+        # vit into the graph (i.e. not symbolic.)
+        if 'vit' in self.dcnn_config_version:
+            dcnn_config = load_config(
+                component='finetune',
+                config_version=self.dcnn_config_version
+            )
+            real_inputs, fake_inputs = inputs
+            layer_index = int(dcnn_config['layer'][6:7])
+            real_inputs = self.full_vit(
+                real_inputs, 
+                training=False, 
+                output_msa_states=True
+            ).attentions[layer_index].numpy()
+            inputs = [real_inputs, fake_inputs]
+            
+        # DCNN to produce binary outputs. 
         inputs_binary = self.DCNN(inputs)
                 
         # Continue with cluster model to 
@@ -399,3 +556,8 @@ class JointModel(Model):
 
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
+    JointModel(
+        attn_config_version='v4a-t0-vit_b16-msa_naive-withNoise-entropy',
+        dcnn_config_version='t0.vit_b16.layer_9_msa.None.run1',
+        intermediate_input=False,
+    )

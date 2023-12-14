@@ -213,7 +213,7 @@ def Fig_zero_attn(attn_config_version, threshold=[0, 0, 0]):
     ax.plot(range(len(problem_types)), means, color='grey', ls='dashed')       
     ax.set_ylabel('Percentage of \nZero Attention Weights')
     ax.set_xticks([])
-    ax.set_ylim([-0.05, 0.6])
+    # ax.set_ylim([-0.05, 0.6])
     ax.spines.right.set_visible(False)
     ax.spines.top.set_visible(False)
     
@@ -1109,11 +1109,11 @@ class SeabornFig2Grid():
 
 
 if __name__ == '__main__':
-    attn_config_version='v4a-t0-vit_b16-msa_naive-withNoise-entropy'
+    attn_config_version='v4a-t0-vgg16_naive-withNoise-entropy'
     
     Fig_zero_attn(attn_config_version)
 
-    Fig_recon_n_decoding(attn_config_version)
+    # Fig_recon_n_decoding(attn_config_version)
 
     # Fig_binary_recon(attn_config_version)
 
